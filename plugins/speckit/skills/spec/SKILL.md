@@ -141,3 +141,4 @@ Epic:  #N  epic: <title>
 - Only create an epic if there are 2 or more child issues — skip step 5 entirely for single-issue plans
 - Epic issue must be created last, after all child issue numbers are known
 - If `$ARGUMENTS` is empty, ask what to spec before doing anything else
+- Never invoke `speckit:interview` directly in response to a user typing `/spec` or triggering this skill. `speckit:interview` is a sub-skill called from within step 2 of this skill — it is never a substitute for `speckit:spec`. If you find yourself about to invoke `speckit:interview` as a top-level response to `/spec`, stop and invoke `speckit:spec` instead.
