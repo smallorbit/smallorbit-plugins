@@ -30,16 +30,21 @@ results before writing the plan in step 3.
 
 ### 2. Interview
 
-Use `AskUserQuestion` (1–4 questions per round) to gather:
+Invoke `/speckit:interview` as a sub-skill, passing the freeform description from
+`$ARGUMENTS` as its input. Do not run inline `AskUserQuestion` rounds yourself —
+delegate the entire interview to `/speckit:interview` and wait for it to complete.
 
-- **Scope** — what's in, what's explicitly out
-- **Behaviour** — expected UX before and after; edge cases
-- **Constraints** — performance, a11y, backwards-compat, provider-specific concerns
-- **Acceptance criteria** — how will we know it's done?
+When `/speckit:interview` returns, collect its structured output. The output will
+contain the following sections, which become the basis for the plan in step 3:
 
-Challenge assumptions and contradictions. Continue rounds until you have enough
-to write a complete, unambiguous plan. Do not proceed to planning until
-ambiguities are resolved.
+- **Goal** — one-sentence summary
+- **Background** — current state and why it's insufficient
+- **Requirements** — numbered list of concrete, testable requirements
+- **Out of Scope** — explicit exclusions
+- **Tasks** — decomposed work items
+
+Do not proceed to step 3 until `/speckit:interview` has produced a complete,
+unambiguous output with all five sections present.
 
 ### 3. Write the plan
 
