@@ -231,6 +231,14 @@ footer {
   font-weight: 600;
   color: var(--accent-green);
 }
+.plugin-card-header { justify-content: flex-start; }
+.plugin-readme {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.plugin-readme:hover { color: var(--accent-blue); text-decoration: none; }
 .plugin-desc {
   font-size: 0.875rem;
   color: var(--text-muted);
