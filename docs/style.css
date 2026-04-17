@@ -296,3 +296,28 @@ footer {
 }
 .copy-btn:hover { background: var(--border); color: var(--text); }
 .copy-btn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+/* sessionkit "throughout" */
+.flow-throughout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+.flow-throughout-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.flow-node--throughout {
+  border-style: dashed;
+  border-color: var(--accent-purple);
+  min-width: 220px;
+}
+.flow-node--throughout .flow-node-name { color: var(--accent-purple); }
+.flow-node--throughout:hover {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 20px rgba(188, 140, 255, 0.15);
+}
