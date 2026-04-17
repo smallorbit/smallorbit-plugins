@@ -81,6 +81,8 @@
     <section id="plugins">
       <div class="container">
         <h2 class="section-title">plugins</h2>
+
+        <h3 class="plugin-subheading">development lifecycle</h3>
         <div class="plugin-grid">
 
           <div class="card plugin-card">
@@ -96,6 +98,72 @@
               <li><code>/catalog</code> — bulk-convert findings into issues</li>
               <li><code>/issue</code> — quick single-issue filing</li>
             </ul>
+            <div class="transcript" role="group" aria-label="speckit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/spec</span> add dark-mode toggle</span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">interviewing...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· where does the toggle live? → header, next to account menu</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· does it persist across sessions? → yes, localStorage</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· honor system preference on first load? → yes</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">synthesizing plan... 4 tasks, 1 dependency chain</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> plan approved</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> filed epic <span class="transcript-annotate">#142</span> + 4 child issues <span class="transcript-annotate">(#143–#146)</span></span>
+            </div>
+          </div>
+
+          <div class="card plugin-card">
+            <div class="plugin-card-header">
+              <span class="plugin-name">swarmkit</span>
+              <span class="badge">v2.0.5</span>
+              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README →</a>
+            </div>
+            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
+            <ul class="skill-list">
+              <li><code>/swarm</code> — spawn parallel agents for issues</li>
+              <li><code>/pick-issue</code> — rank and recommend what to work on</li>
+              <li><code>/merge-stack</code> — merge PRs in dependency order</li>
+              <li><code>/clean-worktrees</code> — remove agent worktrees and branches</li>
+            </ul>
+            <div class="transcript" role="group" aria-label="swarmkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pick-issue</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">top: #156 (api), #157 (ui), #158 (docs) — #157 blocks #158</span></span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/swarm</span> 156 157 158</span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">spawning 3 agents in isolated worktrees...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-a1b2 → worktrees/agent-156 → #156</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-c3d4 → worktrees/agent-157 → #157</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-e5f6 → worktrees/agent-158 → #158 (waits on #157)</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> opened PR #201, PR #202, PR #203 <span class="transcript-annotate">(stacked)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/merge-stack</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged #201 → #202 → #203 <span class="transcript-annotate">in dependency order</span></span>
+            </div>
+          </div>
+
+          <div class="card plugin-card">
+            <div class="plugin-card-header">
+              <span class="plugin-name">polishkit</span>
+              <span class="badge">v1.0.0</span>
+              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/polishkit" target="_blank" rel="noopener">README →</a>
+            </div>
+            <p class="plugin-desc">Codebase quality toolkit. Assess code craft with a connoisseur's eye, sweep for cruft and hygiene issues, and eliminate dead code.</p>
+            <ul class="skill-list">
+              <li><code>/critique</code> — scored quality assessment across 5 dimensions</li>
+              <li><code>/tidy-codebase</code> — hygiene sweep: stale files, artifacts, merged branches</li>
+              <li><code>/dead-code</code> — find and remove unused exports, imports, and variables</li>
+            </ul>
+            <div class="transcript" role="group" aria-label="polishkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/tidy-codebase</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">scanning for cruft...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· 7 merged local branches (2 weeks stale)</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· dist/ and .coverage/ tracked but in .gitignore</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· 3 TODO.md files from abandoned spikes</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· README references removed /deploy command</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">?</span> act on all findings? <span class="transcript-annotate">[y/n/select]</span> → select: 1,2,4</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> deleted 7 branches, untracked 2 dirs, patched README</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> committed: <span class="transcript-annotate">chore: tidy stale branches and tracked artifacts</span></span>
+            </div>
           </div>
 
           <div class="card plugin-card">
@@ -112,21 +180,20 @@
               <li><code>/ship</code> — full one-shot ship cycle</li>
               <li><code>/hotfix</code> — emergency fix bypassing develop</li>
             </ul>
-          </div>
-
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">swarmkit</span>
-              <span class="badge">v2.0.5</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README →</a>
+            <div class="transcript" role="group" aria-label="flowkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pr</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">branch: feat/dark-mode-toggle · commit: a3f9c21</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> opened PR #214 → develop <span class="transcript-annotate">(closes #143)</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged PR #214 <span class="transcript-annotate">(squash)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/cut</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> cut rc/2026-04-17.1 <span class="transcript-annotate">from origin/develop</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> staging updated <span class="transcript-annotate">(origin/staging detected)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/release</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged staging → main · tagged <span class="transcript-annotate">v2026.04.17.1</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> closed issues #143, #156, #157, #158</span>
             </div>
-            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
-            <ul class="skill-list">
-              <li><code>/swarm</code> — spawn parallel agents for issues</li>
-              <li><code>/pick-issue</code> — rank and recommend what to work on</li>
-              <li><code>/merge-stack</code> — merge PRs in dependency order</li>
-              <li><code>/clean-worktrees</code> — remove agent worktrees and branches</li>
-            </ul>
           </div>
 
           <div class="card plugin-card">
@@ -142,21 +209,25 @@
               <li><code>/skillit</code> — identify reusable patterns from a session</li>
               <li><code>/suggest-permissions</code> — reduce future permission prompts</li>
             </ul>
+            <div class="transcript" role="group" aria-label="sessionkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/handoff</span> <span class="transcript-annotate"># context at 82%, wrapping up</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">capturing: goal, decisions, open threads, next step</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> wrote <span class="transcript-annotate">.sessionkit/HANDOFF.md</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· working on: #143 dark-mode toggle UI</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· branch: feat/dark-mode-toggle · 2 commits</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· next: wire ThemeProvider to localStorage persistence</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-annotate">— new session —</span></span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pickup</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">loaded HANDOFF.md · restored 6 context anchors</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> resuming on feat/dark-mode-toggle <span class="transcript-annotate">at ThemeProvider</span></span>
+            </div>
           </div>
 
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">polishkit</span>
-              <span class="badge">v1.0.0</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/polishkit" target="_blank" rel="noopener">README →</a>
-            </div>
-            <p class="plugin-desc">Codebase quality toolkit. Assess code craft with a connoisseur's eye, sweep for cruft and hygiene issues, and eliminate dead code.</p>
-            <ul class="skill-list">
-              <li><code>/critique</code> — scored quality assessment across 5 dimensions</li>
-              <li><code>/tidy-codebase</code> — hygiene sweep: stale files, artifacts, merged branches</li>
-              <li><code>/dead-code</code> — find and remove unused exports, imports, and variables</li>
-            </ul>
-          </div>
+        </div>
+
+        <h3 class="plugin-subheading">utilities &amp; productivity</h3>
+        <div class="plugin-grid">
 
           <div class="card plugin-card">
             <div class="plugin-card-header">
@@ -190,6 +261,7 @@
           </div>
           <div class="install-block">
             <div class="install-block-label">step 2 — install plugins</div>
+            <h3 class="plugin-subheading">development lifecycle</h3>
             <div class="code-copy-wrapper">
               <pre><code>claude plugin install speckit@smallorbit-plugins</code></pre>
               <button class="copy-btn" data-copy="claude plugin install speckit@smallorbit-plugins" aria-label="Copy speckit install command">copy</button>
@@ -210,6 +282,7 @@
               <pre><code>claude plugin install polishkit@smallorbit-plugins</code></pre>
               <button class="copy-btn" data-copy="claude plugin install polishkit@smallorbit-plugins" aria-label="Copy polishkit install command">copy</button>
             </div>
+            <h3 class="plugin-subheading">utilities &amp; productivity</h3>
             <div class="code-copy-wrapper">
               <pre><code>claude plugin install vaultkit@smallorbit-plugins</code></pre>
               <button class="copy-btn" data-copy="claude plugin install vaultkit@smallorbit-plugins" aria-label="Copy vaultkit install command">copy</button>

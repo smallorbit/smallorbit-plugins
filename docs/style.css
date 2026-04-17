@@ -57,6 +57,18 @@ section + section { border-top: 1px solid var(--border); }
 }
 .section-title::before { content: '> '; opacity: 0.5; }
 
+.plugin-subheading {
+  font-size: 0.85rem;
+  color: var(--accent-green);
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  margin-bottom: 20px;
+  margin-top: 36px;
+  font-weight: 400;
+}
+.plugin-subheading:first-of-type { margin-top: 0; }
+
 /* Cards */
 .card {
   background: var(--surface);
@@ -261,6 +273,49 @@ footer {
   background: var(--surface-raised);
   padding: 1px 6px;
   border-radius: 4px;
+}
+
+/* ==========================================================================
+   Terminal transcript component (issue #190)
+   Annotated Claude Code session block. Slots into .plugin-card below
+   .skill-list. Always-visible, no collapse. Preserves whitespace but wraps
+   long lines so it stays readable down to 320px viewports.
+   Colour tokens:
+     --accent-green for prompt markers ($, ►, ✓)
+     --accent-blue  for commands / skill invocations (/spec, /swarm, ...)
+     --text-muted   for annotations and secondary text
+   ========================================================================== */
+.transcript {
+  margin-top: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.transcript-line {
+  display: block;
+  min-height: 1.55em;
+}
+
+.transcript-prompt {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.transcript-cmd {
+  color: var(--accent-blue);
+}
+
+.transcript-annotate {
+  color: var(--text-muted);
 }
 
 /* Install section */
