@@ -1,6 +1,6 @@
 # Swarmkit
 
-A Claude Code plugin that turns GitHub issues into shipped PRs. Spec features through a guided interview, swarm parallel agents across issues, and keep your board clean — all from slash commands.
+A Claude Code plugin that resolves GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order, and keep your branches clean — all from slash commands.
 
 ## Installation
 
@@ -30,9 +30,7 @@ claude --plugin-dir /path/to/swarmkit
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
-| **spec** | `/spec` | Interview-driven planning — gathers requirements, builds a structured plan, files it as a GitHub epic with linked child issues. |
-| **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority/specificity/impact, and recommends what to work on next. |
-| **catalog** | `/catalog` | Converts code review findings or any structured assessment into prioritized, labeled GitHub issues. |
+| **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 
 ### Sub-Skills (internal)
@@ -43,14 +41,13 @@ These are called by the skills above — you don't invoke them directly.
 |-------|---------|---------|
 | **self-review** | swarm | Runs iterative `/simplify` passes on changed files before PR creation. |
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
-| **gh-fetch-issues** | pick-issue, swarm, catalog | Fetches open issues and filters out `on-hold` labeled ones. |
+| **gh-fetch-issues** | pick-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
 | **gh-label-merged-issues** | swarm | Applies `merged-to-develop` label to issues referenced in merged PRs. |
 | **issue-rank** | pick-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
 
 ## Typical Workflow
 
 ```
-/spec add user avatar uploads        # Interview → plan → file epic + issues
 /pick-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Resolve specific issues in parallel
 /swarm                               # Or clear the entire board in a loop
@@ -93,11 +90,9 @@ This assumes a **release-branch workflow**: feature work lands in `develop`, and
 /swarm --base main            # loop mode, targeting main
 ```
 
-The `--base <branch>` flag overrides the default for any invocation.
-
 ### Branch Naming: `worktree-agent-<issue>`
 
-Every agent branch follows this exact pattern (e.g., `worktree-agent-42`). This naming convention is what `/clean-worktrees` uses to identify and remove orphaned branches. It is not configurable — changing the pattern would break cleanup.
+Every agent branch follows this exact pattern (e.g., `worktree-agent-42`). This naming convention is what `/clean-worktrees` uses to identify and remove orphaned branches. It is not configurable.
 
 ### Commit Format: Conventional Commits
 
@@ -107,11 +102,11 @@ All commits produced by swarm agents follow [Conventional Commits](https://www.c
 type(scope): description
 ```
 
-Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`. The `conventional-commit-message` sub-skill enforces this format. Commit messages that don't conform will be rejected.
+Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`. The `conventional-commit-message` sub-skill enforces this format.
 
 ### Label: `merged-to-develop`
 
-After a PR merges, `/swarm` applies the `merged-to-develop` label to the referenced issues. This label is auto-created in your repo if it doesn't exist. The label name is hardcoded — if you're targeting a different base branch, the name will be semantically off, but it's only used for tracking (not for filtering issues out of the work queue), so it's cosmetically wrong at worst.
+After a PR merges, `/swarm` applies the `merged-to-develop` label to the referenced issues. This label is auto-created in your repo if it doesn't exist.
 
 ### Issue Lifecycle
 
@@ -120,4 +115,15 @@ Swarmkit **never closes issues** — that's intentional. Closing is left to the 
 ## Configuration Notes
 
 - **`swarm`** has `disable-model-invocation: true` — it only runs when you explicitly type `/swarm`, never auto-triggered by Claude. This prevents accidental mass agent spawning.
-- **`catalog`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually (e.g., suggesting `/catalog` after a code review).
+- **`pick-issue`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually.
+
+## Pairing with Speckit
+
+Swarmkit executes work; [speckit](../speckit) defines it. Use them together for the full planning-to-execution loop:
+
+```
+/spec add CSV export              # Plan the feature, file issues
+/pick-issue                       # Confirm what to work on
+/swarm                            # Resolve with parallel agents
+/clean-worktrees                  # Clean up
+```
