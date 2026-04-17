@@ -62,6 +62,24 @@ if [ -n "$LAST_TAG" ]; then
 fi
 ```
 
+Then find open epics whose children are all now closed and append their `Closes #N` refs:
+
+```bash
+EPIC_REFS_FILE=$(mktemp)
+echo "$ISSUE_REFS" | grep -oE '[0-9]+' | while read CHILD_N; do
+  gh issue list --label "epic" --state open --json number,body \
+    --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
+  | grep -oE '"number":[0-9]+' | grep -oE '[0-9]+' | while read EPIC_N; do
+    EPIC_BODY=$(gh issue view "$EPIC_N" --json body --jq '.body')
+    OPEN_CHILDREN=$(echo "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
+    [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
+  done
+done
+EPIC_REFS=$(sort -u "$EPIC_REFS_FILE"); rm -f "$EPIC_REFS_FILE"
+[ -n "$EPIC_REFS" ] && ISSUE_REFS="$ISSUE_REFS
+$EPIC_REFS"
+```
+
 If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
 ### 5. Create a PR from SOURCE → main
@@ -117,11 +135,7 @@ git tag "$TAG"
 git push origin "$TAG"
 ```
 
-### 9. Close referenced issues
-
-Follow the `gh-close-referenced-issues` sub-skill, passing the release PR number.
-
-### 10. Clean up RC branches for today
+### 9. Clean up RC branches for today
 
 ```bash
 TODAY=$(date +%Y-%m-%d)
@@ -133,11 +147,11 @@ git ls-remote origin "rc/$TODAY*" \
     done
 ```
 
-### 11. Sync develop
+### 10. Sync develop
 
 Follow the `git-sync-develop` sub-skill.
 
-### 12. Report
+### 11. Report
 
 Output:
 - Tag created (e.g. `v2026.4.16`)
