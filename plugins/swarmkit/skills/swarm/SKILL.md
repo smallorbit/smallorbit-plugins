@@ -155,6 +155,42 @@ If a merge fails:
 - Mark dependents as blocked; leave those PRs open
 - Report clearly: which issue failed, why, which are blocked
 
+### Dirty/conflicting PR recovery
+
+Before merging, or when `gh pr merge` fails with a conflict, check the PR's mergeability:
+
+```bash
+gh pr view <N> --json mergeable,mergeStateStatus
+```
+
+If `mergeStateStatus` is `CONFLICTING` or `DIRTY`, inspect the PR's changed files:
+
+```bash
+gh pr view <N> --json files
+```
+
+Then apply the appropriate path:
+
+**PR contains unrelated commits (files outside the issue scope)**
+Close the PR with an explanation and leave the issue open for re-work:
+
+```bash
+gh pr close <N> --comment "Closing: this PR contains commits outside the scope of the referenced issue (unrelated files: <list>). The branch has been contaminated. Leaving the issue open for a clean re-implementation in the next cycle."
+```
+
+**Issue needed no actual changes (agent confirmed no-op)**
+The issue is resolved without code changes. Apply the `merged-to-develop` label and leave a comment explaining the no-op resolution, then continue:
+
+```bash
+gh issue edit <issue> --add-label "merged-to-develop"
+gh issue comment <issue> --body "No code changes were required. The issue is resolved as a no-op and has been labelled merged-to-develop."
+```
+
+**Issue still needs work (genuine conflict, not a no-op)**
+Leave the PR closed and the issue open — it will be picked up in the next swarm cycle.
+
+In all cases, **continue merging the remaining independent PRs** — never abort the entire merge sequence because one PR is dirty.
+
 ### 8. Sync develop
 
 Pull the merged changes onto local develop:
