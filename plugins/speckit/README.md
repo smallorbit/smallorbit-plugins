@@ -30,6 +30,12 @@ claude --plugin-dir /path/to/speckit
 | **catalog** | `/catalog` | Bulk-converts findings (from a code review, audit, or assessment) into prioritized, labeled GitHub issues. |
 | **issue** | `/issue` | Quickly drafts and files a single GitHub issue from a description. Checks for duplicates and previews before creating. |
 
+### Sub-Skills (internal)
+
+| Skill | Used by | Purpose |
+|-------|---------|---------|
+| **catalog** | `/spec` | Creates the child issues and epic after plan approval. Invoked automatically — no need to run it separately unless converting standalone findings. |
+
 ## Typical Workflows
 
 ### Spec out a feature
@@ -71,6 +77,13 @@ Child issues are created via `/catalog`. An epic tracking issue is created last,
 ## How Issue Works
 
 `/issue` is the lightweight path. Give it a description, and it drafts a title, infers type and priority, checks for duplicates, and shows a preview before filing. Use it when you know exactly what to file and don't need an interview.
+
+## Assumptions & Conventions
+
+- **Epic-last creation**: child issues are filed first so their numbers are known before the epic tracking issue is created. The epic body then contains a full checklist of child issue links.
+- **Approval gate**: no issues are ever created without your explicit approval. `/spec` and `/catalog` both show a preview table before filing anything.
+- **`/catalog` is the implementation**: `/spec` delegates issue creation to `/catalog`. This means catalog settings (duplicate detection, label inference, priority ordering) apply to spec-generated issues too.
+- **Duplicate detection**: before filing any issue, `/catalog` and `/issue` check for open issues with similar titles. Potential duplicates are surfaced for your review before creation proceeds.
 
 ## Pairing with Swarmkit
 

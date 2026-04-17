@@ -76,6 +76,20 @@ claude --plugin-dir /path/to/sessionkit
 
 The two skills are intentionally separate: handoff writes, pickup reads. The handoff file is never modified or deleted by pickup.
 
+## Handoff Document Structure
+
+`.claude/HANDOFF.md` is a structured Markdown file with these sections:
+
+| Section | Contents |
+|---------|----------|
+| **Goal** | One or two sentences describing what this session is working toward |
+| **Progress** | Bullet list of completed steps and key decisions made |
+| **Git State** | Current branch, staged/unstaged files, recent commits |
+| **Remaining Work** | Prioritized list of what still needs to be done |
+| **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
+
+You can manually edit `.claude/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
+
 ## How Skillit Works
 
 At the end of a session, `/skillit` reviews the conversation for:
@@ -86,14 +100,31 @@ At the end of a session, `/skillit` reviews the conversation for:
 
 It scans your existing skill library for overlap before proposing anything new, then offers to create a new skill or extend an existing one — with your approval before writing anything.
 
+## How Interview Works
+
+`/interview` runs a structured multi-round conversation to clarify a plan before work begins. Each round asks 1–4 questions, grounded in the actual codebase. Rounds continue until all critical ambiguities are resolved — typically 2–4 rounds for a well-scoped feature.
+
+**Completion signal**: Claude announces the interview is complete and presents the full synthesized plan for your review before writing anything. You approve (or redirect) before any files are touched.
+
+**Output**: A structured plan document covering goal, background, requirements, out-of-scope boundaries, and a task breakdown. If you passed a file path (`/interview docs/plan.md`), the plan updates that file. Otherwise it's shown in the conversation.
+
 ## How Suggest Permissions Works
 
 `/suggest-permissions` reads recent session `.jsonl` files from `~/.claude/projects/` and identifies Bash commands, file edit paths, and MCP tools you approved multiple times. It proposes a `permissions.allow` block for `.claude/settings.json` with a one-line rationale for each entry, and only writes changes after you approve.
 
-## Pairing with Swarmkit
+## Pairing with Other Plugins
 
-Sessionkit and [swarmkit](../swarmkit) complement each other naturally:
+Sessionkit works alongside every plugin in the suite:
 
-- Use `/interview` to flesh out a feature before running `/spec` or filing issues
-- Use `/skillit` after a swarm run to capture any reusable patterns that emerged
+**With [swarmkit](../swarmkit)**
+- Use `/interview` to flesh out a feature or plan before running `/swarm`
+- Use `/skillit` after a swarm run to capture reusable patterns that emerged
 - Use `/handoff` before context runs out mid-swarm to preserve state for the next agent
+
+**With [speckit](../speckit)**
+- Use `/interview` as a planning warm-up before `/spec` — arrive with clearer requirements
+- `/handoff` is useful if a `/spec` session runs long and needs to continue in a new context
+
+**With [flowkit](../flowkit)**
+- Use `/handoff` before a long `/release` or `/cut` session if context is running low
+- `/skillit` after a release helps capture any new conventions or one-off scripts worth keeping
