@@ -166,6 +166,8 @@ Apply the hybrid spawn strategy based on the dependency graph from Step 2:
   ```
 - When the dependency merges to `$BASE`, GitHub automatically retargets the dependent PR to `$BASE`
 
+> **Why no mid-swarm merge is needed**: by branching from `origin/worktree-agent-<dependency-issue>`, the dependent agent already has full access to every file and commit produced by the upstream agent. The stacked branch strategy exists precisely so that downstream agents can proceed without waiting for a merge — the upstream output is already present in their working tree. Never merge a dependency's PR early to "unblock" a downstream agent.
+
 All agents (both strategies) use:
 - `isolation: "worktree"`
 - `mode: "bypassPermissions"`
@@ -341,3 +343,4 @@ When an issue fails at any point:
 - Never commit directly to develop or main — always work on the `worktree-agent-<issue>` branch
 - **Never close issues** — issues are closed by the release process when staging merges to main
 - **Never pass absolute repo paths to spawned agents** — always instruct them to use relative paths from their CWD to ensure edits land in the isolated worktree, not the main directory
+- **Never merge a PR mid-swarm**, even when a downstream agent needs files produced by an upstream agent. Dependent agents branch from `origin/worktree-agent-<dependency>` and already have access to the upstream output. Merging to unblock a downstream agent bypasses the user's review gate and is never acceptable.
