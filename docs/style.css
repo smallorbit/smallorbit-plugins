@@ -3,14 +3,29 @@
   --surface: #161b22;
   --surface-raised: #21262d;
   --border: #30363d;
-  --text: #e6edf3;
-  --text-muted: #8b949e;
-  --accent-green: #3fb950;
-  --accent-blue: #58a6ff;
+  --text: #e6edf3;          /* 16.02:1 on --bg — WCAG AA pass */
+  --text-muted: #8b949e;    /* 6.15:1 on --bg, 5.62:1 on --surface, 4.95:1 on --surface-raised — WCAG AA pass */
+  --accent-green: #3fb950;  /* 7.45:1 on --bg, 6.81:1 on --surface — WCAG AA pass */
+  --accent-blue: #58a6ff;   /* 7.49:1 on --bg, 6.85:1 on --surface — WCAG AA pass */
   --accent-purple: #bc8cff;
   --radius: 8px;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  background: var(--accent-green);
+  color: #0d1117;
+  padding: 8px 16px;
+  border-radius: 0 0 var(--radius) var(--radius);
+  font-weight: 600;
+  z-index: 100;
+  transition: top 0.2s;
+}
+.skip-link:focus { top: 0; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -127,6 +142,7 @@ footer {
   transition: opacity 0.2s;
 }
 .hero-cta:hover { opacity: 0.85; text-decoration: none; }
+.hero-cta:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 
 /* Flow diagram */
 .flow {
