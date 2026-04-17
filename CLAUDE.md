@@ -13,3 +13,7 @@ The bump-versions skill handles:
 4. Creating per-plugin git tags (`{plugin-name}--v{version}`)
 
 Run it before staging and committing the release.
+
+## GitHub Pages
+
+`docs/index.html` is the source for the GitHub Pages one-pager at https://smallorbit.github.io/smallorbit-plugins/. When plugin versions change, update the version badges in the plugin cards section of that file to keep the site in sync.
