@@ -62,11 +62,18 @@ if [ -n "$LAST_TAG" ]; then
 fi
 ```
 
-Then find open epics whose children are all now closed and append their `Closes #N` refs:
+Then find open epics whose children are all now closed and append their `Closes #N` refs. Epics may be wired to children via two mechanisms:
+
+- **Legacy checklist** — epic body contains `- [ ] #N` / `- [x] #N` lines
+- **Native sub-issues API** — children attached via GitHub's sub-issue relationship (used by `speckit:spec`)
+
+Both paths must be checked, and the combined refs de-duplicated:
 
 ```bash
+REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
 EPIC_REFS_FILE=$(mktemp)
-echo "$ISSUE_REFS" | grep -oE '[0-9]+' | while read CHILD_N; do
+
+echo "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
   gh issue list --label "epic" --state open --json number,body \
     --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
   | grep -oE '"number":[0-9]+' | grep -oE '[0-9]+' | while read EPIC_N; do
@@ -75,10 +82,32 @@ echo "$ISSUE_REFS" | grep -oE '[0-9]+' | while read CHILD_N; do
     [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
   done
 done
+
+if [ -n "$ISSUE_REFS" ]; then
+  gh issue list --label "epic" --state open --json number --jq '.[].number' \
+  | while read EPIC_N; do
+    SUB_ISSUES=$(gh api "repos/$REPO/issues/$EPIC_N/sub_issues" 2>/dev/null || echo '[]')
+    TOTAL=$(echo "$SUB_ISSUES" | jq 'length')
+    [ "$TOTAL" = "0" ] && continue
+
+    OPEN_COUNT=$(echo "$SUB_ISSUES" | jq '[.[] | select(.state == "open")] | length')
+    [ "$OPEN_COUNT" != "0" ] && continue
+
+    for CHILD_N in $(echo "$SUB_ISSUES" | jq -r '.[].number'); do
+      if echo "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b"; then
+        echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
+        break
+      fi
+    done
+  done
+fi
+
 EPIC_REFS=$(sort -u "$EPIC_REFS_FILE"); rm -f "$EPIC_REFS_FILE"
 [ -n "$EPIC_REFS" ] && ISSUE_REFS="$ISSUE_REFS
 $EPIC_REFS"
 ```
+
+The sub-issues-API path only adds an epic when at least one of its children appears in this release's `ISSUE_REFS` — this prevents closing unrelated epics that happened to have all children resolved outside the release cycle. The final `sort -u` de-duplicates any epic detected by both paths.
 
 If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
