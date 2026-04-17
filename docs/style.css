@@ -57,6 +57,18 @@ section + section { border-top: 1px solid var(--border); }
 }
 .section-title::before { content: '> '; opacity: 0.5; }
 
+.plugin-subheading {
+  font-size: 0.85rem;
+  color: var(--accent-green);
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  margin-bottom: 20px;
+  margin-top: 36px;
+  font-weight: 400;
+}
+.plugin-subheading:first-of-type { margin-top: 0; }
+
 /* Cards */
 .card {
   background: var(--surface);
@@ -263,6 +275,49 @@ footer {
   border-radius: 4px;
 }
 
+/* ==========================================================================
+   Terminal transcript component (issue #190)
+   Annotated Claude Code session block. Slots into .plugin-card below
+   .skill-list. Always-visible, no collapse. Preserves whitespace but wraps
+   long lines so it stays readable down to 320px viewports.
+   Colour tokens:
+     --accent-green for prompt markers ($, ►, ✓)
+     --accent-blue  for commands / skill invocations (/spec, /swarm, ...)
+     --text-muted   for annotations and secondary text
+   ========================================================================== */
+.transcript {
+  margin-top: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.transcript-line {
+  display: block;
+  min-height: 1.55em;
+}
+
+.transcript-prompt {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.transcript-cmd {
+  color: var(--accent-blue);
+}
+
+.transcript-annotate {
+  color: var(--text-muted);
+}
+
 /* Install section */
 .install-section { max-width: 800px; margin: 0 auto; }
 .install-intro {
@@ -330,4 +385,151 @@ footer {
 .flow-node--throughout:hover {
   border-color: var(--accent-purple);
   box-shadow: 0 0 20px rgba(188, 140, 255, 0.15);
+}
+
+/* ==========================================================================
+   Two-track lifecycle viz (issue #187)
+   Stacked lanes: phase labels -> AI row -> handoff arrows -> YOU row.
+   Grid uses auto-flow columns so adding a phase (e.g. REVIEW) is markup-only;
+   no CSS changes required. Under 900px lanes stack vertically.
+   ========================================================================== */
+.lifecycle {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  row-gap: 16px;
+  column-gap: 16px;
+  align-items: stretch;
+}
+
+.lifecycle-phase {
+  grid-row: 1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lifecycle-ai {
+  grid-row: 2;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lifecycle-ai:hover {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 20px rgba(63, 185, 80, 0.15);
+}
+.lifecycle-ai-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent-green);
+}
+.lifecycle-ai-role {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.lifecycle-handoff {
+  grid-row: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 4px 0;
+}
+.lifecycle-handoff::before {
+  content: '';
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin-right: 6px;
+}
+.lifecycle-handoff::after {
+  content: '';
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin-left: 6px;
+}
+
+.lifecycle-you {
+  grid-row: 4;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lifecycle-you:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 20px rgba(88, 166, 255, 0.15);
+}
+.lifecycle-you-action {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.lifecycle-you-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 900px) {
+  .lifecycle {
+    grid-auto-flow: row;
+    grid-auto-columns: initial;
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 10px;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .lifecycle-phase,
+  .lifecycle-ai,
+  .lifecycle-handoff,
+  .lifecycle-you {
+    grid-row: auto;
+    grid-column: 1;
+  }
+  .lifecycle-phase {
+    text-align: left;
+    padding-bottom: 6px;
+    margin-top: 14px;
+  }
+  .lifecycle-phase:first-child { margin-top: 0; }
+  .lifecycle-handoff {
+    justify-content: flex-start;
+    padding: 2px 0 2px 8px;
+  }
+  .lifecycle-handoff::before,
+  .lifecycle-handoff::after {
+    width: 18px;
+    height: 1px;
+  }
+}
+
+@media (max-width: 380px) {
+  .lifecycle-phase { font-size: 0.68rem; letter-spacing: 0.08em; }
+  .lifecycle-ai-name { font-size: 0.9rem; }
+  .lifecycle-you-action { font-size: 0.8rem; }
 }
