@@ -1034,10 +1034,16 @@ footer {
   align-items: center;
   gap: 10px;
   color: var(--text);
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 1.1rem;
-  letter-spacing: -0.01em;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+.footer-wordmark em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
 }
 .footer-wordmark::before {
   content: '';
