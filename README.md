@@ -2,7 +2,7 @@
 
 A collection of plugins for Claude Code.
 
-**[→ Interactive overview](https://smallorbit.github.io/smallorbit-plugins/)** — see how the plugins work together end-to-end.
+**[→ One-page Overview](https://smallorbit.github.io/smallorbit-plugins/)**
 
 ## Setup
 
