@@ -26,6 +26,7 @@ claude --plugin-dir /path/to/speckit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
+| **interview** | `/interview` | Conducts a structured interview to clarify requirements and produce a speckit-format plan (Goal, Background, Requirements, Out of Scope, Tasks); output feeds into `/spec` or `/catalog`. |
 | **spec** | `/spec` | Interview-driven planning — gathers requirements, builds a structured plan, files it as a GitHub epic with linked child issues. |
 | **catalog** | `/catalog` | Bulk-converts findings (from a code review, audit, or assessment) into prioritized, labeled GitHub issues. |
 | **issue** | `/issue` | Quickly drafts and files a single GitHub issue from a description. Checks for duplicates and previews before creating. |
@@ -94,4 +95,4 @@ Speckit defines the work; [swarmkit](../swarmkit) executes it:
 /swarm                            # Resolve them with parallel agents
 ```
 
-Use [sessionkit](../sessionkit)'s `/interview` as a planning warm-up before `/spec` — arrive with clearer, grounded requirements. Use `/handoff` if a spec session runs long and needs to continue in a new context.
+Use `/speckit:interview` (or `/interview`) as a planning warm-up before `/spec` — arrive with clearer, grounded requirements. Use [sessionkit](../sessionkit)'s `/handoff` if a spec session runs long and needs to continue in a new context.
