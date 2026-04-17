@@ -31,6 +31,7 @@ claude --plugin-dir /path/to/swarmkit
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
 | **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
+| **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up in dependency order. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up in dependency order. |
 
@@ -50,6 +51,7 @@ These are called by the skills above — you don't invoke them directly.
 ```
 /pick-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Resolve specific issues in parallel
+/merge-stack                         # Merge PRs in dependency order when ready
 /swarm                               # Or clear the entire board in a loop
 /clean-worktrees                     # Tidy up after a swarm run
 ```
@@ -106,6 +108,7 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`. The `conventio
 ### Label: `status:in-progress`
 
 When an agent is spawned for an issue, swarmkit applies `status:in-progress` to it. This prevents `gh-fetch-issues` and `pick-issue` from re-selecting it in subsequent swarm cycles. GitHub auto-closes the issue when its PR merges (via `Closes #N`), so no manual label cleanup is needed.
+
 
 ### Issue Lifecycle
 
