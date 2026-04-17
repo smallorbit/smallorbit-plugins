@@ -1,0 +1,13 @@
+{
+  "name": "smallorbit-plugins",
+  "owner": {
+    "name": "Román M. Pacheco"
+  },
+  "plugins": [
+    {
+      "name": "swarmkit",
+      "source": "./plugins/swarmkit",
+      "description": "Spec, swarm, and ship GitHub issues with parallel agents"
+    }
+  ]
+}

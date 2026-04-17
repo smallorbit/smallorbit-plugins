@@ -1,0 +1,8 @@
+{
+  "name": "swarmkit",
+  "description": "Spec, swarm, and ship GitHub issues with parallel agents. Includes guided feature planning, parallel issue resolution via isolated worktrees, and board management utilities.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Román M. Pacheco"
+  }
+}
