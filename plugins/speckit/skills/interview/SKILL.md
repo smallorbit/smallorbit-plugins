@@ -11,6 +11,8 @@ argument-hint: [description]
 allowed-tools: AskUserQuestion, Read, Glob, Grep, Write, Edit
 ---
 
+> **Sub-skill notice:** This skill is designed to be invoked by `speckit:spec` (step 2) or standalone via `/interview`. If the user typed `/spec`, do not run this skill directly — invoke `speckit:spec` instead so the full orchestration flow runs (interview → plan approval → catalog → epic).
+
 # Interview
 
 Conduct a deep, structured interview to think through a feature, bug, or change. Challenges inconsistencies, surfaces assumptions, and continues until the thinking is unambiguous. Produces a plan in the same format that `/spec` emits, so the output can be piped directly into `/spec` or `/catalog`.
