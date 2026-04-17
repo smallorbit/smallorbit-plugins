@@ -1,7 +1,7 @@
 {
   "name": "speckit",
   "description": "Define and capture work as GitHub issues. Interview a feature into existence with /spec, bulk-convert findings with /catalog, or quickly file a single issue with /issue.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": {
     "name": "Román M. Pacheco"
   }
