@@ -106,10 +106,10 @@ Capture the PR number from the URL output.
 ### 6. Merge the PR
 
 ```bash
-gh pr merge "$PR_URL" --squash --delete-branch
+gh pr merge "$PR_URL" --merge --delete-branch
 ```
 
-Use `--squash` for a clean, linear history regardless of whether the source is `staging` or an RC branch.
+Use `--merge` to preserve the full commit history from the RC branch in main.
 
 ### 7. Sync main
 
@@ -149,7 +149,7 @@ git ls-remote origin "rc/$TODAY*" \
 
 ### 11. Sync develop
 
-Follow the `git-sync-develop` sub-skill.
+Follow the `git-sync-develop` sub-skill. Because the release PR was merged with a merge commit (not squashed), `git merge origin/main` on develop will correctly resolve without divergence — no force-push is needed.
 
 ### 12. Report
 
