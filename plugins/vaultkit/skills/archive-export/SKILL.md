@@ -76,7 +76,7 @@ This base name is used for both files:
 
 ```bash
 cp ./session.txt "$VAULT/Projects/ProjectName/Conversations/$BASENAME.txt"
-# New file — set birth time to now (no prior birth time to preserve; see obsidian-file-edit for editing existing files)
+# New file — set birth time to now (no prior birth time to preserve; see vaultkit:file-edit for editing existing files)
 SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT/Projects/ProjectName/Conversations/$BASENAME.txt"
 ```
 
@@ -106,7 +106,7 @@ Use the Bash tool to build and write the file in one step:
 Then set its birth time:
 
 ```bash
-# New file — set birth time to now (no prior birth time to preserve; see obsidian-file-edit for editing existing files)
+# New file — set birth time to now (no prior birth time to preserve; see vaultkit:file-edit for editing existing files)
 SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT/Projects/ProjectName/Conversations/$BASENAME.md"
 ```
 

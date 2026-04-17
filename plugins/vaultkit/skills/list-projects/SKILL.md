@@ -1,13 +1,13 @@
 ---
 name: list-projects
-description: List all projects in an Obsidian vault's Projects folder, with status and count summary. Sub-skill used by obsidian-load-project.
+description: List all projects in an Obsidian vault's Projects folder, with status and count summary. Sub-skill used by vaultkit:load-project.
 ---
 
-# obsidian-list-projects
+# vaultkit:list-projects
 
 Lists all projects in an Obsidian vault's `Projects/` folder, sorted by status, with a count summary.
 
-Always invoke the `obsidian` skill first — this skill depends on its vault connection details and command reference.
+Always invoke the `vaultkit:obsidian` skill first — this skill depends on its vault connection details and command reference.
 
 ## Vault Parameter
 

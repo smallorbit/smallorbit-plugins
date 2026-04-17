@@ -18,7 +18,7 @@ triggers:
 
 This skill manages a `Projects/` second brain in any Obsidian vault. It handles three operations: **loading** project context at the start of a session, **initializing** new projects from template, and **updating** project files after work.
 
-Always invoke the `obsidian` skill first — this skill depends on its vault connection details and command reference.
+Always invoke the `vaultkit:obsidian` skill first — this skill depends on its vault connection details and command reference.
 
 ---
 
@@ -112,7 +112,7 @@ When a project folder does not exist yet, create it from the template.
 
 5. Update the Projects Index table in `_README.md`:
    - Add a row: `| [[ProjectName/Overview\|ProjectName]] | Active | YYYY-MM-DD |`
-   - Follow the `obsidian-file-edit` sub-skill to edit the file with birth-time preservation.
+   - Follow the `vaultkit:file-edit` sub-skill to edit the file with birth-time preservation.
 
 6. Confirm creation and summarize what was set up.
 
@@ -150,7 +150,7 @@ After splitting, remove the section from `Overview.md` and add a link: `See [[Ta
 
 2. Read the file to be updated (required before Edit)
 
-3. Follow the `obsidian-file-edit` sub-skill to edit the file with birth-time preservation.
+3. Follow the `vaultkit:file-edit` sub-skill to edit the file with birth-time preservation.
 
 4. Also update `Last updated:` in `Overview.md` if you edited any project file.
 

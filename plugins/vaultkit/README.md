@@ -5,22 +5,27 @@ Obsidian vault skills for Claude Code. Read, search, edit notes, manage projects
 ## Skills
 
 ### User-facing
-
 | Skill | Description |
 |-------|-------------|
-| `obsidian` | Core vault interface — read, search, tag, edit notes, manage templates and vault health |
-| `jot` | Quickly capture a decision, task, or note into the active project |
-| `archive-export` | Archive a conversation export into the active project's Conversations folder |
-| `project` | Manage the Projects/ second brain — load, initialize, and update projects |
+| `vaultkit:obsidian` | Interface with Obsidian vaults via the CLI |
+| `vaultkit:jot` | Quickly capture a decision, task, or note into the active project |
+| `vaultkit:archive-export` | Archive the latest /export output into the active Obsidian project |
+| `vaultkit:project` | Manage Obsidian projects — create, load, and update project notes |
 
-### Sub-skills
-
+### Sub-skills (internal)
 | Skill | Description |
 |-------|-------------|
-| `load-project` | Load a named project into context (delegates to `project`) |
-| `list-projects` | List all projects with status summary |
-| `file-edit` | Edit a vault file while preserving filesystem birth time |
+| `vaultkit:load-project` | Load a named Obsidian project into context |
+| `vaultkit:list-projects` | List all projects in the vault's Projects folder |
+| `vaultkit:file-edit` | Edit a vault file while preserving its filesystem birth time |
 
-## Skills coming soon
+## Requirements
 
-Skills are being migrated from `claude-config` and will land here once renamed and audited. See `AUDIT.md` for the current inventory.
+Obsidian must be open and the Obsidian CLI must be installed for vault operations to work.
+
+## Install
+
+Add to your Claude Code plugin list:
+```
+smallorbit/smallorbit-plugins/plugins/vaultkit
+```
