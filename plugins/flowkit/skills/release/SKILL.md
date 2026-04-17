@@ -49,17 +49,35 @@ If `SOURCE` is empty, abort with an error — there is nothing to release.
 
 ### 4. Aggregate issue references from merged PRs
 
-Find the last release tag and collect all `Closes/Fixes/Resolves #N` references from PRs merged into SOURCE since that tag's date. The tag-date filter ensures only PRs from the current release cycle are included, not all PRs ever merged:
+Find the last release tag and collect all `Closes/Fixes/Resolves #N` references from PRs merged into `develop` since that tag's date. The tag-date filter ensures only PRs from the current release cycle are included, not all PRs ever merged:
 
 ```bash
 LAST_TAG=$(git tag --sort=-version:refname | head -1)
 
 if [ -n "$LAST_TAG" ]; then
   TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
-  MERGED_PRS=$(gh pr list --base "$SOURCE" --state merged --json body,mergedAt \
-    --jq --arg since "$TAG_DATE" '.[] | select(.mergedAt > $since) | .body')
+  MERGED_PRS=$(gh pr list --base develop --state merged --json body,mergedAt \
+    --jq '.[] | select(.mergedAt > "'"$TAG_DATE"'") | .body')
   ISSUE_REFS=$(echo "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 fi
+```
+
+Then find open epics whose children are all now closed and append their `Closes #N` refs:
+
+```bash
+EPIC_REFS_FILE=$(mktemp)
+echo "$ISSUE_REFS" | grep -oE '[0-9]+' | while read CHILD_N; do
+  gh issue list --label "epic" --state open --json number,body \
+    --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
+  | grep -oE '"number":[0-9]+' | grep -oE '[0-9]+' | while read EPIC_N; do
+    EPIC_BODY=$(gh issue view "$EPIC_N" --json body --jq '.body')
+    OPEN_CHILDREN=$(echo "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
+    [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
+  done
+done
+EPIC_REFS=$(sort -u "$EPIC_REFS_FILE"); rm -f "$EPIC_REFS_FILE"
+[ -n "$EPIC_REFS" ] && ISSUE_REFS="$ISSUE_REFS
+$EPIC_REFS"
 ```
 
 If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
@@ -117,11 +135,7 @@ git tag "$TAG"
 git push origin "$TAG"
 ```
 
-### 9. Close referenced issues
-
-Follow the `gh-close-referenced-issues` sub-skill, passing the release PR number.
-
-### 10. Clean up RC branches for today
+### 9. Clean up RC branches for today
 
 ```bash
 TODAY=$(date +%Y-%m-%d)

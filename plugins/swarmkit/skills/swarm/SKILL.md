@@ -88,17 +88,7 @@ Show the user a table before launching:
 
 Also show suggested merge order and any issues too ambiguous to delegate.
 
-If `--auto` was passed, skip approval and proceed directly.
-
-Otherwise, wait for user approval. The user may adjust groupings or add context. When not in `--auto` mode, schedule a wakeup to auto-proceed if no response arrives:
-
-```
-ScheduleWakeup({
-  delaySeconds: 30,
-  reason: "No user response to swarm plan — auto-proceeding with proposed groupings",
-  prompt: "/swarm"
-})
-```
+Present the plan and proceed immediately with the proposed groupings.
 
 **Model selection** (when `--model` not set):
 
@@ -121,7 +111,7 @@ Each agent prompt MUST include:
 3. **MUST DO**: concrete file changes from the issue body
 4. **MUST NOT DO**: scope boundaries
 5. **SELF-REVIEW**: follow `self-review` sub-skill before creating PR
-6. **CONTEXT**: repo path, relevant patterns to follow
+6. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/release/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
 
 Each agent prompt MUST include these **workflow steps** (in order):
 
@@ -216,7 +206,7 @@ If no open issues remain, announce "Board is clear" and exit.
 
 **Step 2 — Swarm**
 
-Run the one-shot swarm flow above on the batch with `--auto`. Every agent's PR targets `$BASE` (enforced by `claude.prBase`).
+Run the one-shot swarm flow above on the batch. Every agent's PR targets `$BASE` (enforced by `claude.prBase`).
 
 **Step 3 — Pull base**
 
@@ -233,22 +223,10 @@ git pull origin $BASE
 ✗ Failed: #14 (merge conflict)
 ⊘ Blocked: #20 (depends on #14)
 ⧖ Remaining open issues: 5
-
-Continuing in ~60s... (say anything to stop)
 ──────────────────────────────────────────────
 ```
 
-Always schedule a wakeup to auto-proceed into the next cycle — no exceptions unless an unrecoverable failure occurred this cycle:
-
-```
-ScheduleWakeup({
-  delaySeconds: 60,
-  reason: "Swarm loop checkpoint — starting next cycle",
-  prompt: "/swarm"
-})
-```
-
-Do **not** wait for user input between cycles. The loop proceeds automatically. The only cases where `ScheduleWakeup` is NOT scheduled and the loop halts are unrecoverable failures: merge conflict on `$BASE`, agent crash with no PR produced, or push rejected on `$BASE`. If the user sends a message before the wakeup fires, stop at the next cycle boundary.
+Proceed immediately to the next cycle after printing the checkpoint summary. The loop halts only on unrecoverable failures: merge conflict on `$BASE`, agent crash with no PR produced, or push rejected on `$BASE`.
 
 ### Teardown
 
@@ -292,8 +270,7 @@ When an issue fails at any point:
 ## Constraints
 
 - Never merge into `main` — all PRs target `$BASE`
-- Never continue past a loop checkpoint without scheduling a ScheduleWakeup (delaySeconds: 60)
-- Auto-proceed after ~30s at the plan approval gate and ~60s at the loop checkpoint unless a major error or failure requires manual intervention; block indefinitely on: merge failures, agent crashes/no PR, push rejections, and any unrecoverable failure from the "Smart failure rules" section
+- Never pause between loop cycles — proceed immediately after printing the checkpoint summary
 - Never skip a failed issue's dependents — always analyze and block them
 - Every agent must work in an isolated worktree
 - Every PR must reference the issue it closes (`Closes #N`)
@@ -302,3 +279,4 @@ When an issue fails at any point:
 - Agents spawn with `mode: "bypassPermissions"` so they can push and create PRs without prompting
 - Never commit directly to develop or main — always work on the `worktree-agent-<issue>` branch
 - **Never close issues** — issues are closed by the release process when staging merges to main
+- **Never pass absolute repo paths to spawned agents** — always instruct them to use relative paths from their CWD to ensure edits land in the isolated worktree, not the main directory

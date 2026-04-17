@@ -71,7 +71,6 @@ These are called by the skills above — you don't invoke them directly.
 
 - `--model <sonnet|opus>` — override model selection for all agents
 - `--base <branch>` — override the default base branch (`develop`)
-- `--auto` — skip approval gates and proceed automatically
 
 ## Assumptions & Conventions
 
@@ -117,7 +116,7 @@ Swarmkit **never closes issues** — that's intentional. Closing is left to the 
 - **`swarm`** has `disable-model-invocation: true` — it only runs when you explicitly type `/swarm`, never auto-triggered by Claude. This prevents accidental mass agent spawning.
 - **`pick-issue`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually.
 
-## Pairing with Speckit
+## Pairing with Other Plugins
 
 Swarmkit executes work; [speckit](../speckit) defines it. Use them together for the full planning-to-execution loop:
 
@@ -127,3 +126,5 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 /swarm                            # Resolve with parallel agents
 /clean-worktrees                  # Clean up
 ```
+
+[Sessionkit](../sessionkit) complements swarmkit throughout: use `/handoff` to preserve state when context runs low mid-swarm, and `/skillit` after a swarm to capture reusable patterns that emerged.
