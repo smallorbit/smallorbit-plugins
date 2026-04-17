@@ -94,7 +94,7 @@ Otherwise, wait for user approval. The user may adjust groupings or add context.
 
 ```
 ScheduleWakeup({
-  delaySeconds: 60,
+  delaySeconds: 30,
   reason: "No user response to swarm plan — auto-proceeding with proposed groupings",
   prompt: "/swarm"
 })
@@ -293,7 +293,7 @@ When an issue fails at any point:
 
 - Never merge into `main` — all PRs target `$BASE`
 - Never continue past a loop checkpoint without scheduling a ScheduleWakeup (delaySeconds: 60)
-- Auto-proceed after ~60s at user-input gates (plan approval, loop checkpoint) unless a major error or failure requires manual intervention; block indefinitely on: merge failures, agent crashes/no PR, push rejections, and any unrecoverable failure from the "Smart failure rules" section
+- Auto-proceed after ~30s at the plan approval gate and ~60s at the loop checkpoint unless a major error or failure requires manual intervention; block indefinitely on: merge failures, agent crashes/no PR, push rejections, and any unrecoverable failure from the "Smart failure rules" section
 - Never skip a failed issue's dependents — always analyze and block them
 - Every agent must work in an isolated worktree
 - Every PR must reference the issue it closes (`Closes #N`)
