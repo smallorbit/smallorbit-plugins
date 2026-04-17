@@ -34,20 +34,24 @@ TODAY=$(date +%Y-%m-%d)
 RC_BASE="rc/$TODAY"
 ```
 
-Count existing RC branches for today to find the next increment:
+Count existing RC **tags** for today (tags persist after branch deletion, making the increment reliable):
 
 ```bash
-EXISTING=$(git ls-remote origin "rc/$TODAY*" | wc -l | tr -d ' ')
+EXISTING=$(git tag --list "rc/$TODAY.*" | wc -l | tr -d ' ')
 N=$((EXISTING + 1))
 RC_BRANCH="rc/$TODAY.$N"
 ```
 
-### 3. Create and push the RC branch
+### 3. Create and push the RC branch and tag
 
 ```bash
 git checkout -b "$RC_BRANCH" origin/develop
 git push -u origin "$RC_BRANCH"
+git tag "$RC_BRANCH"
+git push origin "refs/tags/$RC_BRANCH"
 ```
+
+The tag (`rc/YYYY-MM-DD.N`) shares the branch name; push it via full `refs/tags/` path to avoid the ambiguous-refspec error. The tag is pushed immediately so future cuts count it correctly even after the branch is deleted.
 
 ### 4. Runtime staging detection
 
