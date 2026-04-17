@@ -63,9 +63,26 @@ gh issue view <number> --json title,body,labels
 
 **Skip any issue with the `on-hold` label** — per the `gh-fetch-issues` sub-skill filtering rules.
 
-**Epic expansion** — if the issue body contains a checklist of child issue links in the format `- [ ] #N` or `- [x] #N`, it is an epic. Expand it: extract only unchecked (`- [ ] #N`) child issue numbers, fetch all in parallel, and swarm on the children instead of the epic itself. Skip any child that has the `on-hold` label or is already closed. If all children are skipped, announce and stop. Otherwise announce:
+**Epic expansion** — for each issue, query its children via GitHub's native sub-issue relationship:
+
+```bash
+gh api repos/{owner}/{repo}/issues/<number>/sub_issues
+```
+
+If the response is a non-empty array, the issue is an epic. Use the returned children (not the epic itself) as the work items: for each child, fetch `title,body,labels,state` in parallel, then filter:
+
+- Skip any child with the `on-hold` label
+- Skip any child that is already `closed`
+
+If all children are skipped, announce and stop. Otherwise announce:
 
 > `#N` is an epic. Swarming: `#101`, `#102`. Skipped (closed/on-hold): `#103`.
+
+**Epic label without sub-issues** — if the issue carries the `epic` label but the sub-issues API returns an empty array, the epic is not wired up. Do **not** fall through and treat it as a regular implementation issue — the epic body is a plan, not a spec. Announce and skip:
+
+> `#N` is labeled `epic` but has no sub-issues wired via the GitHub sub-issue API. Skipping — children must be attached via `gh api .../sub_issues` before swarming.
+
+The legacy `- [ ] #N` body-checklist format is no longer supported; speckit wires child issues via the native sub-issue API (see `plugins/speckit/skills/spec/SKILL.md`).
 
 ### 2. Analyze dependencies and grouping
 
@@ -103,7 +120,7 @@ Show the user a table before launching:
 
 > Any agent showing `haiku` must be re-assigned to `sonnet` before proceeding.
 
-Also show suggested merge order and any issues too ambiguous to delegate.
+Also show suggested merge order and any issues too ambiguous to delegate. Merge order is top-down: leaf PRs first, root last (the inverse of creation order). This matches how `swarmkit:merge-stack` operates — it pops the leaf of the stack first.
 
 Present the plan and proceed immediately with the proposed groupings.
 
@@ -215,7 +232,7 @@ Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This fre
 | #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
 
-All PRs are left open for review. Use `swarmkit:merge-stack` to merge in dependency order when ready.
+All PRs are left open for review. Use `swarmkit:merge-stack` to merge when ready. Merge order is top-down: `#N → #N-1 → … → develop` (merge-stack pops leaf-first).
 
 ---
 
