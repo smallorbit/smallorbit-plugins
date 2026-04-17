@@ -120,7 +120,7 @@ Show the user a table before launching:
 
 > Any agent showing `haiku` must be re-assigned to `sonnet` before proceeding.
 
-Also show suggested merge order and any issues too ambiguous to delegate.
+Also show suggested merge order and any issues too ambiguous to delegate. Merge order is top-down: leaf PRs first, root last (the inverse of creation order). This matches how `swarmkit:merge-stack` operates — it pops the leaf of the stack first.
 
 Present the plan and proceed immediately with the proposed groupings.
 
@@ -232,7 +232,7 @@ Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This fre
 | #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
 
-All PRs are left open for review. Use `swarmkit:merge-stack` to merge in dependency order when ready.
+All PRs are left open for review. Use `swarmkit:merge-stack` to merge when ready. Merge order is top-down: `#N → #N-1 → … → develop` (merge-stack pops leaf-first).
 
 ---
 
