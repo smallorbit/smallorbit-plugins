@@ -68,9 +68,22 @@ Skip plugins with 0 commits since their last tag unless explicitly included via 
 
 For each plugin being bumped, read the current `plugin.json`, increment the version field, and write it back.
 
-### Step 4 — Create git tags
+### Step 4 — Commit plugin.json changes
 
-After updating all `plugin.json` files, create a tag for each bumped plugin:
+Stage and commit all updated `plugin.json` files to the current branch, then push:
+
+```bash
+git add plugins/*/.claude-plugin/plugin.json
+git commit -m "chore(plugins): bump <list of plugin@version>"
+git push origin HEAD
+```
+
+Use a single commit message listing all bumped plugins, e.g.:
+`chore(plugins): bump swarmkit@2.0.0, flowkit@1.3.0`
+
+### Step 5 — Create git tags
+
+After the commit lands, create a tag for each bumped plugin pointing at that commit:
 
 ```bash
 git tag {plugin-name}--v{new-version}
@@ -78,16 +91,16 @@ git tag {plugin-name}--v{new-version}
 
 Do NOT push tags — leave that to the release flow.
 
-### Step 5 — Report
+### Step 6 — Report
 
 Print a summary of what changed:
 
 ```
 Bumped:
-  swarmkit  1.0.0 → 1.0.1  (tag: swarmkit--v1.0.1)
+  swarmkit  1.0.0 → 2.0.0  (tag: swarmkit--v2.0.0)
   flowkit   1.0.0 → 1.1.0  (tag: flowkit--v1.1.0)
 
-Next: commit the plugin.json changes, then push tags with:
+Tags created locally. Push with:
   git push origin --tags
 ```
 
