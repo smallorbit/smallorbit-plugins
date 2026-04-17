@@ -605,20 +605,18 @@ section + section { border-top: 1px solid var(--border); }
 .lifecycle-legend-dot.you { background: transparent; border: 1px dashed var(--text-muted); }
 .lifecycle-legend-dot.session { background: var(--sessionkit); box-shadow: 0 0 8px var(--glow-session); }
 
-/* Mobile fallback: hide SVG, show vertical list */
-.lifecycle-mobile { display: none; }
+/* Mobile fallback: hide by default, show vertical list under 760px */
+.lifecycle-mobile-list {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
 
 @media (max-width: 760px) {
   .lifecycle-svg-wrap { display: none; }
   .lifecycle-panel { padding: 32px 20px 28px; }
-  .lifecycle-mobile { display: block; }
-}
-
-.lifecycle-mobile-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  list-style: none;
+  .lifecycle-mobile-list { display: flex; }
 }
 .lcm-phase-label {
   font-family: var(--mono);
