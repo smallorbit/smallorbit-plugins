@@ -20,6 +20,8 @@ Fetches open GitHub issues, analyzes them, and recommends the best next task.
 
 Follow the `gh-fetch-issues` sub-skill to fetch and filter issues.
 
+This excludes both `on-hold` issues (not ready to work) and `status:in-progress` issues (already in-flight with an active swarm agent).
+
 ### 2. Identify top candidates
 
 Follow the `issue-rank` sub-skill to rank issues by priority, specificity, and impact.
