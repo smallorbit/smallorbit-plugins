@@ -164,13 +164,12 @@ section + section { border-top: 1px solid var(--border); }
 }
 
 .section-title {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-style: italic;
-  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
-  letter-spacing: -0.01em;
-  line-height: 1.05;
-  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--text-strong);
   margin-bottom: 14px;
 }
 .section-lede {
@@ -437,7 +436,7 @@ section + section { border-top: 1px solid var(--border); }
 /* SVG element styling */
 .ls-phase-text {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12.5px;
   letter-spacing: 0.22em;
   fill: var(--text-muted);
   text-transform: uppercase;
@@ -497,7 +496,7 @@ section + section { border-top: 1px solid var(--border); }
 .ls-node-name {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: 19px;
+  font-size: 22px;
   letter-spacing: -0.015em;
   dominant-baseline: middle;
   text-anchor: middle;
@@ -509,7 +508,7 @@ section + section { border-top: 1px solid var(--border); }
 
 .ls-node-role {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   fill: var(--text-muted);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -526,7 +525,7 @@ section + section { border-top: 1px solid var(--border); }
 .ls-you-action {
   font-family: var(--sans);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 15px;
   fill: var(--text);
   dominant-baseline: middle;
   text-anchor: middle;
@@ -534,7 +533,7 @@ section + section { border-top: 1px solid var(--border); }
 .ls-you-hint {
   font-family: var(--sans);
   font-weight: 400;
-  font-size: 10.5px;
+  font-size: 12px;
   fill: var(--text-muted);
   dominant-baseline: middle;
   text-anchor: middle;
@@ -550,21 +549,22 @@ section + section { border-top: 1px solid var(--border); }
 }
 .ls-session-label {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 13.5px;
   fill: var(--sessionkit);
   letter-spacing: 0.06em;
+  font-weight: 500;
 }
 .ls-session-handoff {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   fill: var(--text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 /* YOU lane label */
 .ls-lane-label {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.22em;
   fill: var(--text-dim);
   text-transform: uppercase;
@@ -698,12 +698,11 @@ section + section { border-top: 1px solid var(--border); }
 }
 .plugin-category:first-of-type { margin-top: 0; }
 .plugin-category-title {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 1.7rem;
-  color: var(--text);
-  letter-spacing: -0.01em;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 1.4rem;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
 }
 .plugin-category-count {
   font-family: var(--mono);
@@ -935,13 +934,12 @@ section + section { border-top: 1px solid var(--border); }
   margin-bottom: 18px;
 }
 .install-step-title {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 1.35rem;
-  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: var(--text-strong);
   margin-bottom: 4px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 .install-step-sub {
   font-family: var(--mono);
