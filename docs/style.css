@@ -57,6 +57,18 @@ section + section { border-top: 1px solid var(--border); }
 }
 .section-title::before { content: '> '; opacity: 0.5; }
 
+.plugin-subheading {
+  font-size: 0.85rem;
+  color: var(--accent-green);
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  margin-bottom: 20px;
+  margin-top: 36px;
+  font-weight: 400;
+}
+.plugin-subheading:first-of-type { margin-top: 0; }
+
 /* Cards */
 .card {
   background: var(--surface);
