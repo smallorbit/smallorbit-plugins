@@ -20,41 +20,49 @@
     <section id="flow">
       <div class="container">
         <h2 class="section-title">end-to-end flow</h2>
-        <div class="flow">
-          <div class="flow-node">
-            <div class="flow-node-name">speckit</div>
-            <div class="flow-node-label">plan it</div>
-            <div class="flow-node-cmds">
-              <span>/spec</span>
-              <span>/interview</span>
-            </div>
+        <div class="lifecycle" role="list" aria-label="End-to-end plugin lifecycle">
+          <div class="lifecycle-phase" role="listitem">PLAN</div>
+          <div class="lifecycle-phase" role="listitem">EXECUTE</div>
+          <div class="lifecycle-phase" role="listitem">POLISH</div>
+          <div class="lifecycle-phase" role="listitem">SHIP</div>
+
+          <div class="lifecycle-ai" role="listitem">
+            <span class="lifecycle-ai-name">speckit</span>
+            <span class="lifecycle-ai-role">plan it</span>
           </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">swarmkit</div>
-            <div class="flow-node-label">execute it</div>
-            <div class="flow-node-cmds">
-              <span>/swarm</span>
-              <span>/merge-stack</span>
-            </div>
+          <div class="lifecycle-ai" role="listitem">
+            <span class="lifecycle-ai-name">swarmkit</span>
+            <span class="lifecycle-ai-role">execute it</span>
           </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">polishkit</div>
-            <div class="flow-node-label">polish it</div>
-            <div class="flow-node-cmds">
-              <span>/critique</span>
-              <span>/tidy-codebase</span>
-            </div>
+          <div class="lifecycle-ai" role="listitem">
+            <span class="lifecycle-ai-name">polishkit</span>
+            <span class="lifecycle-ai-role">polish it</span>
           </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">flowkit</div>
-            <div class="flow-node-label">ship it</div>
-            <div class="flow-node-cmds">
-              <span>/cut</span>
-              <span>/release</span>
-            </div>
+          <div class="lifecycle-ai" role="listitem">
+            <span class="lifecycle-ai-name">flowkit</span>
+            <span class="lifecycle-ai-role">ship it</span>
+          </div>
+
+          <div class="lifecycle-handoff" aria-hidden="true">↓</div>
+          <div class="lifecycle-handoff" aria-hidden="true">↓</div>
+          <div class="lifecycle-handoff" aria-hidden="true">↓</div>
+          <div class="lifecycle-handoff" aria-hidden="true">↓</div>
+
+          <div class="lifecycle-you" role="listitem">
+            <span class="lifecycle-you-action">approve spec</span>
+            <span class="lifecycle-you-hint">review issues before swarm</span>
+          </div>
+          <div class="lifecycle-you" role="listitem">
+            <span class="lifecycle-you-action">review PRs from swarm</span>
+            <span class="lifecycle-you-hint">merge or request changes</span>
+          </div>
+          <div class="lifecycle-you" role="listitem">
+            <span class="lifecycle-you-action">triage polish findings</span>
+            <span class="lifecycle-you-hint">decide what ships now</span>
+          </div>
+          <div class="lifecycle-you" role="listitem">
+            <span class="lifecycle-you-action">approve release</span>
+            <span class="lifecycle-you-hint">tag and ship to users</span>
           </div>
         </div>
         <div class="flow-throughout">
@@ -65,14 +73,6 @@
             <div class="flow-node-cmds">
               <span>/handoff</span>
               <span>/pickup</span>
-            </div>
-          </div>
-          <div class="flow-node flow-node--throughout">
-            <div class="flow-node-name">vaultkit</div>
-            <div class="flow-node-label">capture it</div>
-            <div class="flow-node-cmds">
-              <span>/jot</span>
-              <span>/obsidian</span>
             </div>
           </div>
         </div>
