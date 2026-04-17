@@ -3,91 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>smallorbit plugins — The complete Claude Code workflow toolkit</title>
+  <meta name="description" content="smallorbit-plugins — Claude Code plugins for the end-to-end AI development lifecycle, keeping you in the loop at every handoff.">
+  <title>smallorbit-plugins · From idea to release. With you in the loop.</title>
+  <script>document.documentElement.classList.add('js');</script>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='8' fill='%233fb950'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23bc8cff' stroke-width='1'/%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%2358a6ff' stroke-width='0.75' stroke-dasharray='2 4'/%3E%3C/svg%3E">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  <header>
-    <div class="container hero">
-      <div class="hero-prompt">~/smallorbit-plugins<span class="cursor">▋</span></div>
-      <h1 class="hero-title">The complete Claude Code<br>workflow toolkit.</h1>
-      <p class="hero-sub">Six plugins. One end-to-end flow. Spec your work, execute it in parallel, ship it — with sessionkit keeping context across every phase and polishkit keeping your codebase clean.</p>
-      <a href="#install" class="hero-cta">Get started →</a>
+
+  <header class="hero-wrap">
+    <div class="hero-orbit" aria-hidden="true"></div>
+    <div class="container">
+      <div class="hero">
+        <span class="hero-prompt" role="text">
+          ~/smallorbit-plugins<span class="cursor" aria-hidden="true">▋</span>
+        </span>
+        <h1 class="hero-title">
+          From idea to release.<br>
+          <span class="line-two">With you in the loop.</span>
+        </h1>
+        <p class="hero-sub">
+          Claude Code plugins for plan, execute, and ship —
+          each keeping you at the handoffs that matter.
+        </p>
+        <div class="hero-actions">
+          <a href="#install" class="hero-cta">
+            Get started
+            <span class="hero-cta-glyph">→</span>
+          </a>
+          <span class="hero-secondary">or <a href="#lifecycle">see the flow</a></span>
+        </div>
+      </div>
     </div>
   </header>
+
   <main id="main-content">
-    <section id="flow">
+
+    <!-- =================================================================
+         LIFECYCLE — centerpiece subway-map diagram
+    ================================================================= -->
+    <section id="lifecycle" aria-labelledby="lifecycle-title">
       <div class="container">
-        <h2 class="section-title">end-to-end flow</h2>
-        <div class="flow">
-          <div class="flow-node">
-            <div class="flow-node-name">speckit</div>
-            <div class="flow-node-label">plan it</div>
-            <div class="flow-node-cmds">
-              <span>/spec</span>
-              <span>/interview</span>
+        <span class="eyebrow reveal">end-to-end flow</span>
+        <h2 id="lifecycle-title" class="section-title reveal" data-delay="1">A complete loop, with you at every turn.</h2>
+        <p class="section-lede reveal" data-delay="2">Claude drives each phase; you approve at every handoff. sessionkit keeps context flowing as you go.</p>
+
+        <div class="lifecycle-wrap reveal" data-delay="3">
+          <div class="lifecycle-panel">
+            <!-- Desktop: SVG diagram -->
+            <div class="lifecycle-svg-wrap" role="img" aria-label="Development lifecycle subway map: speckit, swarmkit, polishkit, and flowkit arranged left to right across the PLAN, EXECUTE, POLISH, and SHIP phases. Below each is a human-in-the-loop decision point. Sessionkit runs underneath all phases.">
+              <svg class="lifecycle-svg" viewBox="0 0 1040 430" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+
+                <!-- Phase accent bars -->
+                <rect class="ls-phase-bar" x="130"  y="34" width="60" height="2" fill="var(--speckit)"/>
+                <rect class="ls-phase-bar" x="370"  y="34" width="60" height="2" fill="var(--swarmkit)"/>
+                <rect class="ls-phase-bar" x="610"  y="34" width="60" height="2" fill="var(--polishkit)"/>
+                <rect class="ls-phase-bar" x="850"  y="34" width="60" height="2" fill="var(--flowkit)"/>
+
+                <!-- Phase labels -->
+                <text class="ls-phase-text" x="160" y="22" text-anchor="middle">PLAN</text>
+                <text class="ls-phase-text" x="400" y="22" text-anchor="middle">EXECUTE</text>
+                <text class="ls-phase-text" x="640" y="22" text-anchor="middle">POLISH</text>
+                <text class="ls-phase-text" x="880" y="22" text-anchor="middle">SHIP</text>
+
+                <!-- AI spine -->
+                <line class="ls-spine" x1="50" y1="113" x2="990" y2="113"/>
+
+                <!-- AI lane marker -->
+                <text class="ls-lane-label" x="20" y="116">AI</text>
+
+                <!-- Transfer lines (curved) -->
+                <path class="ls-transfer" data-kit="speckit"   d="M 160,150 C 150,190 170,220 160,252"/>
+                <path class="ls-transfer" data-kit="swarmkit"  d="M 400,150 C 390,190 410,220 400,252"/>
+                <path class="ls-transfer" data-kit="polishkit" d="M 640,150 C 630,190 650,220 640,252"/>
+                <path class="ls-transfer" data-kit="flowkit"   d="M 880,150 C 870,190 890,220 880,252"/>
+
+                <!-- AI stations -->
+                <g class="ls-station">
+                  <rect class="ls-node-rect" data-kit="speckit" x="50"  y="76" width="220" height="74" rx="12"/>
+                  <text class="ls-node-name" data-kit="speckit" x="160" y="110">speckit</text>
+                  <text class="ls-node-role"                    x="160" y="132">plan it</text>
+                  <circle class="ls-star" cx="252" cy="84" r="2"/>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-node-rect" data-kit="swarmkit" x="290" y="76" width="220" height="74" rx="12"/>
+                  <text class="ls-node-name" data-kit="swarmkit" x="400" y="110">swarmkit</text>
+                  <text class="ls-node-role"                     x="400" y="132">execute it</text>
+                  <circle class="ls-star" cx="492" cy="84" r="2"/>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-node-rect" data-kit="polishkit" x="530" y="76" width="220" height="74" rx="12"/>
+                  <text class="ls-node-name" data-kit="polishkit" x="640" y="110">polishkit</text>
+                  <text class="ls-node-role"                      x="640" y="132">polish it</text>
+                  <circle class="ls-star" cx="732" cy="84" r="2"/>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-node-rect" data-kit="flowkit" x="770" y="76" width="220" height="74" rx="12"/>
+                  <text class="ls-node-name" data-kit="flowkit" x="880" y="110">flowkit</text>
+                  <text class="ls-node-role"                    x="880" y="132">ship it</text>
+                  <circle class="ls-star" cx="972" cy="84" r="2"/>
+                </g>
+
+                <!-- YOU lane marker -->
+                <text class="ls-lane-label" x="20" y="285">YOU</text>
+
+                <!-- YOU spine (dashed) -->
+                <line x1="50" y1="282" x2="990" y2="282" stroke="var(--border-strong)" stroke-width="1" stroke-dasharray="2 4"/>
+
+                <!-- YOU stations -->
+                <g class="ls-station">
+                  <rect class="ls-you-rect" x="50" y="252" width="220" height="60" rx="10"/>
+                  <text class="ls-you-action" x="160" y="275">approve spec</text>
+                  <text class="ls-you-hint"   x="160" y="294">review issues before swarm</text>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-you-rect" x="290" y="252" width="220" height="60" rx="10"/>
+                  <text class="ls-you-action" x="400" y="275">review PRs from swarm</text>
+                  <text class="ls-you-hint"   x="400" y="294">merge or request changes</text>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-you-rect" x="530" y="252" width="220" height="60" rx="10"/>
+                  <text class="ls-you-action" x="640" y="275">triage polish findings</text>
+                  <text class="ls-you-hint"   x="640" y="294">decide what ships now</text>
+                </g>
+                <g class="ls-station">
+                  <rect class="ls-you-rect" x="770" y="252" width="220" height="60" rx="10"/>
+                  <text class="ls-you-action" x="880" y="275">approve release</text>
+                  <text class="ls-you-hint"   x="880" y="294">tag and ship to users</text>
+                </g>
+
+                <!-- sessionkit throughout -->
+                <line class="ls-session-bar" x1="50" y1="370" x2="340" y2="370"/>
+                <line class="ls-session-bar" x1="700" y1="370" x2="990" y2="370"/>
+                <text class="ls-session-label" x="520" y="374" text-anchor="middle">sessionkit · throughout all phases</text>
+                <text class="ls-session-handoff" x="520" y="395" text-anchor="middle">/handoff    /pickup</text>
+              </svg>
             </div>
-          </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">swarmkit</div>
-            <div class="flow-node-label">execute it</div>
-            <div class="flow-node-cmds">
-              <span>/swarm</span>
-              <span>/merge-stack</span>
-            </div>
-          </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">polishkit</div>
-            <div class="flow-node-label">polish it</div>
-            <div class="flow-node-cmds">
-              <span>/critique</span>
-              <span>/tidy-codebase</span>
-            </div>
-          </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-node">
-            <div class="flow-node-name">flowkit</div>
-            <div class="flow-node-label">ship it</div>
-            <div class="flow-node-cmds">
-              <span>/cut</span>
-              <span>/release</span>
-            </div>
-          </div>
-        </div>
-        <div class="flow-throughout">
-          <div class="flow-throughout-label">throughout all phases</div>
-          <div class="flow-node flow-node--throughout">
-            <div class="flow-node-name">sessionkit</div>
-            <div class="flow-node-label">stay in flow</div>
-            <div class="flow-node-cmds">
-              <span>/handoff</span>
-              <span>/pickup</span>
-            </div>
-          </div>
-          <div class="flow-node flow-node--throughout">
-            <div class="flow-node-name">vaultkit</div>
-            <div class="flow-node-label">capture it</div>
-            <div class="flow-node-cmds">
-              <span>/jot</span>
-              <span>/obsidian</span>
+
+            <!-- Mobile fallback: vertical flow -->
+            <ol class="lifecycle-mobile lifecycle-mobile-list" aria-label="Development lifecycle, vertical view">
+              <li class="lcm-phase-label">PLAN</li>
+              <li class="lcm-row">
+                <div class="lcm-ai"><span class="lcm-ai-name" data-kit="speckit">speckit</span><span class="lcm-ai-role">plan it</span></div>
+                <div class="lcm-you"><span class="lcm-you-action">approve spec</span><span class="lcm-you-hint">review issues before swarm</span></div>
+              </li>
+              <li class="lcm-phase-label">EXECUTE</li>
+              <li class="lcm-row">
+                <div class="lcm-ai"><span class="lcm-ai-name" data-kit="swarmkit">swarmkit</span><span class="lcm-ai-role">execute it</span></div>
+                <div class="lcm-you"><span class="lcm-you-action">review PRs</span><span class="lcm-you-hint">merge or request changes</span></div>
+              </li>
+              <li class="lcm-phase-label">POLISH</li>
+              <li class="lcm-row">
+                <div class="lcm-ai"><span class="lcm-ai-name" data-kit="polishkit">polishkit</span><span class="lcm-ai-role">polish it</span></div>
+                <div class="lcm-you"><span class="lcm-you-action">triage findings</span><span class="lcm-you-hint">decide what ships now</span></div>
+              </li>
+              <li class="lcm-phase-label">SHIP</li>
+              <li class="lcm-row">
+                <div class="lcm-ai"><span class="lcm-ai-name" data-kit="flowkit">flowkit</span><span class="lcm-ai-role">ship it</span></div>
+                <div class="lcm-you"><span class="lcm-you-action">approve release</span><span class="lcm-you-hint">tag and ship to users</span></div>
+              </li>
+              <li class="lcm-session">sessionkit · throughout all phases · /handoff · /pickup</li>
+            </ol>
+
+            <div class="lifecycle-legend reveal" data-delay="4">
+              <span class="lifecycle-legend-item"><span class="lifecycle-legend-dot ai"></span>AI agent (plugin-driven)</span>
+              <span class="lifecycle-legend-item"><span class="lifecycle-legend-dot you"></span>Human checkpoint</span>
+              <span class="lifecycle-legend-item"><span class="lifecycle-legend-dot session"></span>sessionkit — throughout</span>
             </div>
           </div>
         </div>
       </div>
     </section>
-    <section id="plugins">
+
+    <!-- =================================================================
+         PLUGINS
+    ================================================================= -->
+    <section id="plugins" aria-labelledby="plugins-title">
       <div class="container">
-        <h2 class="section-title">plugins</h2>
+        <span class="eyebrow reveal">the kits</span>
+        <h2 id="plugins-title" class="section-title reveal" data-delay="1">Tools for the whole lifecycle.</h2>
+        <p class="section-lede reveal" data-delay="2">Each kit is built for a specific phase. A separate utility kit handles personal capture into an Obsidian vault.</p>
+
+        <header class="plugin-category reveal">
+          <h3 class="plugin-category-title">Development lifecycle</h3>
+        </header>
+
         <div class="plugin-grid">
 
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">speckit</span>
-              <span class="badge">v1.2.1</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/speckit" target="_blank" rel="noopener">README →</a>
+          <article class="plugin-card reveal" data-delay="1" data-kit="speckit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">speckit</span>
+                <span class="plugin-role">plan it</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v1.2.1</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/speckit" target="_blank" rel="noopener">README ↗</a>
+              </div>
             </div>
             <p class="plugin-desc">Define and capture work as GitHub issues. Interview a feature into existence, bulk-convert findings, or quickly file a single issue.</p>
             <ul class="skill-list">
@@ -96,13 +209,94 @@
               <li><code>/catalog</code> — bulk-convert findings into issues</li>
               <li><code>/issue</code> — quick single-issue filing</li>
             </ul>
-          </div>
+            <div class="transcript" role="group" aria-label="speckit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/spec</span> add dark-mode toggle</span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">interviewing...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· where does the toggle live? → header, next to account menu</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· does it persist across sessions? → yes, localStorage</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· honor system preference on first load? → yes</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">synthesizing plan... 4 tasks, 1 dependency chain</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> plan approved</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> filed epic <span class="transcript-annotate">#142</span> + 4 child issues <span class="transcript-annotate">(#143–#146)</span></span>
+            </div>
+          </article>
 
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">flowkit</span>
-              <span class="badge">v1.2.3</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/flowkit" target="_blank" rel="noopener">README →</a>
+          <article class="plugin-card reveal" data-delay="2" data-kit="swarmkit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">swarmkit</span>
+                <span class="plugin-role">execute it</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v2.0.5</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README ↗</a>
+              </div>
+            </div>
+            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
+            <ul class="skill-list">
+              <li><code>/swarm</code> — spawn parallel agents for issues</li>
+              <li><code>/pick-issue</code> — rank and recommend what to work on</li>
+              <li><code>/merge-stack</code> — merge PRs in dependency order</li>
+              <li><code>/clean-worktrees</code> — remove agent worktrees and branches</li>
+            </ul>
+            <div class="transcript" role="group" aria-label="swarmkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pick-issue</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">top: #156 (api), #157 (ui), #158 (docs) — #157 blocks #158</span></span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/swarm</span> 156 157 158</span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">spawning 3 agents in isolated worktrees...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-a1b2 → worktrees/agent-156 → #156</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-c3d4 → worktrees/agent-157 → #157</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· agent-e5f6 → worktrees/agent-158 → #158 (waits on #157)</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> opened PR #201, PR #202, PR #203 <span class="transcript-annotate">(stacked)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/merge-stack</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged #201 → #202 → #203 <span class="transcript-annotate">in dependency order</span></span>
+            </div>
+          </article>
+
+          <article class="plugin-card reveal" data-delay="3" data-kit="polishkit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">polishkit</span>
+                <span class="plugin-role">polish it</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v1.0.0</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/polishkit" target="_blank" rel="noopener">README ↗</a>
+              </div>
+            </div>
+            <p class="plugin-desc">Codebase quality toolkit. Assess code craft with a connoisseur's eye, sweep for cruft and hygiene issues, and eliminate dead code.</p>
+            <ul class="skill-list">
+              <li><code>/critique</code> — scored quality assessment across 5 dimensions</li>
+              <li><code>/tidy-codebase</code> — hygiene sweep: stale files, artifacts, merged branches</li>
+              <li><code>/dead-code</code> — find and remove unused exports, imports, and variables</li>
+            </ul>
+            <div class="transcript" role="group" aria-label="polishkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/tidy-codebase</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">scanning for cruft...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· 7 merged local branches (2 weeks stale)</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· dist/ and .coverage/ tracked but in .gitignore</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· 3 TODO.md files from abandoned spikes</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· README references removed /deploy command</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">?</span> act on all findings? <span class="transcript-annotate">[y/n/select]</span> → select: 1,2,4</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> deleted 7 branches, untracked 2 dirs, patched README</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> committed: <span class="transcript-annotate">chore: tidy stale branches and tracked artifacts</span></span>
+            </div>
+          </article>
+
+          <article class="plugin-card reveal" data-delay="4" data-kit="flowkit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">flowkit</span>
+                <span class="plugin-role">ship it</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v1.2.3</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/flowkit" target="_blank" rel="noopener">README ↗</a>
+              </div>
             </div>
             <p class="plugin-desc">Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection.</p>
             <ul class="skill-list">
@@ -112,28 +306,32 @@
               <li><code>/ship</code> — full one-shot ship cycle</li>
               <li><code>/hotfix</code> — emergency fix bypassing develop</li>
             </ul>
-          </div>
-
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">swarmkit</span>
-              <span class="badge">v2.0.5</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README →</a>
+            <div class="transcript" role="group" aria-label="flowkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pr</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">branch: feat/dark-mode-toggle · commit: a3f9c21</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> opened PR #214 → develop <span class="transcript-annotate">(closes #143)</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged PR #214 <span class="transcript-annotate">(squash)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/cut</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> cut rc/2026-04-17.1 <span class="transcript-annotate">from origin/develop</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> staging updated <span class="transcript-annotate">(origin/staging detected)</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/release</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged staging → main · tagged <span class="transcript-annotate">v2026.04.17.1</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> closed issues #143, #156, #157, #158</span>
             </div>
-            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
-            <ul class="skill-list">
-              <li><code>/swarm</code> — spawn parallel agents for issues</li>
-              <li><code>/pick-issue</code> — rank and recommend what to work on</li>
-              <li><code>/merge-stack</code> — merge PRs in dependency order</li>
-              <li><code>/clean-worktrees</code> — remove agent worktrees and branches</li>
-            </ul>
-          </div>
+          </article>
 
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">sessionkit</span>
-              <span class="badge">v1.1.0</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/sessionkit" target="_blank" rel="noopener">README →</a>
+          <article class="plugin-card reveal" data-delay="5" data-kit="sessionkit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">sessionkit</span>
+                <span class="plugin-role">throughout</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v1.1.0</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/sessionkit" target="_blank" rel="noopener">README ↗</a>
+              </div>
             </div>
             <p class="plugin-desc">Session continuity and meta-learning for Claude Code. Hand off context, resume seamlessly, discover reusable skills, reduce permission noise.</p>
             <ul class="skill-list">
@@ -142,27 +340,39 @@
               <li><code>/skillit</code> — identify reusable patterns from a session</li>
               <li><code>/suggest-permissions</code> — reduce future permission prompts</li>
             </ul>
-          </div>
-
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">polishkit</span>
-              <span class="badge">v1.0.0</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/polishkit" target="_blank" rel="noopener">README →</a>
+            <div class="transcript" role="group" aria-label="sessionkit example session">
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/handoff</span> <span class="transcript-annotate"># context at 82%, wrapping up</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">capturing: goal, decisions, open threads, next step</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> wrote <span class="transcript-annotate">.sessionkit/HANDOFF.md</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· working on: #143 dark-mode toggle UI</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· branch: feat/dark-mode-toggle · 2 commits</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· next: wire ThemeProvider to localStorage persistence</span></span>
+<span class="transcript-line"> </span>
+<span class="transcript-line"><span class="transcript-annotate">— new session —</span></span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/pickup</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">loaded HANDOFF.md · restored 6 context anchors</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> resuming on feat/dark-mode-toggle <span class="transcript-annotate">at ThemeProvider</span></span>
             </div>
-            <p class="plugin-desc">Codebase quality toolkit. Assess code craft with a connoisseur's eye, sweep for cruft and hygiene issues, and eliminate dead code.</p>
-            <ul class="skill-list">
-              <li><code>/critique</code> — scored quality assessment across 5 dimensions</li>
-              <li><code>/tidy-codebase</code> — hygiene sweep: stale files, artifacts, merged branches</li>
-              <li><code>/dead-code</code> — find and remove unused exports, imports, and variables</li>
-            </ul>
-          </div>
+          </article>
 
-          <div class="card plugin-card">
-            <div class="plugin-card-header">
-              <span class="plugin-name">vaultkit</span>
-              <span class="badge">v1.0.0</span>
-              <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/vaultkit" target="_blank" rel="noopener">README →</a>
+        </div>
+
+        <header class="plugin-category reveal">
+          <h3 class="plugin-category-title">Utilities &amp; productivity</h3>
+        </header>
+
+        <div class="plugin-grid single">
+
+          <article class="plugin-card reveal" data-kit="vaultkit">
+            <div class="plugin-card-head">
+              <div class="plugin-card-id">
+                <span class="plugin-name">vaultkit</span>
+                <span class="plugin-role">capture it</span>
+              </div>
+              <div class="plugin-meta">
+                <span class="badge">v1.0.0</span>
+                <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/vaultkit" target="_blank" rel="noopener">README ↗</a>
+              </div>
             </div>
             <p class="plugin-desc">Obsidian vault skills for Claude Code. Read, search, edit notes, manage projects, capture decisions, and archive conversations — all via the Obsidian CLI.</p>
             <ul class="skill-list">
@@ -171,57 +381,92 @@
               <li><code>/archive-export</code> — archive a conversation export into the active project</li>
               <li><code>/project</code> — manage projects — create, load, and update</li>
             </ul>
-          </div>
+          </article>
 
         </div>
       </div>
     </section>
-    <section id="install">
-      <div class="container install-section">
-        <h2 class="section-title">install</h2>
-        <p class="install-intro">Two steps to get the full suite running in Claude Code:</p>
-        <div class="install-blocks">
-          <div class="install-block">
-            <div class="install-block-label">step 1 — add the marketplace</div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude marketplace install smallorbit/smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude marketplace install smallorbit/smallorbit-plugins" aria-label="Copy marketplace install command">copy</button>
+
+    <!-- =================================================================
+         INSTALL
+    ================================================================= -->
+    <section id="install" aria-labelledby="install-title">
+      <div class="container">
+        <span class="eyebrow reveal">getting started</span>
+        <h2 id="install-title" class="section-title reveal" data-delay="1">Install and run.</h2>
+        <p class="install-intro reveal" data-delay="2">Add the marketplace, then install the plugins you want. Everything below runs in a Claude Code session.</p>
+
+        <div class="install-steps">
+          <div class="install-step reveal" data-delay="3">
+            <div class="install-step-n">01</div>
+            <div>
+              <div class="install-step-head">
+                <h3 class="install-step-title">Add the marketplace</h3>
+                <span class="install-step-sub">one-time setup · syncs plugin index</span>
+              </div>
+              <div class="install-commands">
+                <div class="code-copy-wrapper">
+                  <pre><code>claude marketplace install smallorbit/smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude marketplace install smallorbit/smallorbit-plugins" aria-label="Copy marketplace install command">copy</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="install-block">
-            <div class="install-block-label">step 2 — install plugins</div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install speckit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install speckit@smallorbit-plugins" aria-label="Copy speckit install command">copy</button>
-            </div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install flowkit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install flowkit@smallorbit-plugins" aria-label="Copy flowkit install command">copy</button>
-            </div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install swarmkit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install swarmkit@smallorbit-plugins" aria-label="Copy swarmkit install command">copy</button>
-            </div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install sessionkit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install sessionkit@smallorbit-plugins" aria-label="Copy sessionkit install command">copy</button>
-            </div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install polishkit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install polishkit@smallorbit-plugins" aria-label="Copy polishkit install command">copy</button>
-            </div>
-            <div class="code-copy-wrapper">
-              <pre><code>claude plugin install vaultkit@smallorbit-plugins</code></pre>
-              <button class="copy-btn" data-copy="claude plugin install vaultkit@smallorbit-plugins" aria-label="Copy vaultkit install command">copy</button>
+
+          <div class="install-step reveal" data-delay="4">
+            <div class="install-step-n">02</div>
+            <div>
+              <div class="install-step-head">
+                <h3 class="install-step-title">Install the plugins</h3>
+                <span class="install-step-sub">pick the suite or just what you need</span>
+              </div>
+              <div class="install-commands">
+                <div class="install-sublabel">Development lifecycle</div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install speckit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install speckit@smallorbit-plugins" aria-label="Copy speckit install command">copy</button>
+                </div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install swarmkit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install swarmkit@smallorbit-plugins" aria-label="Copy swarmkit install command">copy</button>
+                </div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install polishkit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install polishkit@smallorbit-plugins" aria-label="Copy polishkit install command">copy</button>
+                </div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install flowkit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install flowkit@smallorbit-plugins" aria-label="Copy flowkit install command">copy</button>
+                </div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install sessionkit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install sessionkit@smallorbit-plugins" aria-label="Copy sessionkit install command">copy</button>
+                </div>
+                <div class="install-sublabel">Utilities &amp; productivity</div>
+                <div class="code-copy-wrapper">
+                  <pre><code>claude plugin install vaultkit@smallorbit-plugins</code></pre>
+                  <button class="copy-btn" data-copy="claude plugin install vaultkit@smallorbit-plugins" aria-label="Copy vaultkit install command">copy</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+
   </main>
+
   <footer>
-    <p>Built for <a href="https://claude.ai/code">Claude Code</a> · <a href="https://github.com/smallorbit/smallorbit-plugins">GitHub</a></p>
+    <div class="container footer-inner">
+      <span class="footer-wordmark">smallorbit&nbsp;<em>plugins</em></span>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/smallorbit/smallorbit-plugins">GitHub</a>
+        <a href="https://claude.ai/code">Claude Code</a>
+        <a href="#main-content">Back to top</a>
+      </nav>
+    </div>
   </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
