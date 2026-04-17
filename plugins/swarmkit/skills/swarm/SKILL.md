@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Spawn parallel isolated-worktree agents to resolve GitHub issues, open PRs targeting develop, and merge them in dependency order. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
+description: Spawn parallel isolated-worktree agents for GitHub issues, open stacked PRs in dependency order, and leave them open for review. Use `swarmkit:merge-stack` to merge. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
 disable-model-invocation: true
 ---
 
@@ -51,7 +51,7 @@ If `develop` already exists, do nothing — proceed.
 
 ## One-Shot Mode
 
-Used when issue numbers are provided. Dispatches agents for the given set of issues, merges their PRs, and reports.
+Used when issue numbers are provided. Dispatches agents for the given set of issues, opens PRs, and reports. Use `swarmkit:merge-stack` to merge.
 
 ### 1. Gather issue details
 
@@ -242,7 +242,7 @@ If no open issues remain, announce "Board is clear" and exit.
 
 **Step 2 — Swarm**
 
-Run the one-shot swarm flow above on the batch. Every agent's PR targets `$BASE` (enforced by `claude.prBase`).
+Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately lands in `$BASE` when `swarmkit:merge-stack` cascades the merges.
 
 **Step 3 — Pull base**
 
@@ -282,7 +282,7 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
 Cycles: 3
 Issues addressed: #12, #14, #15 (will close when released to main)
 Issues remaining: #25
-PRs on develop: #31, #32, #33
+Open PRs: #31, #32, #33
 
 develop is ready for testing. Cut a release candidate when ready.
 ─────────────────────────────────────────────
@@ -305,7 +305,7 @@ When an issue fails at any point:
 
 ## Constraints
 
-- Never merge into `main` — all PRs target `$BASE`
+- Never merge into `main` — all PRs ultimately land in `$BASE`; stacked (dependent) PRs may target an intermediate dependency branch and cascade into `$BASE` via `swarmkit:merge-stack`
 - Never pause between loop cycles — proceed immediately after printing the checkpoint summary
 - Never skip a failed issue's dependents — always analyze and block them
 - Every agent must work in an isolated worktree
