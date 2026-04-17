@@ -111,7 +111,7 @@ Each agent prompt MUST include:
 3. **MUST DO**: concrete file changes from the issue body
 4. **MUST NOT DO**: scope boundaries
 5. **SELF-REVIEW**: follow `self-review` sub-skill before creating PR
-6. **CONTEXT**: repo path, relevant patterns to follow
+6. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/release/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
 
 Each agent prompt MUST include these **workflow steps** (in order):
 
@@ -279,3 +279,4 @@ When an issue fails at any point:
 - Agents spawn with `mode: "bypassPermissions"` so they can push and create PRs without prompting
 - Never commit directly to develop or main — always work on the `worktree-agent-<issue>` branch
 - **Never close issues** — issues are closed by the release process when staging merges to main
+- **Never pass absolute repo paths to spawned agents** — always instruct them to use relative paths from their CWD to ensure edits land in the isolated worktree, not the main directory
