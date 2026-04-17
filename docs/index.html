@@ -12,7 +12,7 @@
     <div class="container hero">
       <div class="hero-prompt">~/smallorbit-plugins<span class="cursor">▋</span></div>
       <h1 class="hero-title">The complete Claude Code<br>workflow toolkit.</h1>
-      <p class="hero-sub">Five plugins. One end-to-end flow. Spec your work, execute it in parallel, ship it — with sessionkit keeping context across every phase and polishkit keeping your codebase clean.</p>
+      <p class="hero-sub">Six plugins. One end-to-end flow. Spec your work, execute it in parallel, ship it — with sessionkit keeping context across every phase and polishkit keeping your codebase clean.</p>
       <a href="#install" class="hero-cta">Get started →</a>
     </div>
   </header>
@@ -40,6 +40,15 @@
           </div>
           <div class="flow-arrow">→</div>
           <div class="flow-node">
+            <div class="flow-node-name">polishkit</div>
+            <div class="flow-node-label">polish it</div>
+            <div class="flow-node-cmds">
+              <span>/critique</span>
+              <span>/tidy-codebase</span>
+            </div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node">
             <div class="flow-node-name">flowkit</div>
             <div class="flow-node-label">ship it</div>
             <div class="flow-node-cmds">
@@ -58,6 +67,14 @@
               <span>/pickup</span>
             </div>
           </div>
+          <div class="flow-node flow-node--throughout">
+            <div class="flow-node-name">vaultkit</div>
+            <div class="flow-node-label">capture it</div>
+            <div class="flow-node-cmds">
+              <span>/jot</span>
+              <span>/obsidian</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -69,7 +86,7 @@
           <div class="card plugin-card">
             <div class="plugin-card-header">
               <span class="plugin-name">speckit</span>
-              <span class="badge">v1.2.0</span>
+              <span class="badge">v1.2.1</span>
               <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/speckit" target="_blank" rel="noopener">README →</a>
             </div>
             <p class="plugin-desc">Define and capture work as GitHub issues. Interview a feature into existence, bulk-convert findings, or quickly file a single issue.</p>
@@ -84,7 +101,7 @@
           <div class="card plugin-card">
             <div class="plugin-card-header">
               <span class="plugin-name">flowkit</span>
-              <span class="badge">v1.2.2</span>
+              <span class="badge">v1.2.3</span>
               <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/flowkit" target="_blank" rel="noopener">README →</a>
             </div>
             <p class="plugin-desc">Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection.</p>
@@ -100,7 +117,7 @@
           <div class="card plugin-card">
             <div class="plugin-card-header">
               <span class="plugin-name">swarmkit</span>
-              <span class="badge">v2.0.2</span>
+              <span class="badge">v2.0.4</span>
               <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README →</a>
             </div>
             <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
@@ -188,6 +205,14 @@
             <div class="code-copy-wrapper">
               <pre><code>claude plugin install sessionkit@smallorbit-plugins</code></pre>
               <button class="copy-btn" data-copy="claude plugin install sessionkit@smallorbit-plugins" aria-label="Copy sessionkit install command">copy</button>
+            </div>
+            <div class="code-copy-wrapper">
+              <pre><code>claude plugin install polishkit@smallorbit-plugins</code></pre>
+              <button class="copy-btn" data-copy="claude plugin install polishkit@smallorbit-plugins" aria-label="Copy polishkit install command">copy</button>
+            </div>
+            <div class="code-copy-wrapper">
+              <pre><code>claude plugin install vaultkit@smallorbit-plugins</code></pre>
+              <button class="copy-btn" data-copy="claude plugin install vaultkit@smallorbit-plugins" aria-label="Copy vaultkit install command">copy</button>
             </div>
           </div>
         </div>
