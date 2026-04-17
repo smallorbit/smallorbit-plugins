@@ -1,0 +1,82 @@
+# Speckit
+
+A Claude Code plugin for defining and capturing work. Interview a feature into existence, bulk-convert findings into issues, or quickly file a single issue — all from slash commands.
+
+## Installation
+
+Install from the `smallorbit-plugins` marketplace:
+
+```
+/plugin marketplace add smallorbit/smallorbit-plugins
+/plugin install speckit@smallorbit-plugins
+```
+
+Or load directly for a single session:
+
+```bash
+claude --plugin-dir /path/to/speckit
+```
+
+### Prerequisites
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- [GitHub CLI](https://cli.github.com/) (`gh`) authenticated with repo access
+
+## Skills
+
+| Skill | Invoke | What it does |
+|-------|--------|--------------|
+| **spec** | `/spec` | Interview-driven planning — gathers requirements, builds a structured plan, files it as a GitHub epic with linked child issues. |
+| **catalog** | `/catalog` | Bulk-converts findings (from a code review, audit, or assessment) into prioritized, labeled GitHub issues. |
+| **issue** | `/issue` | Quickly drafts and files a single GitHub issue from a description. Checks for duplicates and previews before creating. |
+
+## Typical Workflows
+
+### Spec out a feature
+
+```
+/spec add dark mode support       # Interview → plan → epic + issues
+```
+
+### Turn a code review into a backlog
+
+```
+/catalog                          # Pick up findings from earlier in the conversation
+/catalog findings.md              # Or point at a file
+```
+
+### File a quick issue
+
+```
+/issue the login button is misaligned on mobile Safari
+```
+
+### Full planning session
+
+```
+/spec                             # Start with a blank slate — Claude will ask what to plan
+/issue users can't reset password # File any loose issues that didn't need a full spec
+```
+
+## How Spec Works
+
+`/spec` runs a structured interview using `AskUserQuestion` (1–4 questions per round), grounding each question in the actual codebase before asking. It continues until all ambiguities are resolved, then synthesizes a plan with goal, background, requirements, out-of-scope boundaries, and a task breakdown. The plan is shown for approval before any issues are filed.
+
+Child issues are created via `/catalog`. An epic tracking issue is created last, after all child issue numbers are known. No issues are ever created without your explicit approval.
+
+## How Catalog Works
+
+`/catalog` accepts findings from three sources (checked in order): explicit input in `$ARGUMENTS`, findings from earlier in the conversation, or a file path. It parses them into discrete issues, checks for existing duplicates and labels, shows a summary table for approval, then creates all issues in priority order (high first).
+
+## How Issue Works
+
+`/issue` is the lightweight path. Give it a description, and it drafts a title, infers type and priority, checks for duplicates, and shows a preview before filing. Use it when you know exactly what to file and don't need an interview.
+
+## Pairing with Swarmkit
+
+Speckit and [swarmkit](../swarmkit) are designed as a pair — speckit defines the work, swarmkit executes it:
+
+```
+/spec add CSV export              # Plan the feature, file issues
+/swarm                            # Resolve them with parallel agents
+```
