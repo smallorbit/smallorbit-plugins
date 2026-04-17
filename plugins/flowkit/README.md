@@ -140,7 +140,7 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 
 `/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` (or `/hotfix`) when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
 
-## Pairing with Speckit and Swarmkit
+## Pairing with Other Plugins
 
 Flowkit handles the shipping half of the development loop. Use it with speckit and swarmkit for the full planning-to-production cycle:
 
@@ -151,4 +151,4 @@ Flowkit handles the shipping half of the development loop. Use it with speckit a
 /release                          # Ship to main  (flowkit)
 ```
 
-The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it.
+The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it. Use [sessionkit](../sessionkit)'s `/handoff` if a release session runs long, and `/skillit` afterwards to capture any new conventions or one-off scripts worth keeping.
