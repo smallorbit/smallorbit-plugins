@@ -22,7 +22,7 @@ A collection of plugins for Claude Code.
 The four plugins form a complete development loop:
 
 ```
-/interview     → clarify the idea (sessionkit)
+/interview     → clarify the idea (speckit)
 /spec          → plan the feature, file issues (speckit)
 /swarm         → resolve issues with parallel agents (swarmkit)
 /release       → ship merged work to production (flowkit)
