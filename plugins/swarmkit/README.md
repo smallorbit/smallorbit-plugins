@@ -32,6 +32,7 @@ claude --plugin-dir /path/to/swarmkit
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
 | **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
+| **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up in dependency order. |
 
 ### Sub-Skills (internal)
 
@@ -42,7 +43,6 @@ These are called by the skills above — you don't invoke them directly.
 | **self-review** | swarm | Runs iterative `/simplify` passes on changed files before PR creation. |
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
 | **gh-fetch-issues** | pick-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
-| **gh-label-merged-issues** | swarm | Applies `merged-to-develop` label to issues referenced in merged PRs. |
 | **issue-rank** | pick-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
 
 ## Typical Workflow
@@ -59,8 +59,8 @@ These are called by the skills above — you don't invoke them directly.
 1. Ensures a `develop` branch exists (creates from `main` if needed)
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
 3. Spawns one agent per issue (or grouped set) in isolated git worktrees
-4. Each agent: creates branch, makes changes, commits, pushes, opens PR
-5. Merges PRs in dependency order via squash merge
+4. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
+5. Use `swarmkit:merge-stack` to merge in dependency order when ready
 6. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.
@@ -103,9 +103,9 @@ type(scope): description
 
 Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`. The `conventional-commit-message` sub-skill enforces this format.
 
-### Label: `merged-to-develop`
+### Label: `status:in-progress`
 
-After a PR merges, `/swarm` applies the `merged-to-develop` label to the referenced issues. This label is auto-created in your repo if it doesn't exist.
+When an agent is spawned for an issue, swarmkit applies `status:in-progress` to it. This prevents `gh-fetch-issues` and `pick-issue` from re-selecting it in subsequent swarm cycles. GitHub auto-closes the issue when its PR merges (via `Closes #N`), so no manual label cleanup is needed.
 
 ### Issue Lifecycle
 

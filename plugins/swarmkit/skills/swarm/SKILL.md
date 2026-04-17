@@ -69,9 +69,26 @@ gh issue view <number> --json title,body,labels
 
 ### 2. Analyze dependencies and grouping
 
+**Parse the dependency graph** from the issue bodies already fetched in Step 1:
+
+For each issue body, extract `Depends on #N` and `Blocked by #N` references:
+
+```bash
+echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
+```
+
+Build a directed acyclic graph (DAG): each issue is a node; a `Depends on #N` or `Blocked by #N` relationship is a directed edge from the dependent to the dependency.
+
+Produce a **topological sort** of the DAG. This sort determines:
+- Which issues can spawn in parallel (no incoming edges in this batch = independent)
+- Which issues must wait for their dependencies to complete and merge first (dependent chains)
+
+Output two categories:
+- **Independent issues**: no dependencies within this batch — spawn in parallel targeting `$BASE`
+- **Dependent chains**: ordered by topology — each dependent must wait for its dependency's PR to merge before spawning
+
 - **File conflicts**: issues touching the same files must not share an agent
 - **Grouping**: small independent fixes to the same file can share one agent
-- **Dependency order**: if B depends on A's output, note this for merge ordering
 
 ### 3. Present swarm plan
 
@@ -98,6 +115,17 @@ Present the plan and proceed immediately with the proposed groupings.
 | Multi-file / new components / logic / judgment | `opus` |
 
 ### 4. Spawn agents
+
+Before spawning each agent, ensure the `status:in-progress` label exists and apply it to the issue(s) being worked on:
+
+```bash
+gh label list | grep -q "status:in-progress" || \
+  gh label create "status:in-progress" --description "Actively being worked on" --color "E4E669"
+
+gh issue edit <issue> --add-label "status:in-progress"
+```
+
+GitHub will automatically remove `status:in-progress` visibility when the issue closes via the `Closes #N` PR reference — no manual cleanup needed.
 
 Launch all agents in parallel:
 - `isolation: "worktree"`
@@ -145,69 +173,16 @@ Each agent prompt MUST include these **workflow steps** (in order):
 
 Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This frees local `worktree-agent-*` branches so the merge step can use `--delete-branch` without conflicts.
 
-### 7. Merge PRs
-
-Merge each PR in the recommended dependency order — for each: `gh pr merge <number> --squash --delete-branch`. After each successful merge, follow the `gh-label-merged-issues` sub-skill on the merged PR number.
-
-If a merge fails:
-- Analyze which remaining PRs depend on the failed one
-- Merge all independent PRs
-- Mark dependents as blocked; leave those PRs open
-- Report clearly: which issue failed, why, which are blocked
-
-### Dirty/conflicting PR recovery
-
-Before merging, or when `gh pr merge` fails with a conflict, check the PR's mergeability:
-
-```bash
-gh pr view <N> --json mergeable,mergeStateStatus
-```
-
-If `mergeStateStatus` is `CONFLICTING` or `DIRTY`, inspect the PR's changed files:
-
-```bash
-gh pr view <N> --json files
-```
-
-Then apply the appropriate path:
-
-**PR contains unrelated commits (files outside the issue scope)**
-Close the PR with an explanation and leave the issue open for re-work:
-
-```bash
-gh pr close <N> --comment "Closing: this PR contains commits outside the scope of the referenced issue (unrelated files: <list>). The branch has been contaminated. Leaving the issue open for a clean re-implementation in the next cycle."
-```
-
-**Issue needed no actual changes (agent confirmed no-op)**
-The issue is resolved without code changes. Apply the `merged-to-develop` label and leave a comment explaining the no-op resolution, then continue:
-
-```bash
-gh issue edit <issue> --add-label "merged-to-develop"
-gh issue comment <issue> --body "No code changes were required. The issue is resolved as a no-op and has been labelled merged-to-develop."
-```
-
-**Issue still needs work (genuine conflict, not a no-op)**
-Leave the PR closed and the issue open — it will be picked up in the next swarm cycle.
-
-In all cases, **continue merging the remaining independent PRs** — never abort the entire merge sequence because one PR is dirty.
-
-### 8. Sync develop
-
-Pull the merged changes onto local develop:
-
-```bash
-git checkout develop
-git pull origin develop
-```
-
-### 9. Report
+### 7. Report
 
 ```
 | Issue(s) | PR | Branch | Status |
 |----------|-----|--------|--------|
-| #16      | #25 | fix/readme-accuracy | Merged |
-| #18, #19 | #26 | chore/clean-hooks   | Merged |
+| #16      | #25 | fix/readme-accuracy | Open |
+| #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
+
+All PRs are left open for review. Use `swarmkit:merge-stack` to merge in dependency order when ready.
 
 ---
 
