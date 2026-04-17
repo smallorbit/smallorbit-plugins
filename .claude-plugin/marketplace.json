@@ -23,6 +23,16 @@
       "name": "speckit",
       "source": "./plugins/speckit",
       "description": "Define and capture work as GitHub issues. Interview a feature into existence with /spec, bulk-convert findings with /catalog, or quickly file a single issue with /issue."
+    },
+    {
+      "name": "polishkit",
+      "source": "./plugins/polishkit",
+      "description": "Codebase quality toolkit. Assess code craft with /critique, sweep for cruft with /tidy-codebase, and eliminate unused code with /dead-code."
+    },
+    {
+      "name": "vaultkit",
+      "source": "./plugins/vaultkit",
+      "description": "Obsidian vault skills for Claude Code. Read, search, and edit notes, manage projects, capture decisions, and archive conversations — all via the Obsidian CLI."
     }
   ]
 }

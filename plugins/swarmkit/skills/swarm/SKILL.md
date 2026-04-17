@@ -1,7 +1,6 @@
 ---
 name: swarm
 description: Spawn parallel isolated-worktree agents for GitHub issues, open stacked PRs in dependency order, and leave them open for review. Use `swarmkit:merge-stack` to merge. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
-disable-model-invocation: true
 ---
 
 # Swarm Skill
