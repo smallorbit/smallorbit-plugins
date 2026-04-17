@@ -49,15 +49,15 @@ If `SOURCE` is empty, abort with an error — there is nothing to release.
 
 ### 4. Aggregate issue references from merged PRs
 
-Find the last release tag and collect all `Closes/Fixes/Resolves #N` references from PRs merged into SOURCE since that tag's date. The tag-date filter ensures only PRs from the current release cycle are included, not all PRs ever merged:
+Find the last release tag and collect all `Closes/Fixes/Resolves #N` references from PRs merged into `develop` since that tag's date. The tag-date filter ensures only PRs from the current release cycle are included, not all PRs ever merged:
 
 ```bash
 LAST_TAG=$(git tag --sort=-version:refname | head -1)
 
 if [ -n "$LAST_TAG" ]; then
   TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
-  MERGED_PRS=$(gh pr list --base "$SOURCE" --state merged --json body,mergedAt \
-    --jq --arg since "$TAG_DATE" '.[] | select(.mergedAt > $since) | .body')
+  MERGED_PRS=$(gh pr list --base develop --state merged --json body,mergedAt \
+    --jq '.[] | select(.mergedAt > "'"$TAG_DATE"'") | .body')
   ISSUE_REFS=$(echo "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 fi
 ```
