@@ -147,11 +147,11 @@ git ls-remote origin "rc/$TODAY*" \
     done
 ```
 
-### 10. Sync develop
+### 11. Sync develop
 
 Follow the `git-sync-develop` sub-skill.
 
-### 11. Report
+### 12. Report
 
 Output:
 - Tag created (e.g. `v2026.4.16`)
