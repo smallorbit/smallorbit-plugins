@@ -271,6 +271,8 @@ footer {
   margin-bottom: 24px;
 }
 .install-blocks { display: flex; flex-direction: column; gap: 16px; }
+.install-block + .install-block { margin-top: 32px; }
+.install-block .code-copy-wrapper + .code-copy-wrapper { margin-top: 10px; }
 .install-block-label {
   font-size: 0.8rem;
   color: var(--accent-green);
