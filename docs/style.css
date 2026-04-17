@@ -285,6 +285,8 @@ section + section { border-top: 1px solid var(--border); }
   display: block;
   font-style: italic;
   font-weight: 300;
+  line-height: 1.12;
+  padding-bottom: 0.12em;
   background: linear-gradient(120deg, var(--speckit) 0%, var(--flowkit) 60%, var(--vaultkit) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -360,7 +362,7 @@ section + section { border-top: 1px solid var(--border); }
 .hero-secondary a:hover { color: var(--flowkit); border-color: var(--flowkit); text-decoration: none; }
 
 /* ---------- Lifecycle (centerpiece) --------------------------------------- */
-#lifecycle { padding-top: 120px; padding-bottom: 140px; }
+#lifecycle { padding-top: 48px; padding-bottom: 140px; scroll-margin-top: 12px; }
 .lifecycle-wrap {
   position: relative;
   margin-top: 8px;
@@ -569,7 +571,10 @@ section + section { border-top: 1px solid var(--border); }
   border-radius: 50%;
   background: var(--border-strong);
 }
-.lifecycle-legend-dot.ai { background: var(--swarmkit); box-shadow: 0 0 8px var(--glow-swarm); }
+.lifecycle-legend-dot.ai {
+  background: conic-gradient(from 220deg, var(--speckit), var(--swarmkit), var(--polishkit), var(--flowkit), var(--speckit));
+  box-shadow: 0 0 8px rgba(188, 140, 255, 0.35);
+}
 .lifecycle-legend-dot.you { background: transparent; border: 1px dashed var(--text-muted); }
 .lifecycle-legend-dot.session { background: var(--sessionkit); box-shadow: 0 0 8px var(--glow-session); }
 
@@ -850,8 +855,9 @@ section + section { border-top: 1px solid var(--border); }
 
 /* ---------- Install ------------------------------------------------------- */
 #install {
-  padding-top: 110px;
+  padding-top: 48px;
   padding-bottom: 130px;
+  scroll-margin-top: 12px;
 }
 .install-intro {
   font-family: var(--sans);
