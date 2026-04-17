@@ -85,11 +85,13 @@ Child issues are created via `/catalog`. An epic tracking issue is created last,
 - **`/catalog` is the implementation**: `/spec` delegates issue creation to `/catalog`. This means catalog settings (duplicate detection, label inference, priority ordering) apply to spec-generated issues too.
 - **Duplicate detection**: before filing any issue, `/catalog` and `/issue` check for open issues with similar titles. Potential duplicates are surfaced for your review before creation proceeds.
 
-## Pairing with Swarmkit
+## Pairing with Other Plugins
 
-Speckit and [swarmkit](../swarmkit) are designed as a pair — speckit defines the work, swarmkit executes it:
+Speckit defines the work; [swarmkit](../swarmkit) executes it:
 
 ```
 /spec add CSV export              # Plan the feature, file issues
 /swarm                            # Resolve them with parallel agents
 ```
+
+Use [sessionkit](../sessionkit)'s `/interview` as a planning warm-up before `/spec` — arrive with clearer, grounded requirements. Use `/handoff` if a spec session runs long and needs to continue in a new context.
