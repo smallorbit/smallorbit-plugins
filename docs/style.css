@@ -359,38 +359,6 @@ section + section { border-top: 1px solid var(--border); }
 }
 .hero-secondary a:hover { color: var(--flowkit); border-color: var(--flowkit); text-decoration: none; }
 
-/* Hero metrics */
-.hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 44px;
-  margin-top: 72px;
-  padding-top: 36px;
-  border-top: 1px solid var(--border);
-  max-width: 640px;
-}
-.hero-metric-n {
-  font-family: var(--serif);
-  font-weight: 300;
-  font-size: 2.2rem;
-  line-height: 1;
-  color: var(--text-strong);
-  letter-spacing: -0.02em;
-}
-.hero-metric-l {
-  display: block;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-top: 8px;
-}
-@media (max-width: 600px) {
-  .hero-metrics { gap: 28px; }
-  .hero-metric-n { font-size: 1.8rem; }
-}
-
 /* ---------- Lifecycle (centerpiece) --------------------------------------- */
 #lifecycle { padding-top: 120px; padding-bottom: 140px; }
 .lifecycle-wrap {
@@ -687,10 +655,6 @@ section + section { border-top: 1px solid var(--border); }
 #plugins { padding-top: 110px; padding-bottom: 110px; }
 
 .plugin-category {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 24px;
   margin-top: 56px;
   margin-bottom: 26px;
   padding-bottom: 14px;
@@ -703,13 +667,6 @@ section + section { border-top: 1px solid var(--border); }
   font-size: 1.4rem;
   color: var(--text-strong);
   letter-spacing: -0.02em;
-}
-.plugin-category-count {
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .plugin-grid {
