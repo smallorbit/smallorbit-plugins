@@ -127,7 +127,29 @@ gh issue edit <issue> --add-label "status:in-progress"
 
 GitHub will automatically remove `status:in-progress` visibility when the issue closes via the `Closes #N` PR reference — no manual cleanup needed.
 
-Launch all agents in parallel:
+Apply the hybrid spawn strategy based on the dependency graph from Step 2:
+
+**Independent issues** (no dependencies within this batch):
+- Spawn all in parallel
+- Each agent branches from `$BASE` (e.g., `develop`)
+- Use `run_in_background: true`
+
+**Dependent chains** (issues with dependencies):
+- Spawn sequentially in topological order
+- Each agent waits for its dependency's agent to complete and its PR to be created
+- The dependent agent branches from its dependency's branch tip (not `$BASE`):
+  ```bash
+  git fetch origin worktree-agent-<dependency-issue>
+  git checkout -b worktree-agent-<this-issue> origin/worktree-agent-<dependency-issue>
+  ```
+- The dependent agent's PR targets the dependency's branch (not `$BASE`):
+  ```bash
+  gh pr create --base worktree-agent-<dependency-issue> --head worktree-agent-<this-issue> \
+    --title "..." --body "Closes #<this-issue>"
+  ```
+- When the dependency merges to `$BASE`, GitHub automatically retargets the dependent PR to `$BASE`
+
+All agents (both strategies) use:
 - `isolation: "worktree"`
 - `mode: "bypassPermissions"`
 - `run_in_background: true`
@@ -144,9 +166,14 @@ Each agent prompt MUST include:
 Each agent prompt MUST include these **workflow steps** (in order):
 
 ```
-1. Create and check out branch from develop:
+1. Create and check out branch from the appropriate base:
+   # For independent issues (no deps in this batch):
    git checkout develop && git pull origin develop
    git checkout -b worktree-agent-<issue>
+
+   # For dependent issues (has a dependency in this batch):
+   git fetch origin worktree-agent-<dependency-issue>
+   git checkout -b worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
 
    # Safety check — abort if not in an isolated worktree
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not running in an isolated worktree. Aborting to prevent branch collision." && exit 1
@@ -157,8 +184,14 @@ Each agent prompt MUST include these **workflow steps** (in order):
    git add <files> && git commit -m "<type>(<scope>): <description>"
 4. Push the branch:
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting develop:
+5. Create PR targeting the appropriate base:
+   # For independent issues:
    gh pr create --base develop --head worktree-agent-<issue> \
+     --title "<type>(<scope>): <description>" \
+     --body "Closes #<issue>"
+
+   # For dependent issues:
+   gh pr create --base worktree-agent-<dependency-issue> --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
      --body "Closes #<issue>"
 ```
