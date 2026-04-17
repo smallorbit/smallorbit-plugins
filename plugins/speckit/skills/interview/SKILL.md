@@ -75,13 +75,19 @@ Present the plan inline.
 
 ### 4. Hand off
 
-End the response by stating explicitly that the plan is ready to feed into `/spec` (to file it as a GitHub epic with linked child issues) or `/catalog` (to turn the task list into prioritised, labelled issues directly). Do not file issues from this skill — hand off cleanly.
+If you were invoked as a sub-skill (e.g. from `/speckit:spec`), return the
+structured plan output and stop — do not emit any hand-off suggestion. The
+orchestrating skill handles next steps.
+
+If you were invoked standalone, end the response by stating that the plan is
+ready to feed into `/speckit:catalog` to file the task list as prioritised,
+labelled GitHub issues. Do not file issues from this skill — hand off cleanly.
 
 ## Constraints
 
 - Ask 1–4 questions per round — never one-at-a-time, never a wall of questions
 - Do not produce a plan until ambiguities are resolved
-- Never file GitHub issues from this skill — always hand off to `/spec` or `/catalog`
+- Never file GitHub issues from this skill — always hand off to `/speckit:catalog` (or return to the orchestrating skill if invoked as a sub-skill)
 - Never write the plan to disk unless the user explicitly asks
 - Keep the plan concise — it's a decision record, not an essay
 - Output sections must match `/spec` exactly: Goal, Background, Requirements, Out of Scope, Tasks
