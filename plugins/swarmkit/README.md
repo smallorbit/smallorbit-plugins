@@ -71,7 +71,6 @@ These are called by the skills above — you don't invoke them directly.
 
 - `--model <sonnet|opus>` — override model selection for all agents
 - `--base <branch>` — override the default base branch (`develop`)
-- `--auto` — skip approval gates and proceed automatically
 
 ## Assumptions & Conventions
 
