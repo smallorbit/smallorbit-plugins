@@ -153,7 +153,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
 
 ### 6. Clean up
 
-Run the `clean-worktrees` skill to remove agent worktrees and orphaned branches.
+Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This frees local `worktree-agent-*` branches so the merge step can use `--delete-branch` without conflicts.
 
 ### 7. Merge PRs
 
