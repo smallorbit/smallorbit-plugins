@@ -60,15 +60,15 @@ Explicit exclusions to prevent scope creep.
 
 ## Tasks
 Decomposed work items — each is a candidate child issue.
-Each task: title, category (bug/enhancement/refactor/test/docs), priority (high/medium/low), one-line description.
+Each task: title, category (bug/enhancement/refactor/test/docs), priority (high/medium/low), depends-on (task # or — if none), one-line description.
 
-| # | Title | Category | Priority | Description |
-|---|-------|----------|----------|-------------|
-| 1 | ...   | ...      | ...      | ...         |
+| # | Title | Category | Priority | Depends On | Description |
+|---|-------|----------|----------|------------|-------------|
+| 1 | ...   | ...      | ...      | —          | ...         |
 
 Always append the following documentation task as the final row, unless the plan is a pure refactor or internal-only change with no user-facing or architectural impact:
 
-| N | Update documentation | docs | low | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
+| N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
 Present the plan inline.
@@ -85,3 +85,4 @@ End the response by stating explicitly that the plan is ready to feed into `/spe
 - Never write the plan to disk unless the user explicitly asks
 - Keep the plan concise — it's a decision record, not an essay
 - Output sections must match `/spec` exactly: Goal, Background, Requirements, Out of Scope, Tasks
+- Tasks table must include the `Depends On` column — use `—` when a task has no dependencies

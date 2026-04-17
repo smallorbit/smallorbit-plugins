@@ -65,13 +65,13 @@ Explicit exclusions to prevent scope creep.
 
 ## Tasks
 Decomposed work items — each becomes a child issue.
-Each task: title, category (bug/enhancement/refactor/test/docs), priority (high/medium/low), one-line description.
+Each task: title, category (bug/enhancement/refactor/test/docs), priority (high/medium/low), depends-on (task # or — if none), one-line description.
 
 Always append the following documentation task as the final row, unless the spec is a pure refactor or internal-only change with no user-facing or architectural impact:
 
-| # | Title | Category | Priority | Description |
-|---|-------|----------|----------|-------------|
-| N | Update documentation | docs | low | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
+| # | Title | Category | Priority | Depends On | Description |
+|---|-------|----------|----------|------------|-------------|
+| N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
 Present the plan inline. Ask for approval before filing any issues. Allow the
@@ -96,12 +96,6 @@ After all child issues are created, create one parent epic issue:
 
 <from the plan>
 
-## Issues
-
-- [ ] #N title
-- [ ] #N title
-      ...
-
 ## Acceptance Criteria
 
 <from the plan's requirements>
@@ -109,6 +103,23 @@ After all child issues are created, create one parent epic issue:
 
 - Title format: `epic: <short description>`
 - Labels: `epic` (create if missing) + `priority:<level>` matching the highest-priority child
+- Do **not** include an issues checklist — child issues are linked via GitHub's native sub-issue relationship (added in the next step)
+
+After creating the epic, wire up relationships:
+
+1. **Add sub-issues**: For each child issue, add it as a sub-issue of the epic:
+   ```bash
+   gh api repos/{owner}/{repo}/issues/{epic_number}/sub_issues \
+     -X POST -F sub_issue_id={child_issue_id}
+   ```
+   Use the numeric `id` (not the issue number) — fetch it from `gh issue view {number} --json id`.
+
+2. **Wire blocked-by relationships**: For each task with a `Depends On` value in the plan, set the GitHub blocked-by relationship:
+   ```bash
+   gh api repos/{owner}/{repo}/issues/{blocked_number}/dependencies/blocked_by \
+     -X POST -F issue_id={blocking_issue_id}
+   ```
+   Use `-F` (not `-f`) to pass integers. Map task numbers to issue IDs from the created issues.
 
 ### 6. Report
 
