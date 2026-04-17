@@ -34,11 +34,11 @@ TODAY=$(date +%Y-%m-%d)
 RC_BASE="rc/$TODAY"
 ```
 
-Count existing RC **tags** for today (tags persist after branch deletion, making the increment reliable):
+Find the highest RC **tag** number for today and increment it (tags persist after branch deletion; using max rather than count handles gaps from untagged historical RCs):
 
 ```bash
-EXISTING=$(git tag --list "rc/$TODAY.*" | wc -l | tr -d ' ')
-N=$((EXISTING + 1))
+LAST_N=$(git tag --list "rc/$TODAY.*" | grep -oE '\.[0-9]+$' | tr -d '.' | sort -n | tail -1)
+N=$((${LAST_N:-0} + 1))
 RC_BRANCH="rc/$TODAY.$N"
 ```
 
