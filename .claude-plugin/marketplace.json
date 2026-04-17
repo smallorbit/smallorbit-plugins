@@ -8,6 +8,21 @@
       "name": "swarmkit",
       "source": "./plugins/swarmkit",
       "description": "Spec, swarm, and ship GitHub issues with parallel agents"
+    },
+    {
+      "name": "flowkit",
+      "source": "./plugins/flowkit",
+      "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection and a one-command hotfix flow."
+    },
+    {
+      "name": "sessionkit",
+      "source": "./plugins/sessionkit",
+      "description": "Session continuity and meta-learning for Claude Code. Hand off context between sessions, resume seamlessly, plan through structured interviews, discover reusable skills, and reduce permission noise."
+    },
+    {
+      "name": "speckit",
+      "source": "./plugins/speckit",
+      "description": "Define and capture work as GitHub issues. Interview a feature into existence with /spec, bulk-convert findings with /catalog, or quickly file a single issue with /issue."
     }
   ]
 }
