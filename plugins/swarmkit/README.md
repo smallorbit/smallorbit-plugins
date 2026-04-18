@@ -66,7 +66,7 @@ These are called by the skills above — you don't invoke them directly.
 6. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.
-**Loop mode**: `/swarm` — fetch, swarm, merge, repeat until the board is clear.
+**Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear.
 **Label filter**: `/swarm bug` — loop mode, but only `bug`-labeled issues.
 
 ### Flags
