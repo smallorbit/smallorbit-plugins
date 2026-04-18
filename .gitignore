@@ -1,3 +1,4 @@
 .DS_Store
 .sessionkit/
 .claude/settings.local.json
+.ideas.md
