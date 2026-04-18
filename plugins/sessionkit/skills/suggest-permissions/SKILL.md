@@ -66,6 +66,8 @@ Format suggestions as a `permissions.allow` block for `.claude/settings.json`:
 
 For each suggestion, provide a one-line rationale so the user can make an informed decision. Group by category (Bash / Edit / MCP).
 
+After presenting the suggestions, call the `AskUserQuestion` tool to request approval — a single question such as "Apply these permissions to settings.json?" with options like `Apply all`, `Select individually`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion`.
+
 ### 4. Apply on approval
 
 If the user approves some or all suggestions:
@@ -83,6 +85,7 @@ Report what was added and where. Suggest running `/suggest-permissions` again af
 ## Constraints
 
 - Never write to settings files without explicit user approval
+- After presenting suggestions, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call is a defect.
 - Suggest project-level `.claude/settings.json` by default; offer `settings.local.json` as an alternative for personal preferences that shouldn't be committed
 - Do not suggest wildcard patterns broader than what the evidence supports (e.g., don't suggest `Bash(*:*)` just because many commands were approved)
 - If session history is unavailable or empty, say so and stop

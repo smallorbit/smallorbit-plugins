@@ -75,11 +75,7 @@ If `$ARGUMENTS` is provided, weave its guidance into the relevant sections (ofte
 
 ### 3. Present for approval
 
-Show the drafted document inline. Then ask:
-
-> Does this look right? Say 'yes' to write it, or edit any sections first.
-
-Do not write anything until the user explicitly approves.
+Show the drafted document inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Write this handoff to disk?" with options like `Write as shown`, `Edit sections first`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts are not sufficient. If the user selects an edit or cancel option, loop back (update the draft or abort) before re-asking.
 
 ### 4. Write to disk
 
@@ -112,6 +108,7 @@ Report the absolute path of the file written and suggest:
 ## Constraints
 
 - Never write the file without explicit user approval
+- After presenting the draft, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call is a defect.
 - Keep the document concise — it's a recall aid, not full documentation
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
 - If `.sessionkit/HANDOFF.md` already exists, warn before overwriting
