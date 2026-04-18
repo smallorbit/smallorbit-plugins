@@ -83,21 +83,21 @@ Do not write anything until the user explicitly approves.
 
 ### 4. Write to disk
 
-On approval:
+On approval, check `.gitignore` coverage first:
+
+```bash
+test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" || echo "not-covered"
+```
+
+- **`.gitignore` absent**: ask "No `.gitignore` found. Create one with `.sessionkit/` to keep handoff docs out of version control? (yes/no)". On yes, write `.gitignore` containing only `.sessionkit/`. On no, proceed.
+- **`.gitignore` present but not covered**: ask "`.gitignore` doesn't cover `.sessionkit/`. Append it? (yes/no)". On yes, append `.sessionkit/` to `.gitignore`. On no, proceed.
+- **Already covered**: proceed silently.
+
+Then create the directory and write the file:
 
 ```bash
 mkdir -p .sessionkit
 ```
-
-Check `.gitignore` handling before writing:
-
-- If no `.gitignore` exists, ask: "No `.gitignore` found. Create one containing `.sessionkit/` to keep handoff docs out of version control? (yes/no)"
-  - On yes: create `.gitignore` with `.sessionkit/` as its only entry.
-  - On no: proceed without creating one.
-- If `.gitignore` exists but does not already cover `.sessionkit/` (neither `.sessionkit` nor `.sessionkit/` appears), ask: "`.gitignore` doesn't cover `.sessionkit/`. Append it? (yes/no)"
-  - On yes: append `.sessionkit/` to `.gitignore`.
-  - On no: proceed without modifying it.
-- If `.gitignore` already covers `.sessionkit/`, proceed silently.
 
 If `.sessionkit/HANDOFF.md` already exists, warn the user and ask whether to overwrite before proceeding.
 
