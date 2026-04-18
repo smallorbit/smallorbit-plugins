@@ -59,7 +59,7 @@ Labels:   <type>, priority:<level>
 <body>
 ```
 
-Wait for approval. The user may adjust the title, priority, or body before proceeding.
+End the preview with an explicit approval question — for example: "File this issue? Reply with any changes to title, labels, or body." Do not proceed to step 5 until the user responds. The user may adjust the title, priority, or body before proceeding.
 
 ### 5. Ensure labels exist
 
@@ -77,6 +77,7 @@ Output the created issue URL.
 
 ## Constraints
 
+- After presenting a plan or draft, always end with an explicit approval question. Silent waits are a defect.
 - Never create the issue without showing the preview first
 - Never skip the duplicate check
 - Keep body concise — problem + impact + fix only

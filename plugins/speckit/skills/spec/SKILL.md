@@ -74,8 +74,7 @@ Always append the following documentation task as the final row, unless the spec
 | N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
-Present the plan inline. Ask for approval before filing any issues. Allow the
-user to adjust priorities, remove tasks, or add tasks before proceeding.
+Present the plan inline. End the plan with an explicit approval prompt — for example: "Approve and file issues? Reply with any changes to priorities, tasks, or scope." Do not proceed to step 4 until the user responds. Allow the user to adjust priorities, remove tasks, or add tasks before proceeding.
 
 ### 4. File child issues
 
@@ -138,6 +137,7 @@ Epic:  #N  epic: <title>
 
 ## Constraints
 
+- After presenting a plan or draft, always end with an explicit approval question. Silent waits are a defect.
 - Never create issues without showing the plan and getting approval first
 - Never write plan files to disk — the plan lives in the conversation only
 - Only create an epic if there are 2 or more child issues — skip step 5 entirely for single-issue plans
