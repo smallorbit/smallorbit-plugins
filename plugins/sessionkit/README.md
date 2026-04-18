@@ -27,8 +27,8 @@ claude --plugin-dir /path/to/sessionkit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **handoff** | `/handoff` | Captures session goal, progress, git state, and remaining work into `.claude/HANDOFF.md`. Use when context is running low or when switching agents. |
-| **pickup** | `/pickup` | Loads `.claude/HANDOFF.md` at the start of a new session and orients the agent to continue seamlessly. |
+| **handoff** | `/handoff` | Captures session goal, progress, git state, and remaining work into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
+| **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session and orients the agent to continue seamlessly. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
 
@@ -62,7 +62,7 @@ claude --plugin-dir /path/to/sessionkit
 
 ## How Handoff / Pickup Works
 
-`/handoff` collects git state, todo files, and conversation history, synthesizes them into a structured document, and writes it to `.claude/HANDOFF.md` only after you approve the draft.
+`/handoff` collects git state, todo files, and conversation history, synthesizes them into a structured document, and writes it to `.sessionkit/HANDOFF.md` only after you approve the draft.
 
 `/pickup` reads that document at the start of a fresh session and produces an orientation summary — goal, progress, git state, remaining work, and key context — without re-executing anything.
 
@@ -70,7 +70,7 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 
 ## Handoff Document Structure
 
-`.claude/HANDOFF.md` is a structured Markdown file with these sections:
+`.sessionkit/HANDOFF.md` is a structured Markdown file with these sections:
 
 | Section | Contents |
 |---------|----------|
@@ -80,7 +80,7 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 | **Remaining Work** | Prioritized list of what still needs to be done |
 | **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
 
-You can manually edit `.claude/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
+You can manually edit `.sessionkit/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
 
 ## How Skillit Works
 

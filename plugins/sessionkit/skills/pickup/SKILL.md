@@ -12,27 +12,27 @@ allowed-tools: Bash, Read
 
 # Pickup
 
-Companion to `/handoff`. At the start of a new session, invoke `/pickup` to restore context written by the previous agent into `.claude/HANDOFF.md`, so work can continue seamlessly.
+Companion to `/handoff`. At the start of a new session, invoke `/pickup` to restore context written by the previous agent into `.sessionkit/HANDOFF.md`, so work can continue seamlessly.
 
 ## Process
 
 ### 1. Discover handoff file
 
-Check for `.claude/HANDOFF.md` in the current working directory:
+Check for `.sessionkit/HANDOFF.md` in the current working directory:
 
 ```bash
-cat .claude/HANDOFF.md 2>/dev/null
+cat .sessionkit/HANDOFF.md 2>/dev/null
 ```
 
 If the file does not exist, fail gracefully: report
 
-> No handoff file found at `.claude/HANDOFF.md`. Either `/handoff` was not run in the previous session, or you're in a different working directory.
+> No handoff file found at `.sessionkit/HANDOFF.md`. Either `/handoff` was not run in the previous session, or you're in a different working directory.
 
 Then stop — do not proceed with the remaining steps.
 
 ### 2. Read and parse
 
-Read the full content of `.claude/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**.
+Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**.
 
 ### 3. Present orientation summary
 
@@ -68,7 +68,7 @@ End with:
 
 ## Constraints
 
-- Never modify or delete `.claude/HANDOFF.md` — this skill is read-only with respect to the handoff file
+- Never modify or delete `.sessionkit/HANDOFF.md` — this skill is read-only with respect to the handoff file
 - Do not assume the handoff file always exists — always check first and fail gracefully
 - Keep the orientation summary concise — surface the essentials, not everything verbatim
 - Do not automatically re-execute any commands referenced in the handoff — the goal is to orient, not to act
