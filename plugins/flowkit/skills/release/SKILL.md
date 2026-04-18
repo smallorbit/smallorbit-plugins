@@ -38,7 +38,7 @@ git ls-remote --exit-code origin staging &>/dev/null && STAGING_EXISTS=true || S
 if [ "$STAGING_EXISTS" = "true" ]; then
   SOURCE="staging"
 else
-  SOURCE=$(git ls-remote --sort=-version:refname origin "rc/*" \
+  SOURCE=$(git ls-remote --heads --sort=-version:refname origin "rc/*" \
     | head -1 \
     | awk '{print $2}' \
     | sed 's|refs/heads/||')
