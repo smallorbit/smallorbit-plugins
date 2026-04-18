@@ -57,7 +57,8 @@ LAST_TAG=$(git tag --sort=-version:refname | head -1)
 if [ -n "$LAST_TAG" ]; then
   TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
   MERGED_PRS=$(gh pr list --base develop --state merged --json body,mergedAt \
-    --jq '.[] | select(.mergedAt > "'"$TAG_DATE"'") | .body')
+    --jq --arg td "$TAG_DATE" \
+    '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601)) | .body')
   ISSUE_REFS=$(echo "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 fi
 ```
