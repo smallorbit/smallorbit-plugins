@@ -74,8 +74,7 @@ Always append the following documentation task as the final row, unless the spec
 | N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
-Present the plan inline. Ask for approval before filing any issues. Allow the
-user to adjust priorities, remove tasks, or add tasks before proceeding.
+Present the plan inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Approve this plan and file the issues?" with options like `Approve and file issues`, `Adjust priorities / tasks`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts like "reply with any changes" are not sufficient, since they don't surface an expected input in the UI. If the user selects an adjust or cancel option, loop back (update the plan or abort) before re-asking.
 
 ### 4. File child issues
 
@@ -138,6 +137,7 @@ Epic:  #N  epic: <title>
 
 ## Constraints
 
+- After presenting a plan or draft, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call (or a prose-only "let me know what you think") is a defect.
 - Never create issues without showing the plan and getting approval first
 - Never write plan files to disk — the plan lives in the conversation only
 - Only create an epic if there are 2 or more child issues — skip step 5 entirely for single-issue plans
