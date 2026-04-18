@@ -12,7 +12,7 @@ allowed-tools: Bash, Read, Write, AskUserQuestion
 
 # Handoff
 
-Capture the current session's goal, progress, git state, remaining work, and key context into `<working-dir>/.claude/HANDOFF.md` so another agent can pick up without losing momentum.
+Capture the current session's goal, progress, git state, remaining work, and key context into `<working-dir>/.sessionkit/HANDOFF.md` so another agent can pick up without losing momentum.
 
 Use when context is running low, when switching machines or sessions, or whenever you want a clean baton-pass to a fresh agent.
 
@@ -86,12 +86,22 @@ Do not write anything until the user explicitly approves.
 On approval:
 
 ```bash
-mkdir -p .claude
+mkdir -p .sessionkit
 ```
 
-If `.claude/HANDOFF.md` already exists, warn the user and ask whether to overwrite before proceeding.
+Check `.gitignore` handling before writing:
 
-Write the approved document to `.claude/HANDOFF.md` using the Write tool.
+- If no `.gitignore` exists, ask: "No `.gitignore` found. Create one containing `.sessionkit/` to keep handoff docs out of version control? (yes/no)"
+  - On yes: create `.gitignore` with `.sessionkit/` as its only entry.
+  - On no: proceed without creating one.
+- If `.gitignore` exists but does not already cover `.sessionkit/` (neither `.sessionkit` nor `.sessionkit/` appears), ask: "`.gitignore` doesn't cover `.sessionkit/`. Append it? (yes/no)"
+  - On yes: append `.sessionkit/` to `.gitignore`.
+  - On no: proceed without modifying it.
+- If `.gitignore` already covers `.sessionkit/`, proceed silently.
+
+If `.sessionkit/HANDOFF.md` already exists, warn the user and ask whether to overwrite before proceeding.
+
+Write the approved document to `.sessionkit/HANDOFF.md` using the Write tool.
 
 ### 5. Confirm
 
@@ -103,5 +113,5 @@ Report the absolute path of the file written and suggest:
 
 - Never write the file without explicit user approval
 - Keep the document concise — it's a recall aid, not full documentation
-- `.claude/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
-- If `.claude/HANDOFF.md` already exists, warn before overwriting
+- `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
+- If `.sessionkit/HANDOFF.md` already exists, warn before overwriting
