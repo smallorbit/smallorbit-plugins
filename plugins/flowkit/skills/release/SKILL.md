@@ -55,10 +55,11 @@ Find the last release tag and collect all `Closes/Fixes/Resolves #N` references 
 LAST_TAG=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
 
 if [ -n "$LAST_TAG" ]; then
-  TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
+  TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG" \
+    | python3 -c "import sys; from datetime import datetime, timezone; print(datetime.fromisoformat(sys.stdin.read().strip()).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
   MERGED_PRS=$(gh pr list --base develop --state merged --json body,mergedAt \
-    --jq --arg td "$TAG_DATE" \
-    '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601)) | .body')
+    | jq --arg td "$TAG_DATE" -r \
+        '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601)) | .body')
   ISSUE_REFS=$(echo "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 fi
 ```
