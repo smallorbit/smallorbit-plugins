@@ -59,7 +59,7 @@ Labels:   <type>, priority:<level>
 <body>
 ```
 
-End the preview with an explicit approval question — for example: "File this issue? Reply with any changes to title, labels, or body." Do not proceed to step 5 until the user responds. The user may adjust the title, priority, or body before proceeding.
+After showing the preview, call the `AskUserQuestion` tool to request approval — a single question such as "File this issue?" with options like `File as shown`, `Adjust title / labels / body`, and `Cancel`. Do not proceed to step 5 until the user has answered via `AskUserQuestion` — prose-only prompts like "reply with any changes" are not sufficient. If the user selects an adjust or cancel option, loop back (update the draft or abort) before re-asking.
 
 ### 5. Ensure labels exist
 
@@ -77,7 +77,7 @@ Output the created issue URL.
 
 ## Constraints
 
-- After presenting a plan or draft, always end with an explicit approval question. Silent waits are a defect.
+- After presenting a plan or draft, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call (or a prose-only "let me know what you think") is a defect.
 - Never create the issue without showing the preview first
 - Never skip the duplicate check
 - Keep body concise — problem + impact + fix only
