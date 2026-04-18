@@ -169,7 +169,7 @@ git push origin "$TAG"
 
 ```bash
 TODAY=$(date +%Y-%m-%d)
-git ls-remote origin "rc/$TODAY*" \
+git ls-remote --heads origin "rc/$TODAY*" \
   | awk '{print $2}' \
   | sed 's|refs/heads/||' \
   | while read rc; do
