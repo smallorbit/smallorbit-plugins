@@ -81,6 +81,8 @@ user to adjust priorities, remove tasks, or add tasks before proceeding.
 
 Pass the full task list from the plan to `/catalog` in a single call. `/catalog` handles duplicate detection, label creation, and issue body format.
 
+Do not instruct `/catalog` to embed `Depends on #N` lines (or any other `#<number>` task-reference) in issue bodies. GitHub auto-links `#N` tokens, so a body that says "Depends on task #3" will link to unrelated issue 3 in the repo. Task-to-task dependencies are wired in step 5 via the native GitHub blocked-by API — keep them out of the issue body.
+
 ### 5. Create the epic tracking issue
 
 Before creating, check for an existing epic: `gh issue list --search "epic: <title>" --state open`. Skip creation and report the existing issue number if found.
