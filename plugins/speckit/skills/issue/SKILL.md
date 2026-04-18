@@ -81,3 +81,4 @@ Output the created issue URL.
 - Never skip the duplicate check
 - Keep body concise — problem + impact + fix only
 - Match the label style already in the repo
+- Never write `#<number>` tokens in the issue body unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a stray `#3` will silently link to unrelated issue 3 in the repo. Strip or rewrite any such token inherited from `$ARGUMENTS` before filing (use "task 3" or "issue 3" without the hash).

@@ -84,3 +84,4 @@ Output the created issues as a table with links:
 - Never create duplicate issues — check `gh issue list` for similar titles before creating
 - Keep issue bodies concise — problem + impact + fix, nothing more
 - Match the label style already in the repo (don't impose a new scheme)
+- Never write `#<number>` tokens in issue bodies unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a token like `#3` in a body about "task 3" will link to unrelated issue 3 in the repo. When referring to sibling tasks from a plan, use "task 3" (no hash) or omit the reference entirely — task-to-task dependencies are wired by the caller (e.g. `/spec`) via the native GitHub blocked-by API, not via issue-body text.
