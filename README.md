@@ -51,3 +51,7 @@ See each plugin's README for detailed usage.
 ## Skill Authoring Conventions
 
 **Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
