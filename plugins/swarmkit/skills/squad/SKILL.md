@@ -111,7 +111,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 Notes:
 
 - **`TeamCreate` registers the orchestrator as `team-lead`**, not `lead`. Always address the orchestrator with `SendMessage({to: "team-lead", ...})`.
-- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** This is what makes the builder's `[[ "$PWD" != *"worktrees"* ]]` safety check pass. Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own).
+- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** This is what makes the builder's git-based worktree safety check pass (see Builder Teammate Contract, step 2). Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own).
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
 ### 1. Initial fetch
@@ -194,11 +194,13 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      ```bash
      git checkout -b worktree-agent-<issue> origin/worktree-agent-<upstream-issue>
      ```
-   - Safety check — abort if not running inside an isolated worktree. If this check fails it means the builder was **not** spawned with `isolation: "worktree"`, so it will never reach a state where it can send an audit request. Before exiting, notify the lead so it can respawn under a new name rather than waiting for an audit request that will never arrive:
+   - Safety check — abort if not running inside an isolated worktree. If this check fails it means the builder was **not** spawned with `isolation: "worktree"`, so it will never reach a state where it can send an audit request. Before exiting, notify the lead so it can respawn under a new name rather than waiting for an audit request that will never arrive. Unlike `swarmkit:swarm`, this probe cannot rely on `$PWD` — under team-mode `Agent` spawns, the shell's working directory does not reliably track the worktree path. Compare the current worktree's toplevel against the main checkout's toplevel instead:
      ```bash
-     if [[ "$PWD" != *"worktrees"* ]]; then
-       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: not running in an isolated worktree. Respawn under a new name."})
-       echo "ERROR: Not in isolated worktree. Aborting."
+     TOP=$(git rev-parse --show-toplevel)
+     MAIN=$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)
+     if [[ "$TOP" == "$MAIN" ]]; then
+       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: operating in main checkout. Respawn under a new name."})
+       echo "ERROR: Operating in main checkout, not an isolated worktree. Aborting."
        exit 1
      fi
      ```
@@ -372,6 +374,8 @@ A builder can fail to start at all — for example, when the tmux shell is misco
 ```
 tmux/.tmux.conf:4: not a suitable shell
 ```
+
+A builder can also fail its worktree-isolation safety check (see Builder Teammate Contract, step 2). Note that squad's DOA signal here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --show-toplevel` vs. the main checkout's toplevel) instead of the `$PWD`-based check swarm uses.
 
 When this happens the builder process exits immediately without ever joining the team mailbox. Its `isActive` flag in the team config file (`~/.claude/teams/<team>/config.json`) remains `true` because no graceful shutdown message was exchanged. Any subsequent `TeamDelete` call will be blocked with:
 
