@@ -77,9 +77,10 @@ EPIC_REFS_FILE=$(mktemp)
 
 echo "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
   gh issue list --label "epic" --state open --json number,body \
-    --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
+    | tr -d '\000-\010\013-\037' \
+    | jq -r ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
   | grep -oE '"number":[0-9]+' | grep -oE '[0-9]+' | while read EPIC_N; do
-    EPIC_BODY=$(gh issue view "$EPIC_N" --json body --jq '.body')
+    EPIC_BODY=$(gh issue view "$EPIC_N" --json body | tr -d '\000-\010\013-\037' | jq -r '.body')
     OPEN_CHILDREN=$(echo "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
     [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
   done
@@ -89,6 +90,7 @@ if [ -n "$ISSUE_REFS" ]; then
   gh issue list --label "epic" --state open --json number --jq '.[].number' \
   | while read EPIC_N; do
     SUB_ISSUES=$(gh api "repos/$REPO/issues/$EPIC_N/sub_issues" 2>/dev/null || echo '[]')
+    SUB_ISSUES=$(printf '%s' "$SUB_ISSUES" | tr -d '\000-\010\013-\037')
     TOTAL=$(echo "$SUB_ISSUES" | jq 'length')
     [ "$TOTAL" = "0" ] && continue
 
