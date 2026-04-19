@@ -123,6 +123,24 @@ If a merge fails with `CONFLICTING`:
 sleep 3
 ```
 
+#### 4g. Sweep intermediate remote branches
+
+After the chain's root PR merges into `$BASE`, delete every intermediate `worktree-agent-*` branch from the remote. Intermediate branches are every `headRefName` whose `baseRefName` was another `worktree-agent-*` branch — these were captured when building the stack graph in step 2.
+
+Run this sweep immediately after the root merge so partial runs still clean up the chains that did land. Skip if there are no intermediate branches (single-PR chain or independent PR).
+
+When the full list is available up front, batch the deletes into one push call to minimize round-trips. Fall back to per-branch deletes if the batch call fails (e.g. mixed stale refs):
+
+```bash
+if [ -n "$INTERMEDIATE_BRANCHES" ]; then
+  echo "$INTERMEDIATE_BRANCHES" | while read branch; do
+    git push origin --delete "$branch" 2>/dev/null || true
+  done
+fi
+```
+
+The `|| true` on each delete keeps a stale-ref failure from aborting the rest of the sweep. Track the count of swept branches for the report.
+
 ### 5. Sync base branch
 
 After all merges:
@@ -140,6 +158,7 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 ── merge-stack complete ──────────────────────────────
 ✓ Merged (chain 1): PR #105 → #104 → #103 → develop
     Refs accumulated into PR #103: Closes #90, #91, #92, #93, #94
+    Swept 2 intermediate remote branches (worktree-agent-105, worktree-agent-104)
 ✓ Merged (independent): PR #108 → develop
 ✗ Conflicted: PR #107 — stopped mid-chain
 ⊘ Blocked: PR #106 — depends on #107
@@ -154,3 +173,4 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 - Never merge into `main` directly — only into `$BASE` (e.g., `develop`)
 - Never skip a conflicted chain's dependents — block and report them
 - Independent PRs (targeting `$BASE` with nothing stacked on them) may merge in any order
+- After a chain's root PR merges, delete every intermediate `worktree-agent-*` branch from the remote — their only purpose was to host the stack, and they are redundant once the root is in `$BASE`
