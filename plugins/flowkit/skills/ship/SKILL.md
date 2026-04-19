@@ -1,69 +1,56 @@
 ---
 name: ship
-description: Full one-shot ship cycle — branch → commit → PR → merge → RC → release. Runs the complete flowkit pipeline from wherever you are on a branch.
+description: Repo-level landing command — merge all open swarm PRs, cut a release candidate, and promote to main. Run this after a swarm to land everything in one shot.
 triggers:
   - "/ship"
-  - "ship this"
-  - "ship it"
-  - "ship the work"
-  - "full ship cycle"
+  - "ship everything"
+  - "land the swarm"
+  - "merge stack and release"
+  - "ship after swarm"
 allowed-tools: Bash
 ---
 
 # Ship
 
-Run the full release pipeline from current branch state to a tagged release on main. Handles branching, committing, opening/merging a PR, cutting an RC, and releasing.
+Land a completed swarm run in one shot: merge all open swarm PRs into develop, cut a release candidate, and promote it to main.
 
 ## Input
 
-`$ARGUMENTS` — optional description or context passed to `/open-pr` as the PR description. If omitted, the PR description is inferred from commits.
+`$ARGUMENTS` — optional notes passed through to `/release` as release context. If omitted, everything is auto-derived.
 
 ## Process
 
-### 1. Scope the PR base
+### 1. Merge open swarm PRs
 
-Follow the `pr-base-scope` sub-skill to set `claude.prBase = develop`. This ensures all PR operations in this pipeline target `develop`.
+Follow `swarmkit:merge-stack`.
 
-### 2. Get work onto develop via PR
+- If no `worktree-agent-*` PRs are open, `merge-stack` will report "No open swarm PRs found" and stop gracefully — continue to step 2.
+- If any merge fails with a conflict, stop immediately and report which PR is blocked. Do not proceed to cut or release until conflicts are resolved.
 
-Detect the current state and act accordingly:
+### 2. Cut a release candidate
 
-- **On `develop`, `main`, or `staging`**: follow `/pr $ARGUMENTS` — this will create a branch, commit, and open a PR targeting develop.
-- **On a feature branch with uncommitted changes**: follow `/commit`, then follow `/open-pr`.
-- **On a feature branch with an open PR already**: skip directly to step 3.
-- **On a feature branch, changes committed, no open PR**: follow `/open-pr`.
+Follow `flowkit:cut` to create an `rc/YYYY-MM-DD.N` branch from `origin/develop`.
 
-### 3. Merge the PR into develop
+- If `origin/staging` exists, `/cut` will auto-stage the RC.
 
-Follow `/merge-pr` to squash-merge the open PR into `develop`.
+### 3. Release
 
-### 4. Sync develop
+Follow `flowkit:release` to merge the RC (or staging) to `main`, create the version tag, close referenced issues, and clean up RC branches.
 
-Follow `/sync` to check out `develop`, pull latest, and prune stale branches.
+Pass `$ARGUMENTS` as the argument if provided.
 
-### 5. Cut a release candidate
-
-Follow `/cut` to create an `rc/YYYY-MM-DD.N` branch from `origin/develop`. If `origin/staging` exists, `/cut` will auto-stage it.
-
-### 6. Release
-
-Follow `/release` to merge to `main`, create the version tag, close referenced issues, and clean up RC branches.
-
-### 7. Unset the PR base scope
-
-Follow the `pr-base-scope` sub-skill to unset `claude.prBase`.
-
-### 8. Report
+### 4. Report
 
 Summarize what happened:
-- Which PR was merged and into which base
+
+- How many swarm PRs were merged (or that the step was skipped)
 - Which RC was created
 - Which tag was created on main
 - Which issues were closed
 
 ## Constraints
 
-- Always set `claude.prBase` at the start and unset it at the end — never leave it set
-- No self-review step — `/ship` is a pipeline, not a quality gate
-- If any step fails, stop immediately and report what failed and why — do not attempt to continue past a failure
+- If `merge-stack` encounters a conflict, stop — do not cut or release with unresolved conflicts
 - Never commit directly to `develop` or `main`
+- No branch/commit/PR creation — those belong to `/pr` and `/swarm`
+- If any step fails, stop immediately and report what failed and why
