@@ -269,6 +269,92 @@ The reviewer is the single long-running auditor for the team. It never writes to
 
 ---
 
+## Halt and Report
+
+### Crash detection
+
+The lead polls teammate health via the Agent Teams API (mailbox responsiveness or an explicit probe). On detection of any of the following, the lead halts immediately:
+
+- Any builder teammate crash
+- Reviewer teammate crash
+- Mailbox delivery failure (send returns error after N retries)
+- Teammate unresponsive beyond configurable timeout
+
+**No auto-respawn, no retry, no continuing with surviving teammates.**
+
+### State report
+
+On halt, the lead prints:
+
+```
+── exp-swarm-teams halted ────────────────────
+Cause: <what crashed and how>
+PRs opened this run: <list with URLs>
+In-flight builders: <list with issue numbers and worktree paths>
+Surviving teammates: <names>
+
+Recovery:
+  1. Review opened PRs — they are safe to merge
+  2. Inspect in-flight worktrees under .claude/worktrees/ for partial work
+  3. Run: /clean-worktrees to discard partial state
+  4. Re-run: /exp-swarm-teams <args> to resume
+──────────────────────────────────────────────
+```
+
+After printing the state report, the lead proceeds to teardown.
+
+### Explicit non-goals for v1
+
+- No auto-respawn of crashed teammates (deferred to v2)
+- No partial-success continuation — one crash halts entire run
+- No automatic cleanup on halt — teardown runs but in-flight worktrees may contain uncommitted work the user should inspect first
+
+---
+
+## Teardown
+
+Runs **regardless of success or halt**. Every step must be idempotent — running teardown twice must not error or leave the repo in a worse state.
+
+### Steps (in order)
+
+1. **Shut down teammates cleanly** — iterate the team roster, invoke the Agent Teams shutdown API for each teammate (builders first, then reviewer):
+
+   ```
+   ShutdownTeammate({name: "builder-<issue>"})   // repeat for each builder
+   ShutdownTeammate({name: "reviewer"})
+   ```
+
+   If a teammate is already gone (crashed or already exited), the call is a no-op.
+
+2. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
+
+   ```
+   swarmkit:clean-worktrees
+   ```
+
+3. **Unset scoped git config** — unset `claude.prBase` if it was set for this operation (mirrors `swarmkit:swarm` loop-mode teardown):
+
+   ```bash
+   git config --unset claude.prBase 2>/dev/null || true
+   ```
+
+4. **Final summary** — print what ran, which PRs are open for review, and any in-flight work needing manual inspection (in halt case):
+
+   ```
+   ── exp-swarm-teams complete ──────────────────
+   Issues resolved: <count>
+   PRs open for review: <list with URLs>
+   In-flight worktrees requiring inspection: <list or "none">
+   ──────────────────────────────────────────────
+   ```
+
+### Out of scope
+
+- Closing or merging PRs — left open for human review
+- Deleting remote branches — only local worktrees and local branches are cleaned
+
+---
+
 ## Constraints
 
 - This skill is experimental and subject to breaking changes as the Agent Teams API evolves
