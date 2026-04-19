@@ -78,7 +78,7 @@ Present the plan inline. Then call the `AskUserQuestion` tool to request approva
 
 ### 4. File child issues
 
-Pass the full task list from the plan to `/catalog` in a single call. `/catalog` handles duplicate detection, label creation, and issue body format.
+Pass the full task list from the plan to `/catalog` in a single call, prefixing the arguments with `--epic <slug>` so catalog associates the filed issues with the approved epic. Use the public `--epic <slug>` token that catalog documents in its input contract — do not use a private side channel. `/catalog` handles duplicate detection, label creation, and issue body format.
 
 Do not instruct `/catalog` to embed `Depends on #N` lines (or any other `#<number>` task-reference) in issue bodies. GitHub auto-links `#N` tokens, so a body that says "Depends on task #3" will link to unrelated issue 3 in the repo. Task-to-task dependencies are wired in step 5 via the native GitHub blocked-by API — keep them out of the issue body.
 
