@@ -17,6 +17,15 @@ Accept findings from any of these sources (check in order):
 
 If no findings are available, ask the user what to catalog.
 
+### Tokens in `$ARGUMENTS`
+
+Before extracting findings, scan `$ARGUMENTS` for these optional leading tokens and strip them from the findings text:
+
+- `--auto` — skip the approval step in step 3 (see below).
+- `--epic <slug>` — associate the catalogued issues with an epic identified by `<slug>`. The slug is made available to downstream steps for label logic (issue creation will use it once labeling lands in a follow-up). When invoked from `/speckit:spec`, the approved epic slug is passed through this same public mechanism — there is no private side channel.
+
+If `--epic <slug>` is **not** present, behaviour is unchanged from the no-epic flow: no epic label is applied, no warning is emitted, and the rest of the process runs exactly as documented below.
+
 ## Process
 
 ### 1. Extract findings
