@@ -14,7 +14,7 @@ Track a pass count starting at 0 (max 3).
 1. Run `/simplify` on the changed files
 2. Check for changes: `git diff`
    - **Changes found AND pass count < 3** — commit with `/commit`, push with `git push`, increment pass count, go back to step 1
-   - **No changes found OR pass count >= 3** — done
+   - **No changes found OR pass count >= 3** — pass loop converged; return to caller and continue with the caller's remaining workflow steps
 
 ## Notes
 
