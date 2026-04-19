@@ -194,9 +194,13 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      ```bash
      git checkout -b worktree-agent-<issue> origin/worktree-agent-<upstream-issue>
      ```
-   - Safety check — abort if not running inside an isolated worktree:
+   - Safety check — abort if not running inside an isolated worktree. If this check fails it means the builder was **not** spawned with `isolation: "worktree"`, so it will never reach a state where it can send an audit request. Before exiting, notify the lead so it can respawn under a new name rather than waiting for an audit request that will never arrive:
      ```bash
-     [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not in isolated worktree. Aborting." && exit 1
+     if [[ "$PWD" != *"worktrees"* ]]; then
+       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: not running in an isolated worktree. Respawn under a new name."})
+       echo "ERROR: Not in isolated worktree. Aborting."
+       exit 1
+     fi
      ```
 
 3. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
@@ -361,6 +365,32 @@ Recovery:
 
 After printing the state report, the lead proceeds to teardown.
 
+### Dead-on-arrival (DOA) failure mode
+
+A builder can fail to start at all — for example, when the tmux shell is misconfigured. The failure signature looks like:
+
+```
+tmux/.tmux.conf:4: not a suitable shell
+```
+
+When this happens the builder process exits immediately without ever joining the team mailbox. Its `isActive` flag in the team config file (`~/.claude/teams/<team>/config.json`) remains `true` because no graceful shutdown message was exchanged. Any subsequent `TeamDelete` call will be blocked with:
+
+```
+Cannot cleanup team with N active member(s): <name>. Use requestShutdown to gracefully terminate teammates first.
+```
+
+**Manual recovery path:**
+
+1. Open `~/.claude/teams/<team>/config.json` in an editor (or use `jq`/`sed`) and set `isActive` to `false` on the dead member:
+   ```bash
+   # Using jq (writes to a temp file then replaces):
+   jq '(.members[] | select(.name == "<name>")).isActive = false' \
+     ~/.claude/teams/<team>/config.json > /tmp/team-config.json \
+     && mv /tmp/team-config.json ~/.claude/teams/<team>/config.json
+   ```
+2. Re-run `TeamDelete` — it will now find no active members and succeed.
+3. If re-running the squad, spawn the replacement builder under a **new name** (e.g. `builder-<issue>-b`) so the stale entry does not conflict.
+
 ### Explicit non-goals for v1
 
 - No auto-respawn of crashed teammates (deferred to v2)
@@ -384,19 +414,36 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 
    If a teammate is already gone (crashed or already exited), the send is a no-op.
 
-2. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
+2. **Force-clear stuck `isActive` members, then delete the team** — wait a reasonable timeout (e.g. 10 seconds) for each teammate to acknowledge the shutdown. Any member whose mailbox never responds within the timeout is considered dead-on-arrival: forcibly patch `~/.claude/teams/<team>/config.json` to set its `isActive` flag to `false` so that `TeamDelete` is not blocked:
+
+   ```bash
+   # For each non-responding member <name>:
+   jq '(.members[] | select(.name == "<name>")).isActive = false' \
+     ~/.claude/teams/<team>/config.json > /tmp/team-config.json \
+     && mv /tmp/team-config.json ~/.claude/teams/<team>/config.json
+   ```
+
+   After all stuck members are cleared, delete the team:
+
+   ```
+   TeamDelete({name: "<team-name>"})
+   ```
+
+   This step must be idempotent — if the team was already deleted (e.g. teardown is running a second time), the `TeamDelete` call should be treated as a no-op.
+
+3. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
 
    ```
    swarmkit:clean-worktrees
    ```
 
-3. **Unset scoped git config** — unset `claude.prBase` if it was set for this operation (mirrors `swarmkit:swarm` loop-mode teardown):
+4. **Unset scoped git config** — unset `claude.prBase` if it was set for this operation (mirrors `swarmkit:swarm` loop-mode teardown):
 
    ```bash
    git config --unset claude.prBase 2>/dev/null || true
    ```
 
-4. **Final summary** — print what ran, which PRs are open for review, and any in-flight work needing manual inspection (in halt case):
+5. **Final summary** — print what ran, which PRs are open for review, and any in-flight work needing manual inspection (in halt case):
 
    ```
    ── squad complete ────────────────────────────
