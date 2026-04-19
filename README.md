@@ -25,7 +25,6 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | **polishkit** | `/plugin install polishkit@smallorbit-plugins` | Critique code quality, sweep for cruft, and eliminate dead code |
 | **flowkit** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
 | **sessionkit** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, and meta-learning |
-| **metakit** _(pre-release 0.1.0)_ | `/plugin install metakit@smallorbit-plugins` | Dynamic orchestrator that composes sibling kits into multi-step scenarios with graceful degradation |
 
 ### Utilities & Productivity
 
@@ -48,8 +47,6 @@ The development-lifecycle plugins form a complete loop from idea to release:
 **polishkit** sits between `/swarm` and `/release` as a quality gate: use `/critique` to assess elegance and craft, `/tidy-codebase` to sweep for stale files and cruft, and `/dead-code` to eliminate unused exports before shipping.
 
 **sessionkit** acts as connective tissue throughout: use `/handoff` to preserve state across agent context limits, `/skillit` to capture reusable patterns after a swarm, and `/suggest-permissions` to reduce approval friction over time.
-
-**metakit** (pre-release) sits above the loop as an orchestrator: it detects which sibling kits are installed and composes them into multi-step scenarios (e.g. `/polish-cycle`, `/handoff-cycle`), skipping missing steps and pausing on risky ones rather than failing outright.
 
 **vaultkit** lives outside the loop — it's a utility for capturing decisions, notes, and archives into an Obsidian vault alongside any work, dev or otherwise. Requires Obsidian and the Obsidian CLI.
 
