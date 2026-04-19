@@ -1,6 +1,6 @@
 # smallorbit-plugins
 
-Monorepo hosting Claude Code plugins: swarmkit, flowkit, sessionkit, and speckit.
+Monorepo hosting Claude Code plugins. See the [repo README](./README.md#available-plugins) for the current plugin catalog — it's the canonical source and stays in sync as plugins ship.
 
 ## Release Process
 
@@ -17,3 +17,7 @@ Run it before staging and committing the release.
 ## Plugins
 
 `swarmkit` includes an experimental `squad` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. See `plugins/swarmkit/README.md` for details.
+
+## Skill Authoring Conventions
+
+**Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
