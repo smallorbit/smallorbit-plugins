@@ -106,9 +106,15 @@ Swarm complete — 4 PRs opened:
 Stack root: #210. Run /merge-stack to land top-down.
 ```
 
-### 4. Ship it
+### 4. Ship it (optional — use your own process if you prefer)
 
-Once the PRs look right:
+Once the PRs look right, merge and release them however you normally would. If you'd like a streamlined flow, install **flowkit**:
+
+```
+/plugin install flowkit@smallorbit-plugins
+```
+
+Then land everything in three commands:
 
 ```
 /merge-stack     # merge all swarm PRs top-down into develop
@@ -117,14 +123,6 @@ Once the PRs look right:
 ```
 
 Or collapse all three into a single `/ship`. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle, RC naming, and staging support.
-
-### What's next
-
-- **polishkit** — run `/critique`, `/tidy-codebase`, and `/dead-code` as a quality gate before shipping.
-- **sessionkit** — use `/handoff` when a spec or swarm session outgrows one context, and `/skillit` to capture patterns worth keeping.
-- **vaultkit** — drop decisions and notes into an Obsidian vault alongside the work.
-
-Each plugin's README goes deeper. For the stacked-PR mental model behind `/swarm`, read [swarmkit's METHODOLOGY](./plugins/swarmkit/METHODOLOGY.md).
 
 ## How the Plugins Compose
 
