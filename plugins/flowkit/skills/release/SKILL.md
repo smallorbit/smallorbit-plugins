@@ -113,11 +113,74 @@ The sub-issues-API path only adds an epic when at least one of its children appe
 
 If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
-### 5. Create a PR from SOURCE → main
+### 5. Build release summary and create a PR from SOURCE → main
+
+Compute the git log range between the source branch and main, then derive version bumps and grouped changes from that range.
 
 ```bash
 RELEASE_DATE=$(date +%Y-%m-%d)
-PR_BODY="Release from $SOURCE"
+
+# --- version bumps ---
+VERSION_BUMPS=$(git log origin/main..origin/"$SOURCE" --oneline \
+  | grep -iE "bump|version|plugin\.json" \
+  | sed 's/^[a-f0-9]* /- /' \
+  || true)
+
+# --- grouped changes by conventional-commit scope ---
+# Collect all commits that are NOT version-bump lines
+ALL_COMMITS=$(git log origin/main..origin/"$SOURCE" --oneline \
+  | grep -ivE "bump|version|plugin\.json" \
+  || true)
+
+# Extract known plugin scopes; extend this list as new plugins are added
+PLUGINS="flowkit speckit swarmkit sessionkit polishkit"
+
+GROUPED_CHANGES=""
+for PLUGIN in $PLUGINS; do
+  PLUGIN_COMMITS=$(echo "$ALL_COMMITS" \
+    | grep -iE "\($PLUGIN\)" \
+    | sed 's/^[a-f0-9]* /- /' \
+    || true)
+  if [ -n "$PLUGIN_COMMITS" ]; then
+    GROUPED_CHANGES="$GROUPED_CHANGES
+**$PLUGIN**
+$PLUGIN_COMMITS
+"
+  fi
+done
+
+# Commits with no recognised scope (chore, docs without scope, etc.)
+SCOPED_PATTERN=$(echo "$PLUGINS" | tr ' ' '|')
+UNSCOPED_COMMITS=$(echo "$ALL_COMMITS" \
+  | grep -ivE "\($SCOPED_PATTERN\)" \
+  | sed 's/^[a-f0-9]* /- /' \
+  || true)
+if [ -n "$UNSCOPED_COMMITS" ]; then
+  GROUPED_CHANGES="$GROUPED_CHANGES
+**other**
+$UNSCOPED_COMMITS
+"
+fi
+
+# --- assemble PR body ---
+PR_BODY="## Release summary
+
+**Built from**: \`$SOURCE\`"
+
+if [ -n "$VERSION_BUMPS" ]; then
+  PR_BODY="$PR_BODY
+
+### Version bumps
+$VERSION_BUMPS"
+fi
+
+if [ -n "$GROUPED_CHANGES" ]; then
+  PR_BODY="$PR_BODY
+
+### Changes
+$GROUPED_CHANGES"
+fi
+
 [ -n "$ARGUMENTS" ] && PR_BODY="$PR_BODY
 
 $ARGUMENTS"
