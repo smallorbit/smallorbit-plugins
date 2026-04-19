@@ -1,6 +1,6 @@
 ---
 name: issue-rank
-description: Canonical ranking table for prioritizing GitHub issues by priority labels, specificity, architectural impact, and testability. Sub-skill used by pick-issue and swarm.
+description: Canonical ranking table for prioritizing GitHub issues by priority labels, specificity, architectural impact, and testability. Sub-skill used by next-issue and swarm.
 ---
 
 # Issue Rank Sub-Skill

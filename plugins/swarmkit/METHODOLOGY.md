@@ -13,7 +13,7 @@ The four ideas that make this work together are worktree isolation (so agents ca
 If you just want to run a swarm and merge the result, this is the full shape of the workflow:
 
 ```
-/pick-issue          # see what is ready to work on
+/next-issue          # see what is ready to work on
 /swarm 12 15 18      # spawn parallel agents for specific issues
 /merge-stack         # land all open swarm PRs top-down (use /merge-pr for a single PR)
 /clean-worktrees     # remove the worktree directories and orphaned branches
@@ -79,7 +79,7 @@ Independent PRs — those whose base is already `develop` and that no other PR s
 
 Loop mode is what turns swarmkit from "resolve these three issues" into "clear the board." When `/swarm` is invoked with no issue numbers (and optionally a single label filter), it repeats the following cycle until there are no open issues left.
 
-Each cycle fetches the current open issues, ranks them, and selects a batch that can safely parallelize: no two issues touching the same files, no unresolved dependencies within the batch. The batch is presented in the pick-issue table format, agents spawn, pull requests open. A checkpoint summary prints — how many PRs opened, which issues failed, which issues are now blocked because a dependency failed, how many issues remain — and the loop proceeds immediately to the next cycle.
+Each cycle fetches the current open issues, ranks them, and selects a batch that can safely parallelize: no two issues touching the same files, no unresolved dependencies within the batch. The batch is presented in the next-issue table format, agents spawn, pull requests open. A checkpoint summary prints — how many PRs opened, which issues failed, which issues are now blocked because a dependency failed, how many issues remain — and the loop proceeds immediately to the next cycle.
 
 Failure is handled explicitly rather than by retrying. If an issue fails during a cycle, every remaining issue in this and future cycles is checked for file overlap with the failed issue or explicit references to it. Anything that overlaps is marked blocked and skipped, with the block reported at each checkpoint. The loop continues with everything that is not blocked.
 
