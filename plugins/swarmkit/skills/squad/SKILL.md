@@ -38,6 +38,7 @@ Parse `$ARGUMENTS` to determine the mode. The grammar is identical to `swarmkit:
 - **Issue numbers** (`12 15 18`, `#12 #15 #18`, range `12-18`) → **one-shot mode**, specific issues → `develop`
 - `--model <tier>` (`sonnet`, `opus`) → model override for all agents
 - `--base <branch>` → override default base branch
+- `--builders <N>` → cap the builder pool size (default: `5`)
 
 ---
 
@@ -140,7 +141,16 @@ Agent({
 })
 ```
 
-For every initially-unblocked issue, spawn a builder — all at once, not staggered:
+Determine the optimal builder pool size, then spawn that many builders — each assigned one of the initially-unblocked issues. Remaining unblocked issues stay on the TaskList for builders to self-claim as they finish.
+
+**Pool sizing** — the pool size is `min(parallel_lanes, max_builders)`:
+
+- **`parallel_lanes`**: the number of initially-unblocked issues that have no file overlap with each other. Two issues overlap if their specs reference the same file. Issues in the same dependency chain are already serialized by the DAG — this check catches independent issues that would still conflict.
+- **`max_builders`**: defaults to `5`. Can be overridden via `--builders N` in `$ARGUMENTS`.
+
+If `parallel_lanes` is 0 (all issues are blocked), spawn 1 builder for the first issue that will unblock.
+
+Spawn all builders at once, not staggered:
 
 ```
 Agent({
@@ -152,7 +162,7 @@ Agent({
 })
 ```
 
-The pool size equals the number of initially-unblocked issues. Blocked issues stay on the TaskList and are self-claimed by builders as they become unblocked (see Dispatch Loop).
+Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
 
 ### 5. Monitor and exit
 
@@ -208,7 +218,7 @@ TeamCreate({name: "squad-<run-id>"})
 
 Spawn the reviewer **once** at the start of the first cycle. It persists across all cycles — do not respawn between batches.
 
-For every initially-unblocked issue in this cycle's batch, spawn a builder:
+Determine the builder pool size using the same formula as One-Shot Mode step 4: `min(parallel_lanes, max_builders)`. Spawn that many builders, each assigned one initially-unblocked issue. Remaining unblocked issues stay on the TaskList for self-claim.
 
 ```
 Agent({
@@ -220,7 +230,7 @@ Agent({
 })
 ```
 
-Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8).
+Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
 
 **Step 4 — Monitor current batch**
 
@@ -292,7 +302,7 @@ The ranked list becomes the **target set**. Dependency edges between issues (e.g
 
 ### 2. Spawn phase
 
-Once the target set is known, the lead spawns a **fixed pool of teammates upfront** — one reviewer plus one builder per initially-unblocked issue. No additional teammates are spawned later in the run; instead, builders self-claim downstream issues from the shared task list as those issues unblock (see Builder Teammate Contract).
+Once the target set is known, the lead spawns a **capped pool of teammates** — one reviewer plus a number of builders determined by the pool-sizing formula from One-Shot Mode step 4: `min(parallel_lanes, max_builders)`. Builders self-claim downstream issues from the shared task list as those issues unblock (see Builder Teammate Contract), so the pool does not need to match the issue count 1:1.
 
 1. Spawn the reviewer **once** at the start of the run. Only one reviewer exists for the lifetime of the team:
 
@@ -305,7 +315,7 @@ Once the target set is known, the lead spawns a **fixed pool of teammates upfron
    })
    ```
 
-2. For every initially-unblocked issue in the target set, spawn a builder named `builder-<issue>` — all at once, not staggered. The `isolation: "worktree"` flag is what gives the builder its isolated git worktree:
+2. Spawn builders up to the pool cap, each assigned one initially-unblocked issue — all at once, not staggered. The `isolation: "worktree"` flag is what gives the builder its isolated git worktree:
 
    ```
    Agent({
@@ -317,7 +327,7 @@ Once the target set is known, the lead spawns a **fixed pool of teammates upfron
    })
    ```
 
-The pool size equals the number of initially-unblocked issues. Blocked issues remain on the shared task list and are picked up by whichever builder finishes first and finds them unblocked — the lead does not spawn additional builders when downstream issues unblock.
+Remaining unblocked issues stay on the shared task list and are picked up by whichever builder finishes first. The lead does not spawn additional builders when downstream issues unblock — the pool drains naturally as builders self-claim and complete work.
 
 ### 3. Watch phase
 
