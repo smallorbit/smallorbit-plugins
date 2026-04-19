@@ -2,6 +2,8 @@
 
 A Claude Code plugin that resolves GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order, and keep your branches clean — all from slash commands.
 
+**New to swarmkit?** Read [METHODOLOGY.md](./METHODOLOGY.md) for the full narrative on how the stacked agent/PR workflow fits together — worktree isolation, stacked branches, top-down merging with reference accumulation, and loop mode.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
