@@ -130,8 +130,31 @@ After all child issues are created, create one parent epic issue:
 ```
 
 - Title format: `epic: <short description>`
-- Labels: `epic` (create if missing) + `priority:<level>` matching the highest-priority child
+- Labels: `epic` (create if missing) + `epic:<slug>` (see label-provisioning rules below) + `priority:<level>` matching the highest-priority child
 - Do **not** include an issues checklist — child issues are linked via GitHub's native sub-issue relationship (added in the next step)
+
+Before invoking `gh issue create`, provision the `epic:<slug>` label using the slug approved in step 3:
+
+1. Check whether the label already exists: `gh label list --search "epic:<slug>" --json name --jq '.[] | select(.name == "epic:<slug>") | .name'`.
+2. **If missing**, create it with a shared color and description:
+   ```bash
+   gh label create "epic:<slug>" \
+     --color 5319e7 \
+     --description "Belongs to epic: <epic title>"
+   ```
+   The color `#5319e7` (purple family) is shared across all `epic:<slug>` labels so they're visually grouped in the GitHub UI.
+3. **If already present**, do not silently reuse it. Warn the user via `AskUserQuestion` — for example: "Label `epic:<slug>` already exists in this repo. Reuse it for this epic?" with options `Reuse existing label`, `Pick a different slug`, and `Cancel`. Only proceed with the existing label after the user selects `Reuse existing label`. If the user picks a different slug, loop back to step 3 to edit the plan's `Epic label:` line, then re-check.
+
+Then pass all three labels to `gh issue create`:
+
+```bash
+gh issue create \
+  --title "epic: <short description>" \
+  --label "epic" \
+  --label "epic:<slug>" \
+  --label "priority:<level>" \
+  --body "<epic body>"
+```
 
 After creating the epic, wire up relationships:
 
