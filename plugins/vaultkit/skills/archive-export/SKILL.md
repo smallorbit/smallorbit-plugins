@@ -72,13 +72,13 @@ This base name is used for both files:
 - `YYYY-MM-DD-HHMM-slug.txt` — plain text copy
 - `YYYY-MM-DD-HHMM-slug.md` — Obsidian markdown copy
 
-### 6. Copy the .txt file and set birth time
+### 6. Copy the .txt file and stamp birth time
 
 ```bash
 cp ./session.txt "$VAULT/Projects/ProjectName/Conversations/$BASENAME.txt"
-# New file — set birth time to now (no prior birth time to preserve; see vaultkit:file-edit for editing existing files)
-SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT/Projects/ProjectName/Conversations/$BASENAME.txt"
 ```
+
+Follow the `vaultkit:file-edit` sub-skill's new-file guidance to stamp the birth time on the copied `.txt`.
 
 ### 7. Create the .md file with session ID, attachment link + full content
 
@@ -103,12 +103,7 @@ Use the Bash tool to build and write the file in one step:
 } > "$VAULT/Projects/ProjectName/Conversations/$BASENAME.md"
 ```
 
-Then set its birth time:
-
-```bash
-# New file — set birth time to now (no prior birth time to preserve; see vaultkit:file-edit for editing existing files)
-SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT/Projects/ProjectName/Conversations/$BASENAME.md"
-```
+Then stamp its birth time per the `vaultkit:file-edit` sub-skill's new-file guidance.
 
 ### 8. Clean up the source file
 

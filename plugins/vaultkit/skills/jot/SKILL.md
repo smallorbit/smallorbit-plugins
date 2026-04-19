@@ -22,6 +22,6 @@ Invoke the `vaultkit:project` skill, Operation 3: **Update Project Files**.
 That operation handles:
 - Identifying the active project (from conversation context or by prompting)
 - Reading the relevant file before editing
-- Capturing birth time, making the edit, restoring birth time (via `vaultkit:file-edit`)
+- Writing the edit in place to preserve birth time (via `vaultkit:file-edit`)
 - Determining what changed: decisions, tasks, status, blockers
 - Keeping entries concise — recall notes, not documentation

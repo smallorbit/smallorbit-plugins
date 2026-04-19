@@ -34,7 +34,7 @@ obsidian vaults
 
 Present the list to the user and ask them to specify which vault to use before continuing.
 
-To resolve the vault's filesystem path (needed for `mkdir`, `stat`, `SetFile`):
+To resolve the vault's filesystem path (needed for `mkdir` and direct file edits):
 ```bash
 obsidian vault="<VAULT>" vault  # prints the vault root path
 ```
@@ -154,10 +154,7 @@ After splitting, remove the section from `Overview.md` and add a link: `See [[Ta
 
 4. Also update `Last updated:` in `Overview.md` if you edited any project file.
 
-**For new project files** (created with Write tool), use the actual current time instead:
-```bash
-SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT_PATH/Projects/ProjectName/FileName.md"
-```
+**For new project files** (created with the Write tool), follow the `vaultkit:file-edit` sub-skill's new-file guidance to stamp the birth time.
 
 ---
 
