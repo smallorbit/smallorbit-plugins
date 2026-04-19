@@ -93,7 +93,7 @@ Until fully implemented, this section serves as a placeholder. Do not attempt to
 
 ## Dispatch Loop
 
-The lead agent orchestrates the team for the entire run. It does not fire-and-forget — it stays active from initial fetch through teardown, reading teammate status via the Agent Teams mailbox and spawning/retiring teammates in response to completion messages.
+The lead agent orchestrates the team for the entire run. It does not fire-and-forget — it stays active from initial fetch through teardown, spawning a fixed pool of teammates upfront and then reading teammate status via the Agent Teams mailbox to monitor for crashes and stuck tasks. Builders self-claim additional work from the shared task list as upstream issues unblock, so the lead does not dispatch new teammates in response to completion events.
 
 ### 1. Initial fetch
 
@@ -106,7 +106,7 @@ The ranked list becomes the **target set**. Dependency edges between issues (e.g
 
 ### 2. Spawn phase
 
-Once the target set is known:
+Once the target set is known, the lead spawns a **fixed pool of teammates upfront** — one reviewer plus one builder per initially-unblocked issue. No additional teammates are spawned later in the run; instead, builders self-claim downstream issues from the shared task list as those issues unblock (see Builder Teammate Contract).
 
 1. Spawn the reviewer **once** at the start of the run. Only one reviewer exists for the lifetime of the team:
 
@@ -114,23 +114,25 @@ Once the target set is known:
    SpawnTeammate({name: "reviewer", role: "reviewer"})
    ```
 
-2. For each currently unblocked issue in the target set, spawn a builder named `builder-<issue>`:
+2. For every initially-unblocked issue in the target set, spawn a builder named `builder-<issue>` — all at once, not staggered:
 
    ```
    SpawnTeammate({name: "builder-<issue>", role: "builder", issue: "<issue>"})
    ```
 
-Concurrency is capped by the number of simultaneously unblocked issues. The lead does not spawn a builder whose upstream issue is still in-flight — it waits for the `pushed` signal (see Builder Teammate Contract) before releasing the downstream builder.
+The pool size equals the number of initially-unblocked issues. Blocked issues remain on the shared task list and are picked up by whichever builder finishes first and finds them unblocked — the lead does not spawn additional builders when downstream issues unblock.
 
 ### 3. Watch phase
 
-The lead blocks on its mailbox and reacts to completion messages from builders. When a builder reports `<issue> completed, PR: <url>`:
+The lead blocks on its mailbox in a **monitoring-only** role. It does not dispatch new builders in response to completion events — builders self-claim the next unblocked task (see Builder Teammate Contract), so the lead's only job during watch is to detect failure.
 
-1. Re-evaluate the target set:
-   - Remove the completed issue
-   - Identify any issues that were blocked on it and are now unblocked
-2. For each newly unblocked issue, spawn a new `builder-<issue>` teammate (step 2)
-3. If the target set is empty, proceed to teardown
+The lead reacts to:
+
+- **Teammate crashes or unresponsive mailboxes** — fall through to Halt and Report
+- **Mailbox delivery failures** (send returns error after N retries) — fall through to Halt and Report
+- **Stuck task list** — all spawned builders have exited but unclaimed tasks remain on the shared list — log the stuck tasks and fall through to Halt and Report
+
+Completion messages (`<issue> completed, PR: <url>`) are logged for the final summary but do **not** trigger any spawn action. The lead exits the watch phase once every spawned builder has exited and the shared task list has drained, then proceeds to mode-specific termination.
 
 The lead reads teammate status by consuming messages on its mailbox (the Agent Teams `ReceiveMessage` primitive). It does **not** poll teammates directly — all coordination flows through messages.
 
@@ -141,13 +143,13 @@ The lead reads teammate status by consuming messages on its mailbox (the Agent T
 
 ### 5. Lead stays active
 
-The lead never backgrounds itself. It remains the single coordinator for the entire run — spawning teammates, watching the mailbox, and making dispatch decisions — until teardown (issues #277, #278).
+The lead never backgrounds itself. It remains the single coordinator for the entire run — spawning the initial teammate pool, watching the mailbox for crashes, and handling mode-specific termination — until teardown (issues #277, #278).
 
 ---
 
 ## Builder Teammate Contract
 
-A builder is a short-lived teammate responsible for shipping exactly one issue. It is spawned by the lead as `builder-<issue>` and exits once its PR is up and it has notified any downstream teammate.
+A builder is a teammate responsible for shipping one or more issues. It is spawned by the lead as `builder-<issue>` for an initially-unblocked issue and, after finishing, self-claims the next unblocked unassigned task from the shared list. The builder exits only when no claimable work remains.
 
 ### Workflow
 
@@ -213,6 +215,15 @@ A builder is a short-lived teammate responsible for shipping exactly one issue. 
      ```
      SendMessage({to: "lead", message: "<issue> completed, PR: <url>"})
      ```
+
+8. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
+
+   - Call `TaskList` and scan for an issue that is unblocked and unassigned
+   - Atomically claim it (same mechanism as step 1). If another teammate beat you to the claim, re-scan the list and try the next candidate
+   - On a successful claim, **repeat from step 2** using the newly claimed issue as the current one (new worktree, new implementation, new review cycle, new notify)
+   - If no unblocked, unassigned tasks remain, exit cleanly
+
+   The lead does not spawn a replacement when you exit — the fixed pool drains naturally as each builder runs out of claimable work.
 
 ### Upstream → downstream notify protocol
 
