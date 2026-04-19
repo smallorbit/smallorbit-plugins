@@ -31,9 +31,8 @@ claude --plugin-dir /path/to/swarmkit
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
 | **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
-| **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up in dependency order. |
+| **merge-stack** | `/merge-stack` | Merges all open swarm PRs top-down (leaf PRs first, root last). |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
-| **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up in dependency order. |
 
 ### Sub-Skills (internal)
 
@@ -51,7 +50,8 @@ These are called by the skills above — you don't invoke them directly.
 ```
 /pick-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Resolve specific issues in parallel
-/merge-stack                         # Merge PRs in dependency order when ready
+/merge-pr       # If one PR — merge it directly
+/merge-stack    # If two or more PRs — merges top-down: leaf PRs first, root last
 /swarm                               # Or clear the entire board in a loop
 /clean-worktrees                     # Tidy up after a swarm run
 ```
@@ -62,7 +62,7 @@ These are called by the skills above — you don't invoke them directly.
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
 3. Spawns one agent per issue (or grouped set) in isolated git worktrees
 4. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-5. Use `swarmkit:merge-stack` to merge in dependency order when ready
+5. Use `/merge-pr` (1 PR) or `/merge-stack` (2+ PRs) to land into `develop` — top-down: leaf PRs first, root last
 6. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.
