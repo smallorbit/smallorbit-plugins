@@ -99,7 +99,40 @@ Always append the following documentation task as the final row, unless the spec
 
 Include the `## Epic label` section **only when the plan produces an epic** (2+ tasks). Omit it for single-issue plans. Render the derived label as a single, editable line, for example: `Epic label: epic:catalog-epic-labels`.
 
-Present the plan inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Approve this plan and file the issues?" with options like `Approve and file issues`, `Edit epic label`, `Adjust priorities / tasks`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts like "reply with any changes" are not sufficient, since they don't surface an expected input in the UI. If the user selects an adjust, edit-label, or cancel option, loop back (update the plan, revise the slug, or abort) before re-asking.
+**In a single assistant turn**, emit (a) the plan markdown and (b) an `AskUserQuestion` call. Never end the turn after (a); always follow with (b) in the same response. A turn that presents the plan and stops — even with a prose invitation like "let me know what you think" — is a defect. The `AskUserQuestion` call is the only valid approval gate.
+
+The question must be "Approve this plan and file the issues?" with options: `Approve and file issues`, `Edit epic label`, `Adjust priorities / tasks`, `Cancel`.
+
+**Wrong shape** (never do this):
+
+```
+Here is the plan:
+## Goal
+Harden approval gates in speckit skills.
+...
+Let me know if you'd like changes.
+← turn ends here; silent wait
+```
+
+**Right shape** (always do this):
+
+```
+Here is the plan:
+## Goal
+Harden approval gates in speckit skills.
+...
+← immediately followed by AskUserQuestion in the same turn:
+AskUserQuestion("Approve this plan and file the issues?", [
+  "Approve and file issues",
+  "Edit epic label",
+  "Adjust priorities / tasks",
+  "Cancel"
+])
+```
+
+**Pre-end self-check**: Before ending the turn in step 3, verify that the last action in the turn is an `AskUserQuestion` call with approval options. If the plan was presented but no `AskUserQuestion` was called, emit the call immediately — do not end the turn without it.
+
+Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If the user selects an adjust, edit-label, or cancel option, loop back (update the plan, revise the slug, or abort) before re-asking.
 
 The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
@@ -187,7 +220,7 @@ Epic:  #N  epic: <title>
 
 ## Constraints
 
-- After presenting a plan or draft, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call (or a prose-only "let me know what you think") is a defect.
+- The plan and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — presenting the plan and ending the turn without calling `AskUserQuestion` is a defect, even if a prose invitation is included.
 - Never create issues without showing the plan and getting approval first
 - Never write plan files to disk — the plan lives in the conversation only
 - Only create an epic if there are 2 or more child issues — skip step 5 entirely for single-issue plans
