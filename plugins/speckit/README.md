@@ -2,6 +2,8 @@
 
 A Claude Code plugin for defining and capturing work. Interview a feature into existence, bulk-convert findings into issues, or quickly file a single issue — all from slash commands.
 
+> **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — it covers install, `/spec`, and `/swarm` end to end.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
