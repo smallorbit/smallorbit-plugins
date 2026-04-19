@@ -137,7 +137,24 @@ For each issue number in the target set:
 gh issue edit <issue> --add-label "status:in-progress"
 ```
 
-### 5. Create team and spawn teammates
+### 5. Present dispatch plan
+
+Before spawning any teammates, print a summary table of builder assignments so the operator has a clear view of what is about to run. Proceed immediately — no approval gate.
+
+```
+| Builder | Issue(s) | Branch | Model | Notes |
+|---------|----------|--------|-------|-------|
+| builder-16 | #16 | worktree-agent-16 | sonnet | Independent |
+| builder-18 | #18 | worktree-agent-18 | opus | Blocked by #16 |
+```
+
+Include:
+- **Suggested merge order** — leaf PRs first (no dependents), root PRs last
+- **Any issues too ambiguous to delegate** — list them with a brief reason; they are excluded from the dispatch but not from the target set
+
+After printing the table, continue immediately to the next step.
+
+### 6. Create team and spawn teammates
 
 Create the team:
 
@@ -179,7 +196,7 @@ Agent({
 
 Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
 
-### 6. Monitor and exit
+### 7. Monitor and exit
 
 Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals.
 
@@ -239,6 +256,8 @@ gh issue edit <issue> --add-label "status:in-progress"
 ```
 
 **Step 4 — Create team and spawn**
+
+Before spawning, print the dispatch plan table (same format as One-Shot Mode step 5: Builder / Issue(s) / Branch / Model / Notes, with suggested merge order). Proceed immediately — no approval gate.
 
 Create the team (once per loop-mode run, reused across cycles):
 
