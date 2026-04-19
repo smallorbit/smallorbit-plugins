@@ -234,11 +234,12 @@
                 <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/swarmkit" target="_blank" rel="noopener">README ↗</a>
               </div>
             </div>
-            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order.</p>
+            <p class="plugin-desc">Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs top-down — leaf first.</p>
             <ul class="skill-list">
               <li><code>/swarm</code> — spawn parallel agents for issues</li>
               <li><code>/pick-issue</code> — rank and recommend what to work on</li>
-              <li><code>/merge-stack</code> — merge PRs in dependency order</li>
+              <li><code>/merge-pr</code> — merge a single PR directly into develop</li>
+              <li><code>/merge-stack</code> — merge multiple PRs top-down: leaf first, root last</li>
               <li><code>/clean-worktrees</code> — remove agent worktrees and branches</li>
             </ul>
             <div class="transcript" role="group" aria-label="swarmkit example session">
@@ -252,7 +253,7 @@
 <span class="transcript-line"><span class="transcript-prompt">✓</span> opened PR #201, PR #202, PR #203 <span class="transcript-annotate">(stacked)</span></span>
 <span class="transcript-line"> </span>
 <span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/merge-stack</span></span>
-<span class="transcript-line"><span class="transcript-prompt">✓</span> merged #201 → #202 → #203 <span class="transcript-annotate">in dependency order</span></span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> merged #201 → #202 → #203 <span class="transcript-annotate">top-down: leaf PRs first, root last</span></span>
             </div>
           </article>
 
