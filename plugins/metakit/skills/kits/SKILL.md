@@ -21,23 +21,17 @@ Store the result as `detectionMap`. If the argument was provided, restrict furth
 
 ### 2. Render the kits table
 
-If a kit-name argument was provided and the kit is absent from `detectionMap`, print:
+When a kit-name argument was provided:
+- If the kit is absent from `detectionMap`, print `` `<kit-name>` is not installed in this environment. `` and stop.
+- Otherwise render only the row for that kit (see format below) and stop — skip step 3.
 
-```
-`<kit-name>` is not installed in this environment.
-```
-
-and stop.
-
-Otherwise render one row per kit in the canonical list (`speckit`, `swarmkit`, `polishkit`, `flowkit`, `sessionkit`, `vaultkit`):
+Render one row per kit in the canonical list (`speckit`, `swarmkit`, `polishkit`, `flowkit`, `sessionkit`, `vaultkit`):
 
 - **Kit** — kit name
 - **Version** — semver from detection map, or `—` if not installed
 - **Scope** — `user` / `project` from detection map, or `—` if not installed
 - **Skills** — comma-separated list of skill names, or `—` if not installed
 - **Status** — `installed` if the kit is in `detectionMap`, otherwise `not installed`
-
-When a kit-name argument was provided, render only the row for that kit.
 
 Example output:
 
@@ -51,8 +45,6 @@ Example output:
 | sessionkit | 1.1.0   | user    | handoff, pickup, skillit             | installed     |
 | vaultkit   | —       | —       | —                                    | not installed |
 ```
-
-Skip the scenarios section entirely when a kit-name argument was provided — the drill-down mode is kit-scoped, not scenario-scoped.
 
 ### 3. Render the scenarios section
 
@@ -86,4 +78,3 @@ Example output:
 
 - This skill is read-only — it never modifies environment state.
 - Skill lists in the table may be long; truncate with `...` after the first five names if there are more than five.
-- The canonical kit list is: `speckit`, `swarmkit`, `polishkit`, `flowkit`, `sessionkit`, `vaultkit`. Kits outside this list are not reported even if they appear in the detection map.
