@@ -178,8 +178,7 @@ Each agent prompt MUST include:
 2. **EXPECTED OUTCOME**: branch name, commit format, PR closing the issue(s)
 3. **MUST DO**: concrete file changes from the issue body
 4. **MUST NOT DO**: scope boundaries
-5. **SELF-REVIEW**: follow `self-review` sub-skill before creating PR
-6. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/release/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
+5. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/release/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
 
 Each agent prompt MUST include these **workflow steps** (in order):
 
@@ -200,9 +199,10 @@ Each agent prompt MUST include these **workflow steps** (in order):
 3. Stage and commit using conventional-commit-message format:
    - No Claude mentions, no co-author lines
    git add <files> && git commit -m "<type>(<scope>): <description>"
-4. Push the branch:
+4. Run self-review (invoke `swarmkit:self-review` on changed files). Self-review runs up to 3 simplification passes, committing and pushing between passes. When it converges it returns here — continue with the remaining steps below.
+5. Push final branch state (unconditional — idempotent if self-review already pushed the last pass):
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+6. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
    # For independent issues:
    gh pr create --base develop --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
@@ -234,9 +234,11 @@ Each agent prompt MUST include these **workflow steps** (in order):
 
 ### 5. Handle completions
 
-- If agent pushed and created a PR: report the PR link
-- If agent was blocked on push (sandbox): push the branch and create PR on its behalf
-- Verify each PR's diff matches the issue scope
+After each agent completes, always verify:
+- **(a) Branch is pushed to origin** — run `git ls-remote --exit-code origin worktree-agent-<issue>`. If absent, push it: `git push -u origin worktree-agent-<issue>`
+- **(b) A PR exists referencing the issue** — run `gh pr list --head worktree-agent-<issue>`. If none, create the PR on the agent's behalf using the agent's commits and the issue spec.
+
+Report the PR link once confirmed. Verify each PR's diff matches the issue scope.
 
 ### 6. Clean up
 
