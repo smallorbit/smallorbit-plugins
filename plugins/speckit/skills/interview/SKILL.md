@@ -73,6 +73,44 @@ Always append the following documentation task as the final row, unless the plan
 | N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
+#### 3a. Consolidation pass (silent)
+
+After drafting the candidate tasks table and before presenting the plan, run a silent consolidation pass. This pass merges over-decomposed tasks so the approval step shows a clean, actionable plan. The user sees only the consolidated result; they can still request splits during approval if needed.
+
+**Merge signals** — merge two tasks if EITHER fires:
+
+1. **Same file + same logical change** — both tasks touch only the same single file and address related changes to the same function, section, or config block.
+2. **Strict ordering, no standalone value** — one task cannot ship without the other and provides no independent acceptance criteria (e.g. "wire up the X added in task A").
+
+Only merge when a signal clearly applies. Tasks that are legitimately independent — even if related — must not be merged. The goal is to eliminate redundant decomposition, not to collapse distinct work items.
+
+**Merge rules** — when two tasks merge, apply deterministically:
+
+- **Priority** — take the higher value (`high > medium > low`).
+- **Category** — take the higher-impact value (`bug > refactor > enhancement > test > docs`).
+- **Description** — preserve both originals as sub-bullets so no work item is lost.
+- **Dependencies** — remap: if task C depended on B, and A+B merged into A', then C now depends on A'.
+- **Numbering** — renumber the resulting table sequentially after all merges are applied.
+
+**Worked example**
+
+*Before consolidation* — two tasks flagged by signal 2 (strict ordering, no standalone value):
+
+| # | Title | Category | Priority | Depends On | Description |
+|---|-------|----------|----------|------------|-------------|
+| 1 | Add `autoRetry` config option | enhancement | medium | — | Add `autoRetry: boolean` to `config.ts` and wire defaults in `loadConfig()` |
+| 2 | Wire `autoRetry` into request handler | enhancement | medium | 1 | Read `autoRetry` from config in `requestHandler.ts` and retry on transient errors |
+| 3 | Add retry integration tests | test | low | 2 | Cover retry behaviour in `requestHandler.test.ts` |
+
+Task 2 has no standalone value — it cannot ship without task 1 and its only purpose is to consume what task 1 adds. Signal 2 fires.
+
+*After consolidation* — tasks 1 and 2 merge into a single task; task 3 remaps its dependency:
+
+| # | Title | Category | Priority | Depends On | Description |
+|---|-------|----------|----------|------------|-------------|
+| 1 | Add and wire `autoRetry` config option | enhancement | medium | — | - Add `autoRetry: boolean` to `config.ts` and wire defaults in `loadConfig()` - Read `autoRetry` from config in `requestHandler.ts` and retry on transient errors |
+| 2 | Add retry integration tests | test | low | 1 | Cover retry behaviour in `requestHandler.test.ts` |
+
 Present the plan inline.
 
 ### 4. Hand off
