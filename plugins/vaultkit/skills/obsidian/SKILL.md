@@ -120,46 +120,57 @@ obsidian vault=<VAULT> plugin:install id=<id> enable # Install + enable a plugin
 
 ## Edit Strategy
 
-Choose the right approach based on the type of change:
+The mental model here is **write strategy**, not "CLI vs direct FS". A tool preserves a vault file's filesystem birth time if and only if it writes **in place** (opens the existing inode and mutates it). A tool that writes to a temp file and **atomic-renames** it over the original replaces the inode, and macOS resets the birth time to now.
 
-### 1. Frontmatter-only changes → use CLI `property:set`
-Preserves all file metadata. Preferred when only updating YAML properties.
+Pick the tool whose write strategy matches what you need. Body edits default to in-place; reach for Claude's `Edit`/`Write` only when no in-place path exists, and pair them with a `SetFile` restore.
+
+### Measured tool behavior (verified 2026-04-17)
+
+| Tool | Strategy | Birth time |
+|---|---|---|
+| Claude `Edit` / `Write` | Atomic rename | **Resets** |
+| `python3 open(p, "w")` | In-place | Preserved |
+| `node fs.writeFileSync` | In-place | Preserved |
+| Shell `>` redirect | In-place | Preserved |
+| `obsidian append` / `prepend` | In-place | Preserved |
+| `obsidian property:set` | In-place | Preserved |
+| `obsidian rename` / `move` | In-place + wikilink updates | Preserved |
+
+### Choosing a tool
+
+- **Frontmatter (YAML properties)** → `obsidian property:set`. Uses the CLI's YAML-safe writer and edits in place.
+  ```bash
+  obsidian vault=<VAULT> property:set name="status" value="done" path="Notes/my-note.md"
+  ```
+- **Append or prepend to a note** → `obsidian append` / `obsidian prepend` (`obsidian daily:append` for today's daily note). In-place.
+  ```bash
+  obsidian vault=<VAULT> daily:append content="- Follow up with Adam"
+  ```
+- **Rename or move a note** → `obsidian rename` / `obsidian move`. In-place and updates wikilinks across the vault.
+- **In-body content edits (find & replace, tag renames, structural rewrites)** → the CLI has no `replace`/`patch` command, so write directly. Prefer an in-place writer (`python3`, `node fs.writeFileSync`, shell `>` redirect) so birth time is preserved with no follow-up step. Reach for Claude's `Edit`/`Write` only when you need its diff-editing ergonomics, and treat every invocation on a vault file as an atomic rename that you must compensate for (see next section).
+
+See `vaultkit:file-edit` for the canonical body-edit recipe.
+
+### When using Claude `Edit` or `Write` on a vault file
+
+Claude's `Edit` and `Write` tools atomic-rename, which resets the filesystem birth time on macOS. Every use on a vault file must be paired with a `SetFile` restore.
+
+**For existing files — capture birth time *before* editing:**
 ```bash
-obsidian vault=<VAULT> property:set name="status" value="done" path="Notes/my-note.md"
-```
-
-### 2. Append/prepend operations → use CLI `append` or `prepend`
-Preserves all file metadata. Use when adding content to start or end of a file.
-```bash
-obsidian vault=<VAULT> daily:append content="- Follow up with Adam"
-```
-
-### 3. In-body content edits (find & replace, tag renames, etc.) → use Edit tool + restore birth time
-The Edit tool writes via a temp file + rename on macOS, which **resets the filesystem birth time**. Capture the birth time **before** editing, then restore it exactly afterward.
-
-**For existing files:**
-```bash
-# Step 1: Capture birth time before editing
 BIRTH=$(stat -f "%SB" -t "%m/%d/%Y %H:%M:%S" "$VAULT/<path>")
-
-# Step 2: Make the edit (Edit tool)
-
-# Step 3: Restore exact birth time
+# ...make the edit with Edit...
 SetFile -d "$BIRTH" "$VAULT/<path>"
 ```
 
-**For new files just created (Write tool):**
+**For new files just created with Write** (no prior birth time to preserve — set it to now):
 ```bash
 SetFile -d "$(date '+%m/%d/%Y %H:%M:%S')" "$VAULT/<path>"
 ```
 
-**Always verify after restoring:**
+**Verify:**
 ```bash
 stat -f "Birth: %SB | %N" "$VAULT/<path>"
 ```
-
-### Known Limitation
-There is no CLI command for in-body text replacement (no `replace` or `patch` command). The Obsidian CLI only supports `append` and `prepend` for writing to existing file bodies. Any find-and-replace operation requires direct file editing and subsequent birth time restoration.
 
 ## Tag Conventions
 
