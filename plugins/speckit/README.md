@@ -30,14 +30,8 @@ claude --plugin-dir /path/to/speckit
 |-------|--------|--------------|
 | **interview** | `/interview` | Conducts a structured interview to clarify requirements and produce a speckit-format plan (Goal, Background, Requirements, Out of Scope, Tasks); output feeds into `/spec` or `/catalog`. |
 | **spec** | `/spec` | Interview-driven planning — gathers requirements, builds a structured plan, files it as a GitHub epic with linked child issues. |
-| **catalog** | `/catalog` | Bulk-converts findings (from a code review, audit, or assessment) into prioritized, labeled GitHub issues. |
+| **catalog** | `/catalog` | Bulk-converts findings (from a code review, audit, or assessment) into prioritized, labeled GitHub issues. Also used internally by `/spec` to create child issues after plan approval. |
 | **issue** | `/issue` | Quickly drafts and files a single GitHub issue from a description. Checks for duplicates and previews before creating. |
-
-### Sub-Skills (internal)
-
-| Skill | Used by | Purpose |
-|-------|---------|---------|
-| **catalog** | `/spec` | Creates the child issues and epic after plan approval. Invoked automatically — no need to run it separately unless converting standalone findings. |
 
 ## Typical Workflows
 
@@ -86,6 +80,8 @@ You can pass `--epic <slug>` to scope all created issues to an existing epic lab
 
 This attaches the `epic:dark-mode` label to every issue created in that run, without re-running the full `/spec` interview.
 
+Pass `--auto` to skip the approval gate and proceed directly to issue creation. Use this for programmatic or scripted invocations (e.g. `/polish`, CI pipelines) where interactive confirmation is not needed. Omit it for interactive use when you want to review and adjust the catalog before anything is filed.
+
 ## How Issue Works
 
 `/issue` is the lightweight path. Give it a description, and it drafts a title, infers type and priority, checks for duplicates, and shows a preview before filing. Use it when you know exactly what to file and don't need an interview.
@@ -94,16 +90,7 @@ This attaches the `epic:dark-mode` label to every issue created in that run, wit
 
 When `/spec` produces a plan, it derives an `epic:<slug>` label and applies it to the epic tracking issue and every child issue. This makes the epic and all its work filterable in GitHub's issue list with a single label query.
 
-### Slug Derivation
-
-The slug is derived from the feature title or goal:
-
-1. Lowercase the title.
-2. Strip filler words: `the`, `a`, `an`, `enhance`, `add`, `update`, `to`, `for`, `of`, `in`.
-3. Replace spaces and non-alphanumeric characters with hyphens; collapse runs of hyphens.
-4. Trim to 30 characters (not counting the `epic:` prefix).
-
-Examples:
+The slug is derived from the feature title or goal: lowercase the title, strip filler words (`the`, `a`, `an`, `enhance`, `add`, `update`, `to`, `for`, `of`, `in`), replace spaces and non-alphanumeric characters with hyphens (collapsing runs), then trim to 30 characters (not counting the `epic:` prefix).
 
 | Input title | Derived slug | Full label |
 |-------------|-------------|------------|
@@ -111,26 +98,13 @@ Examples:
 | Update the CSV export pipeline | `csv-export-pipeline` | `epic:csv-export-pipeline` |
 | Enhance authentication for SSO | `authentication-sso` | `epic:authentication-sso` |
 
-### Plan-Approval Step
-
 Before any issues are filed, `/spec` shows the full plan and surfaces an editable line:
 
 ```
 Epic label: epic:dark-mode-support
 ```
 
-You can change the slug at this point — edit the line and confirm. The label shown is exactly what will be created and applied to every issue in the run.
-
-### Label Color and Description Convention
-
-All `epic:<slug>` labels share:
-
-- **Color**: `#5319e7` (purple)
-- **Description**: `Belongs to epic: <epic title>` (the original, un-slugged title)
-
-This gives all epic labels a consistent visual identity in the GitHub UI and makes the source title recoverable from the label description.
-
-### Collision Warning
+You can change the slug at this point — edit the line and confirm. The label shown is exactly what will be created and applied to every issue in the run. All `epic:<slug>` labels share color `#5319e7` (purple) and a description of `Belongs to epic: <epic title>`, giving them a consistent visual identity in GitHub and keeping the original title recoverable from the label.
 
 If a label named `epic:<slug>` already exists in the repository, `/spec` surfaces a warning before proceeding:
 
@@ -188,7 +162,7 @@ You can accept the existing label (issues will simply receive it) or rename the 
    - [ ] #45 Add dark mode toggle to nav bar
    ```
 
-All five issues share the `epic:dark-mode-support` label (color `#5319e7`). Filtering by that label in GitHub shows the full scope of the epic at a glance.
+All five issues share the `epic:dark-mode-support` label. Filtering by that label in GitHub shows the full scope of the epic at a glance.
 
 ## Assumptions & Conventions
 
@@ -196,7 +170,7 @@ All five issues share the `epic:dark-mode-support` label (color `#5319e7`). Filt
 - **Approval gate**: no issues are ever created without your explicit approval. `/spec` and `/catalog` both show a preview table before filing anything.
 - **`/catalog` is the implementation**: `/spec` delegates issue creation to `/catalog`. This means catalog settings (duplicate detection, label inference, priority ordering) apply to spec-generated issues too.
 - **Duplicate detection**: before filing any issue, `/catalog` and `/issue` check for open issues with similar titles. Potential duplicates are surfaced for your review before creation proceeds.
-- **Epic label consistency**: all `epic:<slug>` labels use color `#5319e7` and a `Belongs to epic: <title>` description, regardless of which skill created them.
+- **Epic label consistency**: all `epic:<slug>` labels share the same color and description convention, regardless of which skill created them.
 
 ## Pairing with Other Plugins
 
