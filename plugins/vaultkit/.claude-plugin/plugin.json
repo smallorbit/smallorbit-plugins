@@ -1,7 +1,7 @@
 {
   "name": "vaultkit",
   "description": "Obsidian vault skills for Claude Code. Read, search, edit notes, manage projects, capture decisions, and archive conversations — all via the Obsidian CLI.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
