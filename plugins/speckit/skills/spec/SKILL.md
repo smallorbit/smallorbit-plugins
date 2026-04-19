@@ -46,6 +46,26 @@ contain the following sections, which become the basis for the plan in step 3:
 Do not proceed to step 3 until `/speckit:interview` has produced a complete,
 unambiguous output with all five sections present.
 
+### 2.5. Derive the epic slug
+
+Only run this step if the plan will produce an epic — i.e. there are 2 or more
+tasks. For single-issue plans, skip slug derivation entirely and omit the
+`Epic label:` line from the plan preview in step 3.
+
+Derive a short, epic-scoped slug from the working epic title using these rules:
+
+- Lowercase, kebab-case (words separated by single hyphens)
+- Strip filler words: `the`, `a`, `an`, `enhance`, `add`, `update`, `to`, `for`, `of`, `in`
+- Cap the slug at 30 characters after the `epic:` prefix (do not count the prefix)
+- The final label is `epic:<slug>`
+
+Example: `enhance the catalog skill to apply epic-specific labels` → `epic:catalog-skill-apply-epic-specific-labels` → trimmed to 30 chars → `epic:catalog-epic-labels`.
+
+The derived slug is a proposal — the user reviews and may edit it during plan
+approval in step 3. The approved slug is the **single source of truth**: it
+flows into both the catalog handoff (step 4, applied to every child issue) and
+the epic tracking issue (step 5, applied as a label on the parent).
+
 ### 3. Write the plan
 
 Synthesise the interview into a structured plan with these sections:
@@ -63,6 +83,9 @@ Numbered list of concrete, testable requirements.
 ## Out of Scope
 Explicit exclusions to prevent scope creep.
 
+## Epic label
+epic:<slug derived in step 2.5>
+
 ## Tasks
 Decomposed work items — each becomes a child issue.
 Each task: title, category (bug/enhancement/refactor/test/docs), priority (high/medium/low), depends-on (task # or — if none), one-line description.
@@ -74,7 +97,11 @@ Always append the following documentation task as the final row, unless the spec
 | N | Update documentation | docs | low | — | Update `README.md` and `CLAUDE.md` to reflect any new settings, behaviours, or architectural changes introduced by this feature |
 ```
 
-Present the plan inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Approve this plan and file the issues?" with options like `Approve and file issues`, `Adjust priorities / tasks`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts like "reply with any changes" are not sufficient, since they don't surface an expected input in the UI. If the user selects an adjust or cancel option, loop back (update the plan or abort) before re-asking.
+Include the `## Epic label` section **only when the plan produces an epic** (2+ tasks). Omit it for single-issue plans. Render the derived label as a single, editable line, for example: `Epic label: epic:catalog-epic-labels`.
+
+Present the plan inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Approve this plan and file the issues?" with options like `Approve and file issues`, `Edit epic label`, `Adjust priorities / tasks`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts like "reply with any changes" are not sufficient, since they don't surface an expected input in the UI. If the user selects an adjust, edit-label, or cancel option, loop back (update the plan, revise the slug, or abort) before re-asking.
+
+The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
 ### 4. File child issues
 
