@@ -22,7 +22,7 @@ If no findings are available, ask the user what to catalog.
 Before extracting findings, scan `$ARGUMENTS` for these optional leading tokens and strip them from the findings text:
 
 - `--auto` — skip the approval step in step 3 (see below).
-- `--epic <slug>` — associate the catalogued issues with an epic identified by `<slug>`. The slug is made available to downstream steps for label logic (issue creation will use it once labeling lands in a follow-up). When invoked from `/speckit:spec`, the approved epic slug is passed through this same public mechanism — there is no private side channel.
+- `--epic <slug>` — associate the catalogued issues with an epic identified by `<slug>`. The slug drives the epic-label logic in step 2 (ensure `epic:<slug>` exists) and step 4 (apply `epic:<slug>` to every issue in the batch). When invoked from `/speckit:spec`, the approved epic slug is passed through this same public mechanism — there is no private side channel. An optional epic title may accompany the slug (e.g. passed through from `/spec`); it is used as the label description when creating the label.
 
 If `--epic <slug>` is **not** present, behaviour is unchanged from the no-epic flow: no epic label is applied, no warning is emitted, and the rest of the process runs exactly as documented below.
 
@@ -48,15 +48,45 @@ Create any missing labels needed for the findings:
 
 Only create labels that will actually be used by the current findings.
 
+**If an epic slug was supplied via `--epic <slug>`**, also ensure the `epic:<slug>` label exists:
+
+- If the label is **missing**, create it with the shared epic styling:
+  ```bash
+  gh label create "epic:<slug>" \
+    --repo <repo> \
+    --color 5319E7 \
+    --description "Belongs to epic: <epic title>"
+  ```
+  If no epic title was passed alongside the slug, fall back to a description of `Belongs to epic: <slug>`.
+- If the label **already exists**, warn the user once for this batch and ask before reusing it:
+  ```
+  WARNING: label `epic:<slug>` already exists in this repo. Reusing it will
+  apply it to every issue filed in this batch. Proceed? (y/N)
+  ```
+  Only continue after explicit approval. Do not silently reuse. This prompt fires at most once per catalog invocation.
+
+If no epic slug was supplied, skip this entire block — do not list, create, or prompt for any `epic:*` label.
+
 ### 3. Present the catalog for approval
 
-Show the user a summary table before creating anything:
+Show the user a summary table before creating anything. The `Labels` column must list every label that will be applied at creation time — including `epic:<slug>` when an epic slug is in play — so the user can confirm the full set before anything is filed:
 
 ```
 | # | Title | Category | Priority | Labels |
 |---|-------|----------|----------|--------|
 | 1 | ...   | bug      | high     | bug, priority:high |
 | 2 | ...   | refactor | medium   | refactor, priority:medium |
+```
+
+When an epic slug was supplied, the table also shows the epic label on every row and includes a single header line above the table making it explicit, e.g.:
+
+```
+Epic: epic:<slug> (applied to every issue below)
+
+| # | Title | Category | Priority | Labels |
+|---|-------|----------|----------|--------|
+| 1 | ...   | bug      | high     | bug, priority:high, epic:<slug> |
+| 2 | ...   | refactor | medium   | refactor, priority:medium, epic:<slug> |
 ```
 
 If `--auto` was passed in `$ARGUMENTS`, skip the approval step and proceed directly to issue creation.
@@ -70,7 +100,9 @@ Otherwise, wait for user approval. The user may ask to:
 ### 4. Create issues
 
 After approval, create all issues via `gh issue create`:
-- Apply the labels from the table
+- Apply the labels from the table — every issue gets its category label and priority label
+- **If an epic slug was supplied via `--epic <slug>`**, also pass `--label "epic:<slug>"` on every `gh issue create` invocation in the batch, alongside the category and priority labels. No issue in the batch may be created without the epic label when a slug is in play.
+- If no epic slug was supplied, do not pass any `epic:*` label.
 - Structure the body with:
   - `## Problem` — what's wrong
   - `## Why this matters` — impact and severity rationale
