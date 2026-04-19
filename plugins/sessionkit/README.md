@@ -62,7 +62,7 @@ claude --plugin-dir /path/to/sessionkit
 
 ## How Handoff / Pickup Works
 
-`/handoff` collects git state, todo files, and conversation history, synthesizes them into a structured document, and writes it to `.sessionkit/HANDOFF.md` only after you approve the draft.
+`/handoff` collects git state, todo files, and conversation history, synthesizes them into a structured document, prints it inline, then writes it immediately to `.sessionkit/HANDOFF.md` — no approval step. The only prompt is a one-time confirmation before adding `.sessionkit/` to `.gitignore`, if the entry is not already present.
 
 `/pickup` reads that document at the start of a fresh session and produces an orientation summary — goal, progress, git state, remaining work, and key context — without re-executing anything.
 

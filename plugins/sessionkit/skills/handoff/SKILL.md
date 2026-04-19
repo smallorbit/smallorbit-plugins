@@ -7,7 +7,7 @@ triggers:
   - "create handoff"
   - "save handoff"
   - "context is running low"
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash, Read, Write
 ---
 
 # Handoff
@@ -73,13 +73,13 @@ Inference rules:
 
 If `$ARGUMENTS` is provided, weave its guidance into the relevant sections (often Goal or Context).
 
-### 3. Present for approval
+### 3. Present the draft
 
-Show the drafted document inline. Then call the `AskUserQuestion` tool to request approval — a single question such as "Write this handoff to disk?" with options like `Write as shown`, `Edit sections first`, and `Cancel`. Do not proceed to step 4 until the user has answered via `AskUserQuestion` — prose-only prompts are not sufficient. If the user selects an edit or cancel option, loop back (update the draft or abort) before re-asking.
+Show the drafted document inline in the conversation so the user can see what will be written. Then proceed immediately to step 4 — no approval needed.
 
 ### 4. Write to disk
 
-On approval, check `.gitignore` coverage first:
+Check `.gitignore` coverage first:
 
 ```bash
 test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" || echo "not-covered"
@@ -95,9 +95,7 @@ Then create the directory and write the file:
 mkdir -p .sessionkit
 ```
 
-If `.sessionkit/HANDOFF.md` already exists, warn the user and ask whether to overwrite before proceeding.
-
-Write the approved document to `.sessionkit/HANDOFF.md` using the Write tool.
+Write the document to `.sessionkit/HANDOFF.md` using the Write tool, silently overwriting any existing file.
 
 ### 5. Confirm
 
@@ -107,8 +105,6 @@ Report the absolute path of the file written and suggest:
 
 ## Constraints
 
-- Never write the file without explicit user approval
-- After presenting the draft, always request approval via the `AskUserQuestion` tool — not prose. A silent wait with no tool call is a defect.
+- After presenting the draft, write it immediately — do not pause for approval
 - Keep the document concise — it's a recall aid, not full documentation
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
-- If `.sessionkit/HANDOFF.md` already exists, warn before overwriting
