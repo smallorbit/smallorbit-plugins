@@ -233,7 +233,7 @@ Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This fre
 | #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
 
-All PRs are left open for review. Use `swarmkit:merge-stack` to merge when ready. Merge order is top-down: `#N → #N-1 → … → develop` (merge-stack pops leaf-first).
+All PRs are left open for review. If 1 PR open: use `/merge-pr` to land it into `develop`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
 
 ---
 
@@ -303,7 +303,7 @@ Issues addressed: #12, #14, #15 (PRs open, awaiting review)
 Issues remaining: #25
 Open PRs: #31, #32, #33
 
-Open PRs are ready for review. Use `swarmkit:merge-stack` to land them into `$BASE` when ready.
+Open PRs are ready for review. If 1 PR open: use `/merge-pr` to land it into `$BASE`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
 ─────────────────────────────────────────────
 ```
 
