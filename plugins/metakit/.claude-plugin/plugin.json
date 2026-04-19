@@ -1,0 +1,9 @@
+{
+  "name": "metakit",
+  "description": "Dynamic orchestrator that composes sibling kits (speckit, swarmkit, polishkit, flowkit, sessionkit, vaultkit) into multi-step scenarios with graceful degradation.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": {
+    "name": "Román M. Pacheco"
+  }
+}
