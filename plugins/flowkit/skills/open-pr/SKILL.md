@@ -32,8 +32,21 @@ If the current branch is `develop`, `main`, `master`, or `staging`, stop immedia
 
 ### 2. Determine base branch
 
+Resolve the base branch using the `pr-base-scope` read order: new key → legacy key (with deprecation notice) → `develop` default.
+
 ```bash
-BASE=$(git config claude.prBase 2>/dev/null || echo "develop")
+BASE=$(git config claude.flowkit.prBase 2>/dev/null)
+if [ -z "$BASE" ]; then
+  LEGACY=$(git config claude.prBase 2>/dev/null)
+  if [ -n "$LEGACY" ]; then
+    BASE="$LEGACY"
+    echo "note: claude.prBase is deprecated. Migrate with:" >&2
+    echo "  git config --unset claude.prBase" >&2
+    echo "  git config claude.flowkit.prBase $LEGACY" >&2
+  else
+    BASE="develop"
+  fi
+fi
 ```
 
 Use `$BASE` as the PR target. This respects any scoped override set by the `pr-base-scope` sub-skill.
@@ -74,7 +87,7 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
-- Never target `main` directly unless `claude.prBase` is explicitly set to `main`
+- Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
 - Never open a PR from a protected branch (`develop`, `main`, `master`, `staging`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
 - Do not force-push; use a plain `git push -u origin HEAD`
