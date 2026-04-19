@@ -1,16 +1,16 @@
 ---
-name: pick-issue
+name: next-issue
 description: List open GitHub issues and recommend the best one(s) to work on next, based on priority, implementation specificity, and architectural impact.
 triggers:
   - "what should I work on next"
   - "recommend an issue"
   - "list open issues"
   - "what's next"
-  - "pick an issue"
+  - "next issue"
   - "which issue should I tackle"
 ---
 
-# Pick Issue Skill
+# Next Issue Skill
 
 Fetches open GitHub issues, analyzes them, and recommends the best next task.
 

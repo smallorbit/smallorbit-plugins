@@ -34,7 +34,7 @@ claude --plugin-dir /path/to/swarmkit
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
-| **pick-issue** | `/pick-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
+| **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs top-down (leaf PRs first, root last). |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 
@@ -46,13 +46,13 @@ These are called by the skills above — you don't invoke them directly.
 |-------|---------|---------|
 | **self-review** | swarm | Runs iterative `/simplify` passes on changed files before PR creation. |
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
-| **gh-fetch-issues** | pick-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
-| **issue-rank** | pick-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
+| **gh-fetch-issues** | next-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
+| **issue-rank** | next-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
 
 ## Typical Workflow
 
 ```
-/pick-issue                          # See what's ready to work on
+/next-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Resolve specific issues in parallel
 /merge-pr       # If one PR — merge it directly
 /merge-stack    # If two or more PRs — merges top-down: leaf PRs first, root last
@@ -111,7 +111,7 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`. The `conventio
 
 ### Label: `status:in-progress`
 
-When an agent is spawned for an issue, swarmkit applies `status:in-progress` to it. This prevents `gh-fetch-issues` and `pick-issue` from re-selecting it in subsequent swarm cycles. GitHub auto-closes the issue when its PR merges (via `Closes #N`), so no manual label cleanup is needed.
+When an agent is spawned for an issue, swarmkit applies `status:in-progress` to it. This prevents `gh-fetch-issues` and `next-issue` from re-selecting it in subsequent swarm cycles. GitHub auto-closes the issue when its PR merges (via `Closes #N`), so no manual label cleanup is needed.
 
 
 ### Issue Lifecycle
@@ -121,7 +121,7 @@ Swarmkit **never closes issues** — that's intentional. Closing is left to the 
 ## Configuration Notes
 
 - **`swarm`** has `disable-model-invocation: true` — it only runs when you explicitly type `/swarm`, never auto-triggered by Claude. This prevents accidental mass agent spawning.
-- **`pick-issue`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually.
+- **`next-issue`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually.
 
 ## Pairing with Other Plugins
 
@@ -129,7 +129,7 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 ```
 /spec add CSV export              # Plan the feature, file issues
-/pick-issue                       # Confirm what to work on
+/next-issue                       # Confirm what to work on
 /swarm                            # Resolve with parallel agents
 /clean-worktrees                  # Clean up
 ```
