@@ -41,9 +41,9 @@ Compose the ordered step list:
 
 ```json
 [
-  { "stepName": "critique codebase",       "owningKit": "polishkit", "riskLevel": "safe" },
-  { "stepName": "catalog findings as issues", "owningKit": "speckit",   "riskLevel": "risky" },
-  { "stepName": "swarm issues in parallel",   "owningKit": "swarmkit",  "riskLevel": "risky" }
+  { "stepName": "critique codebase",          "owningKit": "polishkit", "riskLevel": "safe" },
+  { "stepName": "catalog findings as issues",  "owningKit": "speckit",   "riskLevel": "risky" },
+  { "stepName": "swarm issues in parallel",    "owningKit": "swarmkit",  "riskLevel": "risky" }
 ]
 ```
 
@@ -105,31 +105,40 @@ Invoke the `halt-and-report` sub-skill via the Skill tool with this payload:
 ```json
 {
   "scenario": "polish-cycle",
-  "completed_steps": [ { "stepName": "...", "outputSummary": "..." } ],
+  "completed_steps": "<the running list from step 4>",
   "failed_step": {
-    "stepName": "<current step's stepName>",
-    "owningKit": "<current step's owningKit>",
-    "error": "<error string from the failing skill>",
-    "skillState": { }
+    "stepName": "<name of the step that threw>",
+    "owningKit": "<owningKit from the plan>",
+    "error": "<raw error string>",
+    "skillState": "<any structured output the failing skill returned, or {}>"
   }
 }
 ```
 
-Stop after halt-and-report prints. Do not attempt further steps, retries, or cleanup — recovery is the user's decision.
+After invoking halt-and-report, stop. Take no further action.
 
-### 6. On clean completion
+### 6. Completion summary
 
-When every step has either run, skipped, or been declined without error, print a one-line summary:
+After all steps finish (run, skipped, or declined), print:
 
 ```
-/polish-cycle complete — <N> ran, <N> skipped, <N> declined.
+/polish-cycle complete.
+
+  ✓ <stepName>  —  <outputSummary>     (completed steps)
+  ⊘ <stepName>  —  skipped             (missing-kit steps)
+  ○ <stepName>  —  declined by user    (user-declined steps)
 ```
 
-List any skipped steps' downstream-impact notes so the user knows what was not done.
+If any steps were skipped due to missing kits, append:
+
+```
+Note: the following steps could not run because their kit was not found:
+  ⊘ <stepName>  —  <owningKit> not found in environment
+```
 
 ## Notes
 
-- This skill is a thin orchestrator; all heavy lifting (critique, catalog, swarm) lives in the owning kits.
-- A risky step that is *skipped* because its kit is missing does not trigger a confirmation pause — only risky steps whose kit is present do.
-- `plan-preview` gates the plan as a whole; individual risky steps must still be re-confirmed per the caller contract (see `plan-preview` notes).
-- Never chain around a failure. Halt-and-report is the only failure path.
+- `polishkit` is the only hard requirement. Missing it makes the scenario unavailable, not degraded.
+- Per-step confirmation (`pause`) is independent of the overall plan gate from `plan-preview`. Both must pass before a risky step runs.
+- The `speckit:catalog` step receives the critique report as context; `swarmkit:swarm` receives the issue numbers from catalog. If catalog was skipped or declined, swarm has no input — treat it as if its kit were missing (skip it and note the upstream dependency).
+- This skill never modifies repository state directly — all mutations are delegated to the invoked skills.
