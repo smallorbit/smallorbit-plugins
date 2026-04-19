@@ -270,25 +270,18 @@ If no open issues remain, announce "Board is clear" and exit.
 
 Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately lands in `$BASE` when `swarmkit:merge-stack` cascades the merges.
 
-**Step 3 — Pull base**
-
-```bash
-git checkout $BASE
-git pull origin $BASE
-```
-
-**Step 4 — Checkpoint**
+**Step 3 — Checkpoint**
 
 ```
 ── Cycle N complete ──────────────────────────
-✓ Merged: #12, #15
-✗ Failed: #14 (merge conflict)
+✓ PRs opened: #25 (→ #12), #26 (→ #15)
+✗ Failed: #14 (agent crash, no PR produced)
 ⊘ Blocked: #20 (depends on #14)
 ⧖ Remaining open issues: 5
 ──────────────────────────────────────────────
 ```
 
-Proceed immediately to the next cycle after printing the checkpoint summary. The loop halts only on unrecoverable failures: merge conflict on `$BASE`, agent crash with no PR produced, or push rejected on `$BASE`.
+Proceed immediately to the next cycle after printing the checkpoint summary. The loop halts only on unrecoverable failures: an agent crash with no PR produced.
 
 ### Teardown
 
@@ -306,11 +299,11 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
 ```
 ── swarm complete ────────────────────────────
 Cycles: 3
-Issues addressed: #12, #14, #15 (will close when released to main)
+Issues addressed: #12, #14, #15 (PRs open, awaiting review)
 Issues remaining: #25
 Open PRs: #31, #32, #33
 
-develop is ready for testing. Cut a release candidate when ready.
+Open PRs are ready for review. Use `swarmkit:merge-stack` to land them into `$BASE` when ready.
 ─────────────────────────────────────────────
 ```
 
@@ -322,9 +315,7 @@ When an issue fails at any point:
 3. Report blocked issues at each checkpoint
 
 **Unrecoverable failures** (exit loop immediately):
-- Three consecutive merge failures on the same PR
 - Agent produced no PR (crash, timeout, no push)
-- `git push` rejected on `$BASE` after fetch
 - `$BASE` branch deleted or corrupted externally
 
 ---
