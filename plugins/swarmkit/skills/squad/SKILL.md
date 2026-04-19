@@ -38,6 +38,7 @@ Parse `$ARGUMENTS` to determine the mode. The grammar is identical to `swarmkit:
 - **Issue numbers** (`12 15 18`, `#12 #15 #18`, range `12-18`) → **one-shot mode**, specific issues → `develop`
 - `--model <tier>` (`sonnet`, `opus`) → model override for all agents
 - `--base <branch>` → override default base branch
+- `--builders <N>` → cap the builder pool size (default: `5`)
 
 ---
 
@@ -63,37 +64,266 @@ Any additional Agent Teams-specific setup (e.g., team registration, capability d
 
 ## One-Shot Mode
 
-_Stub — to be filled in by a downstream task (epic #285)._
+Used when explicit issue numbers are provided. Dispatches Agent Teams builders for the given set of issues, opens PRs via the builder/reviewer workflow, and reports results.
 
-Used when explicit issue numbers are provided. The intent is to dispatch Agent Teams instances for the given set of issues, open PRs, and report results.
+### 1. Build the target set
 
-Key differences from `swarmkit:swarm` that will be specified downstream:
-- Team member prompts (orchestrator + implementer roles)
-- Agent Teams API invocation instead of worktree spawn
-- Halt and cleanup behavior specific to the teams API
+For each issue number parsed from `$ARGUMENTS`:
 
-Until fully implemented, this section serves as a placeholder. Do not attempt to execute this mode — refer the user to `swarmkit:swarm` for production use.
+```bash
+gh issue view <number> --json title,body,labels
+```
+
+**Skip any issue with the `on-hold` label.**
+
+**Epic expansion** — query each issue's children via the sub-issue API:
+
+```bash
+gh api repos/{owner}/{repo}/issues/<number>/sub_issues
+```
+
+If the response is a non-empty array, the issue is an epic. Use the children (not the epic itself) as work items: fetch `title,body,labels,state` for each child in parallel, then filter:
+
+- Skip any child with the `on-hold` label
+- Skip any child that is already `closed`
+
+If all children are skipped, announce and stop. Otherwise announce:
+
+> `#N` is an epic. Dispatching: `#101`, `#102`. Skipped (closed/on-hold): `#103`.
+
+**Epic label without sub-issues** — if the issue carries the `epic` label but the sub-issues API returns an empty array, the epic is not wired up. Do **not** treat it as a regular implementation issue. Announce and skip:
+
+> `#N` is labeled `epic` but has no sub-issues wired via the GitHub sub-issue API. Skipping — children must be attached via `gh api .../sub_issues` before dispatching.
+
+### 2. Parse dependency graph
+
+For each issue body fetched in Step 1, extract `Depends on #N` and `Blocked by #N` references:
+
+```bash
+echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
+```
+
+Build a directed acyclic graph (DAG): each issue is a node; a `Depends on #N` or `Blocked by #N` relationship is a directed edge from the dependent to the dependency.
+
+Produce a **topological sort** of the DAG:
+- **Unblocked issues**: no incoming edges within this batch — spawn builders in parallel
+- **Blocked issues**: have upstream dependencies that must complete first — added to the shared TaskList with `blockedBy` metadata
+
+### 3. Populate the shared TaskList
+
+Add one task per issue to the Agent Teams shared TaskList:
+
+- `id`: the issue number
+- `title`: the issue title
+- `body`: the issue body (acceptance criteria)
+- `status`: `unblocked` or `blocked`
+- `blockedBy`: list of upstream issue numbers (empty for independent issues)
+- `assignee`: `null` (builders self-claim)
+
+Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 8).
+
+### 4. Apply `status:in-progress` label
+
+Ensure the label exists, then apply it to every issue in the target set:
+
+```bash
+gh label list | grep -q "status:in-progress" || \
+  gh label create "status:in-progress" --description "Actively being worked on" --color "E4E669"
+```
+
+For each issue number in the target set:
+
+```bash
+gh issue edit <issue> --add-label "status:in-progress"
+```
+
+### 5. Present dispatch plan
+
+Before spawning any teammates, print a summary table of builder assignments so the operator has a clear view of what is about to run. Proceed immediately — no approval gate.
+
+```
+| Builder | Issue(s) | Branch | Model | Notes |
+|---------|----------|--------|-------|-------|
+| builder-16 | #16 | worktree-agent-16 | sonnet | Independent |
+| builder-18 | #18 | worktree-agent-18 | opus | Blocked by #16 |
+```
+
+Include:
+- **Suggested merge order** — leaf PRs first (no dependents), root PRs last
+- **Any issues too ambiguous to delegate** — list them with a brief reason; they are excluded from the dispatch but not from the target set
+
+After printing the table, continue immediately to the next step.
+
+### 6. Create team and spawn teammates
+
+Create the team:
+
+```
+TeamCreate({name: "squad-<run-id>"})
+```
+
+Spawn the reviewer **once**:
+
+```
+Agent({
+  name: "reviewer",
+  team_name: "squad-<run-id>",
+  subagent_type: "general-purpose",
+  prompt: "<reviewer contract from the Reviewer Teammate Contract section>"
+})
+```
+
+Determine the optimal builder pool size, then spawn that many builders — each assigned one of the initially-unblocked issues. Remaining unblocked issues stay on the TaskList for builders to self-claim as they finish.
+
+**Pool sizing** — the pool size is `min(parallel_lanes, max_builders)`:
+
+- **`parallel_lanes`**: the number of initially-unblocked issues that have no file overlap with each other. Two issues overlap if their specs reference the same file. Issues in the same dependency chain are already serialized by the DAG — this check catches independent issues that would still conflict.
+- **`max_builders`**: defaults to `5`. Can be overridden via `--builders N` in `$ARGUMENTS`.
+
+If `parallel_lanes` is 0 (all issues are blocked), spawn 1 builder for the first issue that will unblock.
+
+Spawn all builders at once, not staggered:
+
+```
+Agent({
+  name: "builder-<issue>",
+  team_name: "squad-<run-id>",
+  isolation: "worktree",
+  subagent_type: "general-purpose",
+  prompt: "<builder contract from the Builder Teammate Contract section, parameterized with the issue>"
+})
+```
+
+Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
+
+### 7. Monitor and exit
+
+Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals.
+
+Exit when every issue in the initial target set has a PR (or has halted). No re-fetching — one-shot mode processes only the explicitly requested issues. Proceed to Halt and Report (on failure) or Teardown (on success).
 
 ---
 
 ## Loop Mode
 
-_Stub — to be filled in by a downstream task (epic #285)._
+Used when no issue numbers are given (no args or label filter). Continuously clears the board using Agent Teams.
 
-Used when no issue numbers are given (no args or label filter). The intent is to continuously clear the board using Agent Teams instead of isolated-worktree agents.
+### Setup
 
-Key differences from `swarmkit:swarm` that will be specified downstream:
-- Continuous loop orchestration via the teams API
-- Team-aware checkpoint reporting
-- Halt and cleanup when the board is clear or an unrecoverable failure occurs
+```bash
+git fetch origin
+```
 
-Until fully implemented, this section serves as a placeholder. Do not attempt to execute this mode — refer the user to `swarmkit:swarm` for production use.
+Set `claude.flowkit.prBase` to scope the PR base for this operation:
+
+```bash
+git config --local claude.flowkit.prBase $BASE
+```
+
+This is unset during teardown. Leaving it set will cause subsequent PR creation to target the wrong base.
+
+### Loop (repeat until board clear or unrecoverable failure)
+
+**Step 1 — Seed the target set**
+
+Follow `swarmkit:gh-fetch-issues` to fetch open issues (apply label filter if given), then follow `swarmkit:issue-rank` to rank and select all issues that can safely parallelize this cycle.
+
+If no open issues remain, announce "Board is clear" and exit.
+
+**Step 2 — Parse dependencies and populate TaskList**
+
+For each issue body, extract `Depends on #N` and `Blocked by #N` references:
+
+```bash
+echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
+```
+
+Build the DAG, topological sort, and populate the shared TaskList with one task per issue (same structure as One-Shot Mode, step 3) — `id`, `title`, `body`, `status` (`unblocked`/`blocked`), `blockedBy`, and `assignee`.
+
+**Step 3 — Apply `status:in-progress` label**
+
+Ensure the label exists, then apply it to every issue in the target set:
+
+```bash
+gh label list | grep -q "status:in-progress" || \
+  gh label create "status:in-progress" --description "Actively being worked on" --color "E4E669"
+```
+
+For each issue number in the target set:
+
+```bash
+gh issue edit <issue> --add-label "status:in-progress"
+```
+
+**Step 4 — Create team and spawn**
+
+Before spawning, print the dispatch plan table (same format as One-Shot Mode step 5: Builder / Issue(s) / Branch / Model / Notes, with suggested merge order). Proceed immediately — no approval gate.
+
+Create the team (once per loop-mode run, reused across cycles):
+
+```
+TeamCreate({name: "squad-<run-id>"})
+```
+
+Spawn the reviewer **once** at the start of the first cycle. It persists across all cycles — do not respawn between batches.
+
+Determine the builder pool size using the same formula as One-Shot Mode step 4: `min(parallel_lanes, max_builders)`. Spawn that many builders, each assigned one initially-unblocked issue. Remaining unblocked issues stay on the TaskList for self-claim.
+
+**Builder naming in loop mode** — use a cycle-scoped suffix `builder-<issue>-c<cycle>` (where `<cycle>` starts at 1 and increments each time the board is re-seeded). This avoids roster collisions with stale entries from previous cycles: the Agent Teams config retains member records across cycles, so reusing a name like `builder-42` on cycle 2 would conflict with the cycle-1 entry that never received a clean shutdown.
+
+```
+Agent({
+  name: "builder-<issue>-c<cycle>",
+  team_name: "squad-<run-id>",
+  isolation: "worktree",
+  subagent_type: "general-purpose",
+  prompt: "<builder contract from the Builder Teammate Contract section, parameterized with the issue>"
+})
+```
+
+Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
+
+**Step 5 — Monitor current batch**
+
+Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals. The batch is drained when every spawned builder has exited and no claimable tasks remain on the TaskList.
+
+**Step 6 — Checkpoint**
+
+```
+── Cycle N complete ──────────────────────────
+PRs opened: #25 (→ #12), #26 (→ #15)
+Failed: #14 (builder crash, no PR produced)
+Blocked: #20 (depends on #14)
+Remaining open issues: 5
+──────────────────────────────────────────────
+```
+
+**Step 7 — Re-fetch and re-seed**
+
+After the current batch drains, increment the cycle counter, re-run `swarmkit:gh-fetch-issues` + `swarmkit:issue-rank` to discover newly-opened or previously-blocked issues. If the re-fetch returns issues, populate a fresh TaskList and spawn new builders for the next cycle's unblocked issues using the updated `c<cycle>` suffix (the reviewer persists — do not respawn it).
+
+Repeat from Step 1 until:
+- The board is clear (no open, non-on-hold issues match the filter) — proceed to Teardown
+- An unrecoverable failure occurs (builder crash with no PR, base branch corrupted) — proceed to Halt and Report
+
+### Smart failure rules
+
+When an issue fails at any point:
+1. Check all remaining issues in current and future cycles for dependency references to the failed issue
+2. Mark those as blocked on the TaskList; continue with all unblocked issues
+3. Report blocked issues at each checkpoint
+
+**Unrecoverable failures** (exit loop immediately):
+- Builder produced no PR (crash, timeout, no push)
+- `$BASE` branch deleted or corrupted externally
 
 ---
 
 ## Dispatch Loop
 
 The lead agent orchestrates the team for the entire run. It does not fire-and-forget — it stays active from initial fetch through teardown, spawning a fixed pool of teammates upfront and then reading teammate status via the Agent Teams mailbox to monitor for crashes and stuck tasks. Builders self-claim additional work from the shared task list as upstream issues unblock, so the lead does not dispatch new teammates in response to completion events.
+
+**Mode entry points differ:** Loop mode enters at step 1 (Initial fetch) to build the target set from scratch. One-shot mode skips steps 1–2 entirely — it enters the Dispatch Loop at step 3 (Watch phase) with the target set and TaskList already populated from One-Shot steps 1–4.
 
 ### API reference
 
@@ -103,7 +333,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 |---|---|
 | Create the team | `TeamCreate({name: "<team-name>"})` — auto-registers the calling session as `team-lead@<team-name>` |
 | Spawn the reviewer | `Agent({name: "reviewer", team_name: "<team-name>", subagent_type: "general-purpose", prompt: "..."})` |
-| Spawn a builder | `Agent({name: "builder-<issue>", team_name: "<team-name>", isolation: "worktree", subagent_type: "general-purpose", prompt: "..."})` |
+| Spawn a builder | `Agent({name: "builder-<issue>" (one-shot) or "builder-<issue>-c<cycle>" (loop), team_name: "<team-name>", isolation: "worktree", subagent_type: "general-purpose", prompt: "..."})` |
 | Send a message | `SendMessage({to: "<teammate-name>", message: "..."})` |
 | Shut down a teammate | `SendMessage({to: "<teammate-name>", message: {type: "shutdown_request"}})` |
 | Receive messages | Automatic — messages from teammates are delivered into the conversation; there is no `ReceiveMessage` poll |
@@ -114,7 +344,7 @@ Notes:
 - **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 2). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
-### 1. Initial fetch
+### 1. Initial fetch _(loop mode only)_
 
 Before spawning anyone, the lead builds a starting batch of issues using swarmkit sub-skills:
 
@@ -125,7 +355,7 @@ The ranked list becomes the **target set**. Dependency edges between issues (e.g
 
 ### 2. Spawn phase
 
-Once the target set is known, the lead spawns a **fixed pool of teammates upfront** — one reviewer plus one builder per initially-unblocked issue. No additional teammates are spawned later in the run; instead, builders self-claim downstream issues from the shared task list as those issues unblock (see Builder Teammate Contract).
+Once the target set is known, the lead spawns a **capped pool of teammates** — one reviewer plus a number of builders determined by the pool-sizing formula from One-Shot Mode step 4: `min(parallel_lanes, max_builders)`. Builders self-claim downstream issues from the shared task list as those issues unblock (see Builder Teammate Contract), so the pool does not need to match the issue count 1:1.
 
 1. Spawn the reviewer **once** at the start of the run. Only one reviewer exists for the lifetime of the team:
 
@@ -138,11 +368,12 @@ Once the target set is known, the lead spawns a **fixed pool of teammates upfron
    })
    ```
 
-2. For every initially-unblocked issue in the target set, spawn a builder named `builder-<issue>` — all at once, not staggered. The `isolation: "worktree"` flag is what gives the builder its isolated git worktree:
+2. Spawn builders up to the pool cap, each assigned one initially-unblocked issue — all at once, not staggered. The `isolation: "worktree"` flag is what gives the builder its isolated git worktree:
 
    ```
    Agent({
-     name: "builder-<issue>",
+     name: "builder-<issue>",          // one-shot mode
+     name: "builder-<issue>-c<cycle>", // loop mode — cycle suffix prevents roster collisions across re-seeds
      team_name: "<team-name>",
      isolation: "worktree",
      subagent_type: "general-purpose",
@@ -150,7 +381,7 @@ Once the target set is known, the lead spawns a **fixed pool of teammates upfron
    })
    ```
 
-The pool size equals the number of initially-unblocked issues. Blocked issues remain on the shared task list and are picked up by whichever builder finishes first and finds them unblocked — the lead does not spawn additional builders when downstream issues unblock.
+Remaining unblocked issues stay on the shared task list and are picked up by whichever builder finishes first. The lead does not spawn additional builders when downstream issues unblock — the pool drains naturally as builders self-claim and complete work.
 
 ### 3. Watch phase
 
