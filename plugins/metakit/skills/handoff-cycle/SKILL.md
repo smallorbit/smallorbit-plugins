@@ -86,20 +86,20 @@ Track completed steps and failed steps for error reporting (see step 5).
 
 #### Step 4a — vaultkit:archive-export
 
-If `action` is `pause`, show:
+Show:
 
 ```
 About to archive the session export to vault project "<vault-project>".
 Confirm? (yes / no)
 ```
 
-Wait for confirmation before proceeding. If the user declines, skip this step (do not record it as a failure).
+Wait for confirmation. If the user declines, skip this step (do not record it as a failure).
 
 Invoke `vaultkit:archive-export`. Pass the inferred vault project as context. Record the result summary as a completed step.
 
 #### Step 4b — vaultkit:jot
 
-If `action` is `pause`, show:
+Show:
 
 ```
 About to jot session progress to vault project "<vault-project>":
@@ -113,7 +113,7 @@ Invoke `vaultkit:jot` with the inferred session summary as `$ARGUMENTS`. Record 
 
 #### Step 4c — sessionkit:handoff
 
-If `action` is `pause`, show:
+Show:
 
 ```
 About to write handoff document to <handoff-destination>.
