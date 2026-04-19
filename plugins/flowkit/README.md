@@ -50,7 +50,6 @@ These are called by the skills above — you don't invoke them directly.
 |-------|---------|---------|
 | **git-sync-main** | release, hotfix | Checkout `main` and pull latest from origin. |
 | **git-sync-develop** | sync, release, hotfix | Checkout `develop` and pull latest from origin. |
-| **gh-close-referenced-issues** | release, hotfix | Parse merged PR bodies; close referenced issues and resolved epics. |
 | **pr-base-scope** | swarm | Set/unset `claude.flowkit.prBase` git config for scoped PR targeting. |
 
 ## Typical Workflows
@@ -160,9 +159,9 @@ Release candidates are named by date and sequence number (e.g., `rc/2026-04-16.1
 
 Production releases are tagged with a calendar-versioned tag (e.g., `v2026.4.16`). Multiple releases on the same day append a counter (e.g., `v2026.4.16-2`).
 
-### Hotfix Tags: `vYYYY.M.D-hotfix`
+### Hotfix Tags: `vYYYY.M.D[.N]` + companion `hotfix/vYYYY.M.D[.N]`
 
-Hotfixes are tagged separately (e.g., `v2026.4.16-hotfix`) to distinguish them from scheduled releases and preserve the release history.
+Hotfixes use the same CalVer MICRO-increment tag as scheduled releases (e.g., `v2026.4.16.1`) so the two sort together in the release history. A companion tag (e.g., `hotfix/v2026.4.16.1`) is pushed to the same commit to keep hotfixes discoverable via `git tag --list 'hotfix/*'`.
 
 ### Commit Format: Conventional Commits
 
