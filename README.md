@@ -1,8 +1,12 @@
 # smallorbit-plugins
 
-A collection of plugins for Claude Code.
+[![smallorbit-plugins landing page](docs/assets/landing-hero.png)](https://smallorbit.github.io/smallorbit-plugins/)
 
-**[→ One-page Overview](https://smallorbit.github.io/smallorbit-plugins/)**
+## From idea to release. With you in the loop.
+
+Claude Code plugins for plan, execute, and ship — each keeping you at the handoffs that matter.
+
+**[→ View the full landing page](https://smallorbit.github.io/smallorbit-plugins/)**
 
 ## Setup
 
