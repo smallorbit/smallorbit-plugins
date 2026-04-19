@@ -131,3 +131,29 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 ```
 
 [Sessionkit](../sessionkit) complements swarmkit throughout: use `/handoff` to preserve state when context runs low mid-swarm, and `/skillit` after a swarm to capture reusable patterns that emerged.
+
+## Experimental features
+
+### `exp-swarm-teams`
+
+An [Agent Teams](https://code.claude.com/docs/en/agent-teams)-based variant of `/swarm`. Instead of fully independent isolated agents, it runs a structured team: a lead (the main session) coordinates N builder teammates and 1 dedicated reviewer teammate. The reviewer runs continuously alongside the builders — providing feedback before any PR is pushed — and uses peer notifications to stay in sync.
+
+**Enable it** by setting the environment variable before starting Claude Code:
+
+```bash
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
+
+Then invoke it the same way as `/swarm`:
+
+```
+/exp-swarm-teams 12 15 18
+```
+
+**Known limits**:
+
+- **One team per session** — Agent Teams supports only a single active team per Claude Code session. Running multiple concurrent swarms in the same session is not supported.
+- **No session resumption** — if the Claude Code session dies, the entire team goes with it. There is no way to reconnect or hand off to a new session.
+- **Halt-only on teammate crash** — if a builder or reviewer crashes, the swarm halts. There is no automatic respawning in v1.
+- **Reviewer is pre-push only** — the reviewer teammate provides feedback before PRs are opened. It does not perform GitHub-side code review after the PR is created.
+- **Experimental** — API and behavior may change without notice as the Agent Teams feature evolves.
