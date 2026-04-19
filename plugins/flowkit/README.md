@@ -38,7 +38,7 @@ claude --plugin-dir /path/to/flowkit
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
 | **release** | `/release` | Detect staging at runtime, merge to `main`, tag, close issues, clean up RC branches. |
-| **ship** | `/ship` | Full one-shot cycle: `pr` → `merge-pr` → `sync` → `cut` → `release`. |
+| **ship** | `/ship` | Repo-level landing command: `merge-stack` → `cut` → `release`. Run after a swarm to land everything. |
 | **hotfix** | `/hotfix` | Emergency fix: branch off `main`, apply fix, PR to `main`, tag, back-merge to `develop`. |
 | **release-status** | `/release-status` | Show what's in staging awaiting release and what's in `develop` awaiting a cut. |
 
@@ -51,17 +51,17 @@ These are called by the skills above — you don't invoke them directly.
 | **git-sync-main** | release, hotfix | Checkout `main` and pull latest from origin. |
 | **git-sync-develop** | sync, release, hotfix | Checkout `develop` and pull latest from origin. |
 | **gh-close-referenced-issues** | release, hotfix | Parse merged PR bodies; close referenced issues and resolved epics. |
-| **pr-base-scope** | ship, swarm | Set/unset `claude.prBase` git config for scoped PR targeting. |
+| **pr-base-scope** | swarm | Set/unset `claude.prBase` git config for scoped PR targeting. |
 
 ## Typical Workflows
 
 ```
-# Standard release from develop
+# After a swarm run — land everything in one shot
+/ship                            # merge-stack → cut → release
+
+# Standard release from develop (no swarm)
 /cut                             # cut a release candidate from develop
 /release                         # ship to main, tag, close issues
-
-# Full one-command ship cycle
-/ship                            # branch → commit → PR → merge → cut → release
 
 # Check before acting
 /release-status                  # see what's staging vs. what's in develop
@@ -85,11 +85,13 @@ Step-by-step feature flow:
 
 ## How Ship Works
 
-`/ship` runs the full pipeline in a single command: it creates a branch, commits staged changes, opens a PR, squash-merges it, syncs `develop`, cuts a release candidate, and promotes it to `main`.
+`/ship` is a repo-level landing command designed to run after a swarm. It composes three existing skills in sequence:
 
-The pipeline is scoped with `claude.prBase`: before spawning sub-agents, `/ship` (and `/swarm`) set this config so every PR in the run targets the correct base branch. It is unset when the run completes.
+1. **`swarmkit:merge-stack`** — merges all open `worktree-agent-*` PRs top-down into `develop`, accumulating issue refs as the stack collapses. Skips gracefully if no swarm PRs are open.
+2. **`flowkit:cut`** — creates an `rc/YYYY-MM-DD.N` branch from `origin/develop`, and auto-stages it if `origin/staging` exists.
+3. **`flowkit:release`** — merges the RC (or staging) to `main`, tags the release, closes referenced issues, and cleans up RC branches.
 
-Self-review is intentionally excluded from `/ship`. The command is a release pipeline, not a quality gate — code review happens before merge, not during ship.
+Branch creation, commits, and PR opening are not part of `/ship` — those belong to `/pr` and `/swarm`. If `merge-stack` encounters a conflict, `/ship` stops before cutting or releasing.
 
 ## How Runtime Staging Detection Works
 
@@ -147,8 +149,7 @@ Flowkit handles the shipping half of the development loop. Use it with speckit a
 ```
 /spec add CSV export              # Plan the feature, file issues  (speckit)
 /swarm                            # Resolve issues with parallel agents  (swarmkit)
-/cut                              # Cut a release candidate  (flowkit)
-/release                          # Ship to main  (flowkit)
+/ship                             # Merge stack → cut → release  (flowkit)
 ```
 
 The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it. Use [sessionkit](../sessionkit)'s `/handoff` if a release session runs long, and `/skillit` afterwards to capture any new conventions or one-off scripts worth keeping.
