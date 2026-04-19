@@ -1,6 +1,6 @@
 ---
 name: gh-fetch-issues
-description: Fetch open GitHub issues and filter out on-hold labeled issues. Sub-skill used by pick-issue, swarm, and catalog.
+description: Fetch open GitHub issues and filter out on-hold labeled issues. Sub-skill used by next-issue, swarm, and catalog.
 ---
 
 # gh-fetch-issues

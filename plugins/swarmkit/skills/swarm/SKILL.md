@@ -280,7 +280,7 @@ This is unset in the teardown step below. Leaving it set will cause subsequent P
 Follow `gh-fetch-issues` to fetch open issues (apply label filter if given), then follow `issue-rank` to rank and select all issues that can safely parallelize this cycle:
 - No two issues touch the same files
 - No unresolved dependencies within the batch
-- Present the batch in the standard pick-issue table format; note any deferred issues and why
+- Present the batch in the standard next-issue table format; note any deferred issues and why
 
 If no open issues remain, announce "Board is clear" and exit.
 
