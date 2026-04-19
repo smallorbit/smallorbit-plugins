@@ -1,7 +1,7 @@
 {
   "name": "flowkit",
   "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection and a one-command hotfix flow.",
-  "version": "2.0.4",
+  "version": "3.0.0",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
