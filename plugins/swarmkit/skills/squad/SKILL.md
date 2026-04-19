@@ -63,31 +63,198 @@ Any additional Agent Teams-specific setup (e.g., team registration, capability d
 
 ## One-Shot Mode
 
-_Stub — to be filled in by a downstream task (epic #285)._
+Used when explicit issue numbers are provided. Dispatches Agent Teams builders for the given set of issues, opens PRs via the builder/reviewer workflow, and reports results.
 
-Used when explicit issue numbers are provided. The intent is to dispatch Agent Teams instances for the given set of issues, open PRs, and report results.
+### 1. Build the target set
 
-Key differences from `swarmkit:swarm` that will be specified downstream:
-- Team member prompts (orchestrator + implementer roles)
-- Agent Teams API invocation instead of worktree spawn
-- Halt and cleanup behavior specific to the teams API
+For each issue number parsed from `$ARGUMENTS`:
 
-Until fully implemented, this section serves as a placeholder. Do not attempt to execute this mode — refer the user to `swarmkit:swarm` for production use.
+```bash
+gh issue view <number> --json title,body,labels
+```
+
+**Skip any issue with the `on-hold` label.**
+
+**Epic expansion** — query each issue's children via the sub-issue API:
+
+```bash
+gh api repos/{owner}/{repo}/issues/<number>/sub_issues
+```
+
+If the response is a non-empty array, the issue is an epic. Use the children (not the epic itself) as work items: fetch `title,body,labels,state` for each child in parallel, then filter:
+
+- Skip any child with the `on-hold` label
+- Skip any child that is already `closed`
+
+If all children are skipped, announce and stop. Otherwise announce:
+
+> `#N` is an epic. Dispatching: `#101`, `#102`. Skipped (closed/on-hold): `#103`.
+
+**Epic label without sub-issues** — if the issue carries the `epic` label but the sub-issues API returns an empty array, the epic is not wired up. Do **not** treat it as a regular implementation issue. Announce and skip:
+
+> `#N` is labeled `epic` but has no sub-issues wired via the GitHub sub-issue API. Skipping — children must be attached via `gh api .../sub_issues` before dispatching.
+
+### 2. Parse dependency graph
+
+For each issue body fetched in Step 1, extract `Depends on #N` and `Blocked by #N` references:
+
+```bash
+echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
+```
+
+Build a directed acyclic graph (DAG): each issue is a node; a `Depends on #N` or `Blocked by #N` relationship is a directed edge from the dependent to the dependency.
+
+Produce a **topological sort** of the DAG:
+- **Unblocked issues**: no incoming edges within this batch — spawn builders in parallel
+- **Blocked issues**: have upstream dependencies that must complete first — added to the shared TaskList with `blockedBy` metadata
+
+### 3. Populate the shared TaskList
+
+Add one task per issue to the Agent Teams shared TaskList:
+
+- `id`: the issue number
+- `title`: the issue title
+- `body`: the issue body (acceptance criteria)
+- `status`: `unblocked` or `blocked`
+- `blockedBy`: list of upstream issue numbers (empty for independent issues)
+- `assignee`: `null` (builders self-claim)
+
+Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 8).
+
+### 4. Create team and spawn teammates
+
+Create the team:
+
+```
+TeamCreate({name: "squad-<run-id>"})
+```
+
+Spawn the reviewer **once**:
+
+```
+Agent({
+  name: "reviewer",
+  team_name: "squad-<run-id>",
+  subagent_type: "general-purpose",
+  prompt: "<reviewer contract from the Reviewer Teammate Contract section>"
+})
+```
+
+For every initially-unblocked issue, spawn a builder — all at once, not staggered:
+
+```
+Agent({
+  name: "builder-<issue>",
+  team_name: "squad-<run-id>",
+  isolation: "worktree",
+  subagent_type: "general-purpose",
+  prompt: "<builder contract from the Builder Teammate Contract section, parameterized with the issue>"
+})
+```
+
+The pool size equals the number of initially-unblocked issues. Blocked issues stay on the TaskList and are self-claimed by builders as they become unblocked (see Dispatch Loop).
+
+### 5. Monitor and exit
+
+Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals.
+
+Exit when every issue in the initial target set has a PR (or has halted). No re-fetching — one-shot mode processes only the explicitly requested issues. Proceed to Halt and Report (on failure) or Teardown (on success).
 
 ---
 
 ## Loop Mode
 
-_Stub — to be filled in by a downstream task (epic #285)._
+Used when no issue numbers are given (no args or label filter). Continuously clears the board using Agent Teams.
 
-Used when no issue numbers are given (no args or label filter). The intent is to continuously clear the board using Agent Teams instead of isolated-worktree agents.
+### Setup
 
-Key differences from `swarmkit:swarm` that will be specified downstream:
-- Continuous loop orchestration via the teams API
-- Team-aware checkpoint reporting
-- Halt and cleanup when the board is clear or an unrecoverable failure occurs
+```bash
+git fetch origin
+```
 
-Until fully implemented, this section serves as a placeholder. Do not attempt to execute this mode — refer the user to `swarmkit:swarm` for production use.
+Set `claude.flowkit.prBase` to scope the PR base for this operation:
+
+```bash
+git config --local claude.flowkit.prBase $BASE
+```
+
+This is unset during teardown. Leaving it set will cause subsequent PR creation to target the wrong base.
+
+### Loop (repeat until board clear or unrecoverable failure)
+
+**Step 1 — Seed the target set**
+
+Follow `swarmkit:gh-fetch-issues` to fetch open issues (apply label filter if given), then follow `swarmkit:issue-rank` to rank and select all issues that can safely parallelize this cycle.
+
+If no open issues remain, announce "Board is clear" and exit.
+
+**Step 2 — Parse dependencies and populate TaskList**
+
+For each issue body, extract `Depends on #N` and `Blocked by #N` references:
+
+```bash
+echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
+```
+
+Build the DAG, topological sort, and populate the shared TaskList with one task per issue (same structure as One-Shot Mode, step 3) — `id`, `title`, `body`, `status` (`unblocked`/`blocked`), `blockedBy`, and `assignee`.
+
+**Step 3 — Create team and spawn**
+
+Create the team (once per loop-mode run, reused across cycles):
+
+```
+TeamCreate({name: "squad-<run-id>"})
+```
+
+Spawn the reviewer **once** at the start of the first cycle. It persists across all cycles — do not respawn between batches.
+
+For every initially-unblocked issue in this cycle's batch, spawn a builder:
+
+```
+Agent({
+  name: "builder-<issue>",
+  team_name: "squad-<run-id>",
+  isolation: "worktree",
+  subagent_type: "general-purpose",
+  prompt: "<builder contract from the Builder Teammate Contract section, parameterized with the issue>"
+})
+```
+
+Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8).
+
+**Step 4 — Monitor current batch**
+
+Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals. The batch is drained when every spawned builder has exited and no claimable tasks remain on the TaskList.
+
+**Step 5 — Checkpoint**
+
+```
+── Cycle N complete ──────────────────────────
+PRs opened: #25 (→ #12), #26 (→ #15)
+Failed: #14 (builder crash, no PR produced)
+Blocked: #20 (depends on #14)
+Remaining open issues: 5
+──────────────────────────────────────────────
+```
+
+**Step 6 — Re-fetch and re-seed**
+
+After the current batch drains, re-run `swarmkit:gh-fetch-issues` + `swarmkit:issue-rank` to discover newly-opened or previously-blocked issues. If the re-fetch returns issues, populate a fresh TaskList and spawn new builders for the next cycle's unblocked issues (the reviewer persists — do not respawn it).
+
+Repeat from Step 1 until:
+- The board is clear (no open, non-on-hold issues match the filter) — proceed to Teardown
+- An unrecoverable failure occurs (builder crash with no PR, base branch corrupted) — proceed to Halt and Report
+
+### Smart failure rules
+
+When an issue fails at any point:
+1. Check all remaining issues in current and future cycles for dependency references to the failed issue
+2. Mark those as blocked on the TaskList; continue with all unblocked issues
+3. Report blocked issues at each checkpoint
+
+**Unrecoverable failures** (exit loop immediately):
+- Builder produced no PR (crash, timeout, no push)
+- `$BASE` branch deleted or corrupted externally
 
 ---
 
