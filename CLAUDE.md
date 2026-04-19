@@ -17,7 +17,3 @@ Run it before staging and committing the release.
 ## Plugins
 
 `swarmkit` includes an experimental `squad` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. See `plugins/swarmkit/README.md` for details.
-
-## GitHub Pages
-
-`docs/index.html` is the source for the GitHub Pages landing page at https://smallorbit.github.io/smallorbit-plugins/. When plugin versions change, update the version badges in the plugin cards section of that file to keep the site in sync.
