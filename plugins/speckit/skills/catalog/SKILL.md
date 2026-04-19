@@ -91,11 +91,40 @@ Epic: epic:<slug> (applied to every issue below)
 
 If `--auto` was passed in `$ARGUMENTS`, skip the approval step and proceed directly to issue creation.
 
-Otherwise, wait for user approval. The user may ask to:
+Otherwise, **in a single assistant turn**, emit (a) the catalog table above and (b) an `AskUserQuestion` call. Never end the turn after presenting the table without the tool call — a prose-only prompt like "let me know if you'd like changes" is a defect.
+
+**Wrong shape** (never do this):
+
+```
+| # | Title | Category | Priority | Labels |
+...
+Let me know if you'd like any adjustments.
+← turn ends here; silent wait
+```
+
+**Right shape** (always do this):
+
+```
+| # | Title | Category | Priority | Labels |
+...
+← immediately followed by AskUserQuestion in the same turn:
+AskUserQuestion("File these issues?", [
+  "Approve and file",
+  "Adjust priorities / titles",
+  "Remove some findings",
+  "Cancel"
+])
+```
+
+**Pre-end self-check**: Before ending the turn in step 3, verify that the last action is an `AskUserQuestion` call. If the table was shown but no tool call was made, emit the call immediately.
+
+The user may ask to:
 - Remove findings they don't want filed
 - Adjust priorities
 - Change titles or descriptions
 - Add additional context
+
+If adjustments are requested, update the table and re-present with a new `AskUserQuestion` in the same turn.
 
 ### 4. Create issues
 
@@ -142,6 +171,7 @@ Output the created issues as a table with links:
 ## Constraints
 
 - Never create issues without showing the user the catalog first (unless `--auto` was passed)
+- The catalog table and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — showing the table and ending the turn without calling `AskUserQuestion` is a defect
 - Never create duplicate issues — check `gh issue list` for similar titles before creating
 - Keep issue bodies concise — problem + impact + fix, nothing more
 - Match the label style already in the repo (don't impose a new scheme)
