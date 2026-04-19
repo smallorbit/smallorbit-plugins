@@ -101,7 +101,3 @@ Vaultkit captures what happens during and after a session into a durable Obsidia
 
 - Run `/handoff` to capture a session's state to `.sessionkit/HANDOFF.md`, then `/archive-export` to file the conversation export into the active project — the handoff lives on disk next to the code, the archive lives in Obsidian for long-term recall.
 - Use `/pickup` in the next session to restore context, then `/jot` to record what you decide as you go.
-
-**With metakit (`/handoff-cycle`)**
-
-- `/handoff-cycle` composes `/handoff` → `/archive-export` → `/pickup` into a single cycle, wrapping sessionkit and vaultkit into a hands-free context-rotation flow. Use it when a session is approaching its context limit and you want to continue seamlessly in a fresh one.
