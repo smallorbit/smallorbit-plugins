@@ -77,10 +77,9 @@ EPIC_REFS_FILE=$(mktemp)
 
 echo "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
   gh issue list --label "epic" --state open --json number,body \
-    | tr -d '\000-\010\013-\037' \
-    | jq -r ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\"))" \
-  | grep -oE '"number":[0-9]+' | grep -oE '[0-9]+' | while read EPIC_N; do
-    EPIC_BODY=$(gh issue view "$EPIC_N" --json body | tr -d '\000-\010\013-\037' | jq -r '.body')
+      --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\")) | .number" \
+  | while read EPIC_N; do
+    EPIC_BODY=$(gh issue view "$EPIC_N" --json body --jq '.body')
     OPEN_CHILDREN=$(echo "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
     [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
   done
