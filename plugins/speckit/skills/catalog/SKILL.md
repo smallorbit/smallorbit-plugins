@@ -107,7 +107,27 @@ After approval, create all issues via `gh issue create`:
   - `## Problem` — what's wrong
   - `## Why this matters` — impact and severity rationale
   - `## Suggested fix` — concrete next steps
-- Create issues in priority order (high first)
+- Create issues **sequentially** (one at a time) in priority order (high first).
+  Never parallelize `gh issue create` calls — parallel bash invocations return
+  URLs in completion order, not invocation order, which silently scrambles the
+  title↔number mapping. Capture each URL immediately after creation and pair
+  it with the exact title just filed.
+
+### 4.5. Verify the title↔number mapping
+
+Before reporting the results in Step 5, verify each created issue's title
+matches the title you intended:
+
+```bash
+printf '%s\n' <N1> <N2> ... | while read N; do
+  gh issue view "$N" --json title --jq '.title'
+done
+```
+
+Assert each returned title matches the corresponding row in your catalog
+table. If any mismatch, halt and report — do not pass unverified numbers
+to downstream steps (e.g., /swarm, /squad, /ship) where Closes-ref accuracy
+depends on the mapping.
 
 ### 5. Report
 
@@ -125,4 +145,5 @@ Output the created issues as a table with links:
 - Never create duplicate issues — check `gh issue list` for similar titles before creating
 - Keep issue bodies concise — problem + impact + fix, nothing more
 - Match the label style already in the repo (don't impose a new scheme)
+- Never parallelize `gh issue create` in a batch; URL↔title mapping breaks
 - Never write `#<number>` tokens in issue bodies unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a token like `#3` in a body about "task 3" will link to unrelated issue 3 in the repo. When referring to sibling tasks from a plan, use "task 3" (no hash) or omit the reference entirely — task-to-task dependencies are wired by the caller (e.g. `/spec`) via the native GitHub blocked-by API, not via issue-body text.
