@@ -2,6 +2,8 @@
 
 A Claude Code plugin that manages the full git lifecycle from branch to release. Commit, open PRs, merge, cut release candidates, and ship to main — all from slash commands.
 
+> **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — it covers the plan → execute → ship loop and where flowkit fits in.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
@@ -33,7 +35,7 @@ claude --plugin-dir /path/to/flowkit
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop`. |
+| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop` (skipping any labeled `on-hold`). |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
@@ -54,22 +56,32 @@ These are called by the skills above — you don't invoke them directly.
 
 ## Typical Workflows
 
-```
-# After a swarm run — land everything in one shot
-/ship                            # merge-stack → cut → release
+### After a swarm run
 
-# Standard release from develop (no swarm)
+```
+/ship                            # merge-stack → cut → release
+```
+
+### Standard release (no swarm)
+
+```
 /cut                             # cut a release candidate from develop
 /release                         # ship to main, tag, close issues
+```
 
-# Check before acting
+### Pre-flight check
+
+```
 /release-status                  # see what's staging vs. what's in develop
+```
 
-# Emergency hotfix
+### Emergency hotfix
+
+```
 /hotfix fix login redirect       # branch off main, apply fix, ship, back-merge
 ```
 
-Step-by-step feature flow:
+### Feature flow
 
 ```
 /create-branch feat/my-feature   # branch off develop
@@ -83,12 +95,6 @@ Step-by-step feature flow:
 ```
 
 ## How Ship Works
-
-`/ship` is a repo-level landing command designed to run after a swarm. It composes three existing skills in sequence:
-
-1. **`swarmkit:merge-stack`** — merges all open `worktree-agent-*` PRs top-down into `develop`, accumulating issue refs as the stack collapses. Skips gracefully if no swarm PRs are open.
-2. **`flowkit:cut`** — creates an `rc/YYYY-MM-DD.N` branch from `origin/develop`, and auto-stages it if `origin/staging` exists.
-3. **`flowkit:release`** — merges the RC (or staging) to `main`, tags the release, closes referenced issues, and cleans up RC branches.
 
 Branch creation, commits, and PR opening are not part of `/ship` — those belong to `/pr` and `/swarm`. If `merge-stack` encounters a conflict, `/ship` stops before cutting or releasing.
 
@@ -159,9 +165,11 @@ Release candidates are named by date and sequence number (e.g., `rc/2026-04-16.1
 
 Production releases are tagged with a calendar-versioned tag (e.g., `v2026.4.16`). Multiple releases on the same day append a counter (e.g., `v2026.4.16-2`).
 
-### Hotfix Tags: `vYYYY.M.D[.N]` + companion `hotfix/vYYYY.M.D[.N]`
+### Hotfix Tags
 
-Hotfixes use the same CalVer MICRO-increment tag as scheduled releases (e.g., `v2026.4.16.1`) so the two sort together in the release history. A companion tag (e.g., `hotfix/v2026.4.16.1`) is pushed to the same commit to keep hotfixes discoverable via `git tag --list 'hotfix/*'`.
+First hotfix on 2026-04-16: tag `v2026.4.16` + companion `hotfix/v2026.4.16`. A second hotfix the same day: `v2026.4.16.1` + companion `hotfix/v2026.4.16.1`.
+
+The `.N` suffix keeps hotfixes sorting alongside scheduled releases in the tag history. The companion `hotfix/` tag makes them discoverable via `git tag -n` and `git tag --list 'hotfix/*'`.
 
 ### Commit Format: Conventional Commits
 
