@@ -29,7 +29,7 @@ claude --plugin-dir /path/to/metakit
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **kits** | `/kits` | _Coming soon._ Report which sibling kits are installed and what scenarios are currently runnable. |
-| **polish-cycle** | `/polish-cycle` | _Coming soon._ Run a full quality pass — critique, dead-code sweep, tidy — then file findings as issues and optionally swarm fixes. |
+| **polish-cycle** | `/polish-cycle` | _Coming soon._ Run a full quality loop — `polishkit:critique` to surface findings, `speckit:catalog` to file them as issues, `swarmkit:swarm` to spawn fixes — pausing before each risky step. |
 | **handoff-cycle** | `/handoff-cycle` | _Coming soon._ Close out a session cleanly — capture state, suggest skills worth keeping, archive decisions into the vault if present. |
 
 ## Graceful-Degradation Contract
@@ -50,7 +50,7 @@ metakit is an orchestrator — it doesn't replace any sibling kit, it composes t
 
 - **[speckit](../speckit)** — metakit scenarios file findings as issues via `/issue` or `/catalog`.
 - **[swarmkit](../swarmkit)** — metakit scenarios can hand filed issues off to `/swarm` for parallel resolution.
-- **[polishkit](../polishkit)** — `/polish-cycle` drives `/critique`, `/dead-code`, and `/tidy-codebase` in sequence.
+- **[polishkit](../polishkit)** — `/polish-cycle` drives `/critique` to surface findings before handing them to speckit and swarmkit.
 - **[flowkit](../flowkit)** — metakit scenarios defer to flowkit for PR, cut, and release operations.
 - **[sessionkit](../sessionkit)** — `/handoff-cycle` uses `/handoff` and `/skillit` to capture and carry state.
 - **[vaultkit](../vaultkit)** — when present, metakit scenarios can archive plans and decisions via `/jot` or `/archive-export`.
