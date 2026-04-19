@@ -1,4 +1,4 @@
-# polishKit
+# Polishkit
 
 A Claude Code plugin for improving what you've already built. Assess code craft with a connoisseur's eye, sweep for accumulated cruft, and eliminate dead code — three focused skills for codebase quality.
 
@@ -71,7 +71,7 @@ claude --plugin-dir /path/to/polishkit
 
 ## Pairing with Other Plugins
 
-polishKit improves quality; [speckit](../speckit) defines the next work; [swarmkit](../swarmkit) executes it:
+Polishkit improves quality; [speckit](../speckit) defines the next work; [swarmkit](../swarmkit) executes it:
 
 ```
 /critique                       # Assess current quality
