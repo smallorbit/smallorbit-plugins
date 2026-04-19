@@ -2,6 +2,15 @@
 
 Monorepo hosting Claude Code plugins. See the [repo README](./README.md#available-plugins) for the current plugin catalog — it's the canonical source and stays in sync as plugins ship.
 
+## User-Facing Docs
+
+The root [README](./README.md) owns two canonical anchors that other surfaces cross-link to rather than duplicate:
+
+- `#available-plugins` — plugin catalog.
+- `#getting-started` — end-to-end walkthrough for new users (prereqs → install → `/spec` → `/swarm` → ship).
+
+The landing page (`docs/index.html`) and each plugin README link back to these anchors instead of carrying parallel copies. When updating onboarding narrative, edit the root README and let the teasers point to it — don't fork the walkthrough into individual plugin READMEs.
+
 ## Release Process
 
 Before every release, run `/bump-versions` to increment `plugin.json` versions for any plugins that have changed. This is required — without a version bump, existing users' clients won't pick up the updated code.
