@@ -122,7 +122,22 @@ Add one task per issue to the Agent Teams shared TaskList:
 
 Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 8).
 
-### 4. Create team and spawn teammates
+### 4. Apply `status:in-progress` label
+
+Ensure the label exists, then apply it to every issue in the target set:
+
+```bash
+gh label list | grep -q "status:in-progress" || \
+  gh label create "status:in-progress" --description "Actively being worked on" --color "E4E669"
+```
+
+For each issue number in the target set:
+
+```bash
+gh issue edit <issue> --add-label "status:in-progress"
+```
+
+### 5. Create team and spawn teammates
 
 Create the team:
 
@@ -164,7 +179,7 @@ Agent({
 
 Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
 
-### 5. Monitor and exit
+### 6. Monitor and exit
 
 Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals.
 
@@ -208,7 +223,22 @@ echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
 
 Build the DAG, topological sort, and populate the shared TaskList with one task per issue (same structure as One-Shot Mode, step 3) — `id`, `title`, `body`, `status` (`unblocked`/`blocked`), `blockedBy`, and `assignee`.
 
-**Step 3 — Create team and spawn**
+**Step 3 — Apply `status:in-progress` label**
+
+Ensure the label exists, then apply it to every issue in the target set:
+
+```bash
+gh label list | grep -q "status:in-progress" || \
+  gh label create "status:in-progress" --description "Actively being worked on" --color "E4E669"
+```
+
+For each issue number in the target set:
+
+```bash
+gh issue edit <issue> --add-label "status:in-progress"
+```
+
+**Step 4 — Create team and spawn**
 
 Create the team (once per loop-mode run, reused across cycles):
 
@@ -232,11 +262,11 @@ Agent({
 
 Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
 
-**Step 4 — Monitor current batch**
+**Step 5 — Monitor current batch**
 
 Enter the Dispatch Loop (watch phase). The lead monitors the mailbox for completion messages and crash signals. The batch is drained when every spawned builder has exited and no claimable tasks remain on the TaskList.
 
-**Step 5 — Checkpoint**
+**Step 6 — Checkpoint**
 
 ```
 ── Cycle N complete ──────────────────────────
@@ -247,7 +277,7 @@ Remaining open issues: 5
 ──────────────────────────────────────────────
 ```
 
-**Step 6 — Re-fetch and re-seed**
+**Step 7 — Re-fetch and re-seed**
 
 After the current batch drains, re-run `swarmkit:gh-fetch-issues` + `swarmkit:issue-rank` to discover newly-opened or previously-blocked issues. If the re-fetch returns issues, populate a fresh TaskList and spawn new builders for the next cycle's unblocked issues (the reviewer persists — do not respawn it).
 
