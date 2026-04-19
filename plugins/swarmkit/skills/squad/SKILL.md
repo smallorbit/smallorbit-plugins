@@ -95,6 +95,25 @@ Until fully implemented, this section serves as a placeholder. Do not attempt to
 
 The lead agent orchestrates the team for the entire run. It does not fire-and-forget — it stays active from initial fetch through teardown, spawning a fixed pool of teammates upfront and then reading teammate status via the Agent Teams mailbox to monitor for crashes and stuck tasks. Builders self-claim additional work from the shared task list as upstream issues unblock, so the lead does not dispatch new teammates in response to completion events.
 
+### API reference
+
+The Agent Teams API is built from existing Claude Code primitives — there is no separate "spawn teammate" tool. Use this mapping when reading the steps below:
+
+| Concept | Real API call |
+|---|---|
+| Create the team | `TeamCreate({name: "<team-name>"})` — auto-registers the calling session as `team-lead@<team-name>` |
+| Spawn the reviewer | `Agent({name: "reviewer", team_name: "<team-name>", subagent_type: "general-purpose", prompt: "..."})` |
+| Spawn a builder | `Agent({name: "builder-<issue>", team_name: "<team-name>", isolation: "worktree", subagent_type: "general-purpose", prompt: "..."})` |
+| Send a message | `SendMessage({to: "<teammate-name>", message: "..."})` |
+| Shut down a teammate | `SendMessage({to: "<teammate-name>", message: {type: "shutdown_request"}})` |
+| Receive messages | Automatic — messages from teammates are delivered into the conversation; there is no `ReceiveMessage` poll |
+
+Notes:
+
+- **`TeamCreate` registers the orchestrator as `team-lead`**, not `lead`. Always address the orchestrator with `SendMessage({to: "team-lead", ...})`.
+- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** This is what makes the builder's `[[ "$PWD" != *"worktrees"* ]]` safety check pass. Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own).
+- **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
+
 ### 1. Initial fetch
 
 Before spawning anyone, the lead builds a starting batch of issues using swarmkit sub-skills:
@@ -111,13 +130,24 @@ Once the target set is known, the lead spawns a **fixed pool of teammates upfron
 1. Spawn the reviewer **once** at the start of the run. Only one reviewer exists for the lifetime of the team:
 
    ```
-   SpawnTeammate({name: "reviewer", role: "reviewer"})
+   Agent({
+     name: "reviewer",
+     team_name: "<team-name>",
+     subagent_type: "general-purpose",
+     prompt: "<reviewer contract from the Reviewer Teammate Contract section>"
+   })
    ```
 
-2. For every initially-unblocked issue in the target set, spawn a builder named `builder-<issue>` — all at once, not staggered:
+2. For every initially-unblocked issue in the target set, spawn a builder named `builder-<issue>` — all at once, not staggered. The `isolation: "worktree"` flag is what gives the builder its isolated git worktree:
 
    ```
-   SpawnTeammate({name: "builder-<issue>", role: "builder", issue: "<issue>"})
+   Agent({
+     name: "builder-<issue>",
+     team_name: "<team-name>",
+     isolation: "worktree",
+     subagent_type: "general-purpose",
+     prompt: "<builder contract from the Builder Teammate Contract section, parameterized with the issue>"
+   })
    ```
 
 The pool size equals the number of initially-unblocked issues. Blocked issues remain on the shared task list and are picked up by whichever builder finishes first and finds them unblocked — the lead does not spawn additional builders when downstream issues unblock.
@@ -134,7 +164,7 @@ The lead reacts to:
 
 Completion messages (`<issue> completed, PR: <url>`) are logged for the final summary but do **not** trigger any spawn action. The lead exits the watch phase once every spawned builder has exited and the shared task list has drained, then proceeds to mode-specific termination.
 
-The lead reads teammate status by consuming messages on its mailbox (the Agent Teams `ReceiveMessage` primitive). It does **not** poll teammates directly — all coordination flows through messages.
+The lead reads teammate status by handling incoming messages from teammates — they are delivered automatically into the lead's conversation, so there is no `ReceiveMessage` poll. The lead does **not** probe teammates directly; all coordination flows through messages.
 
 ### 4. Mode-specific termination
 
@@ -213,7 +243,7 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      ```
    - Report completion to the lead:
      ```
-     SendMessage({to: "lead", message: "<issue> completed, PR: <url>"})
+     SendMessage({to: "team-lead", message: "<issue> completed, PR: <url>"})
      ```
 
 8. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
@@ -251,7 +281,7 @@ The reviewer is the single long-running auditor for the team. It never writes to
 
 ### Workflow
 
-1. **Wait for an audit request.** Block on the mailbox (`ReceiveMessage`).
+1. **Wait for an audit request.** Audit requests from builders are delivered into the conversation automatically — no polling primitive is required.
 
 2. **Parse the request.** Builders send structured payloads of the form:
 
@@ -345,14 +375,14 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 
 ### Steps (in order)
 
-1. **Shut down teammates cleanly** — iterate the team roster, invoke the Agent Teams shutdown API for each teammate (builders first, then reviewer):
+1. **Shut down teammates cleanly** — iterate the team roster and send a `shutdown_request` to each teammate via `SendMessage` (builders first, then reviewer). The teammate is responsible for replying with a `shutdown_response` and then terminating:
 
    ```
-   ShutdownTeammate({name: "builder-<issue>"})   // repeat for each builder
-   ShutdownTeammate({name: "reviewer"})
+   SendMessage({to: "builder-<issue>", message: {type: "shutdown_request"}})   // repeat for each builder
+   SendMessage({to: "reviewer", message: {type: "shutdown_request"}})
    ```
 
-   If a teammate is already gone (crashed or already exited), the call is a no-op.
+   If a teammate is already gone (crashed or already exited), the send is a no-op.
 
 2. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
 
