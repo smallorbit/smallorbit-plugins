@@ -312,6 +312,9 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
    ```bash
    git config --local --unset claude.flowkit.prBase
    ```
+
+Optionally, run `swarmkit:clean-remote-worktrees` afterwards to sweep orphaned remote `worktree-agent-*` branches left behind by merged PRs. This is not automatic — invoke it when you want to tidy up.
+
 3. Final summary:
 
 ```

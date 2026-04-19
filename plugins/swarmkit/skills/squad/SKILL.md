@@ -484,10 +484,12 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
    ──────────────────────────────────────────────
    ```
 
+Optionally, run `swarmkit:clean-remote-worktrees` afterwards to sweep orphaned remote `worktree-agent-*` branches left behind by merged PRs. This is not automatic — invoke it when you want to tidy up.
+
 ### Out of scope
 
 - Closing or merging PRs — left open for human review
-- Deleting remote branches — only local worktrees and local branches are cleaned
+- Deleting remote branches — only local worktrees and local branches are cleaned by this skill's teardown; `swarmkit:clean-remote-worktrees` handles remote sweep on demand
 
 ---
 

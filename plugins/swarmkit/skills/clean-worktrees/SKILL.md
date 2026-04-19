@@ -7,6 +7,8 @@ description: Remove all agent worktrees and their orphaned local branches (workt
 
 Remove all agent worktrees and their orphaned local branches.
 
+For remote branch cleanup, see `swarmkit:clean-remote-worktrees`.
+
 ## Process
 
 0. Capture the current branch: run `git branch --show-current` and store the result as `<caller-branch>`
