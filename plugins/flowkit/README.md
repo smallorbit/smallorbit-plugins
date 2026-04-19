@@ -42,7 +42,7 @@ claude --plugin-dir /path/to/flowkit
 | **release** | `/release` | Detect staging at runtime, merge to `main`, tag, close issues, clean up RC branches. |
 | **ship** | `/ship` | Repo-level landing command: `merge-stack` → `cut` → `release`. Run after a swarm to land everything. |
 | **hotfix** | `/hotfix` | Emergency fix: branch off `main`, apply fix, PR to `main`, tag, back-merge to `develop`. |
-| **release-status** | `/release-status` | Show what's in staging awaiting release and what's in `develop` awaiting a cut. |
+| **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs/staging awaiting release, and the most recent tag. |
 
 ### Sub-Skills (internal)
 
@@ -72,7 +72,7 @@ These are called by the skills above — you don't invoke them directly.
 ### Pre-flight check
 
 ```
-/release-status                  # see what's staging vs. what's in develop
+/pipeline-status                 # see open PRs, develop, RCs, and last release at a glance
 ```
 
 ### Emergency hotfix
@@ -100,7 +100,7 @@ Branch creation, commits, and PR opening are not part of `/ship` — those belon
 
 ## How Runtime Staging Detection Works
 
-`/cut`, `/stage`, `/release`, `/release-status`, and `/hotfix` all check at runtime whether `origin/staging` exists. No configuration is required — branch presence is the sole signal.
+`/cut`, `/stage`, `/release`, `/pipeline-status`, and `/hotfix` all check at runtime whether `origin/staging` exists. No configuration is required — branch presence is the sole signal.
 
 - **Staging exists**: `/cut` pushes the RC to `staging`. `/release` merges `staging` → `main`.
 - **Staging absent**: the RC merges directly to `main` without a staging step.
