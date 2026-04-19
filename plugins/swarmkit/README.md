@@ -154,4 +154,5 @@ Once enabled, invoke it the same way as `/swarm`:
 - **No session resumption** — if the Claude Code session dies, the entire team goes with it. There is no way to reconnect or hand off to a new session.
 - **Halt-only on teammate crash** — if a builder or reviewer crashes, the swarm halts. There is no automatic respawning in v1.
 - **Reviewer is pre-push only** — the reviewer teammate provides feedback before PRs are opened. It does not perform GitHub-side code review after the PR is created.
+- **In-process backend ignores `isolation: "worktree"`** — today's default Agent Teams backend silently drops the flag, leaving builders in the orchestrator's cwd. The squad builder contract includes a temporary manual-worktree fallback that creates the worktree itself when this happens. See [#362](https://github.com/smallorbit/smallorbit-plugins/issues/362) — the fallback will be removed once the backend honors the flag.
 - **Experimental** — API and behavior may change without notice as the Agent Teams feature evolves.
