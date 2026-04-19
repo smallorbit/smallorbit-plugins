@@ -1092,6 +1092,7 @@ footer {
 .reveal[data-delay="3"] { transition-delay: 0.2s; }
 .reveal[data-delay="4"] { transition-delay: 0.3s; }
 .reveal[data-delay="5"] { transition-delay: 0.4s; }
+.reveal[data-delay="6"] { transition-delay: 0.5s; }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
 }
