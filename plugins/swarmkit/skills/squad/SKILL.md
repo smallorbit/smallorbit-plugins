@@ -1,9 +1,9 @@
 ---
-name: exp-swarm-teams
+name: squad
 description: "EXPERIMENTAL — requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Spawn parallel agents for GitHub issues using the Agent Teams API instead of isolated worktrees. Same arg grammar as swarmkit:swarm. See epic #285 and https://code.claude.com/docs/en/agent-teams."
 ---
 
-# exp-swarm-teams Skill (Experimental)
+# squad Skill (Experimental)
 
 > **Experimental**: This skill uses the Claude Code Agent Teams API, which must be explicitly enabled.
 > Reference: [Agent Teams docs](https://code.claude.com/docs/en/agent-teams) | Epic: #285
@@ -180,7 +180,24 @@ A builder is a short-lived teammate responsible for shipping exactly one issue. 
 5. **On `approve`**:
    - Commit using `swarmkit:conventional-commit-message` format. No Claude mentions, no co-author lines.
    - Push the branch
-   - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked)
+   - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked) with a richer body synthesized from the issue spec and your diff:
+
+     ```bash
+     gh pr create --base <base> --head <head> \
+       --title "<type>(<scope>): <description>" \
+       --body "$(cat <<'EOF'
+     ## Summary
+     <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
+
+     ## Test plan
+     <how to verify the changes satisfy the acceptance criteria>
+
+     Closes #<issue>
+     EOF
+     )"
+     ```
+
+     The `<...>` placeholders are instructions, not literal text — replace each with content you derive from the issue spec and your diff. Do not copy the placeholder strings into the PR body.
 
 6. **On `revise: <reasons>`**:
    - Address the feedback
@@ -287,7 +304,7 @@ The lead polls teammate health via the Agent Teams API (mailbox responsiveness o
 On halt, the lead prints:
 
 ```
-── exp-swarm-teams halted ────────────────────
+── squad halted ──────────────────────────────
 Cause: <what crashed and how>
 PRs opened this run: <list with URLs>
 In-flight builders: <list with issue numbers and worktree paths>
@@ -297,7 +314,7 @@ Recovery:
   1. Review opened PRs — they are safe to merge
   2. Inspect in-flight worktrees under .claude/worktrees/ for partial work
   3. Run: /clean-worktrees to discard partial state
-  4. Re-run: /exp-swarm-teams <args> to resume
+  4. Re-run: /squad <args> to resume
 ──────────────────────────────────────────────
 ```
 
@@ -341,7 +358,7 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 4. **Final summary** — print what ran, which PRs are open for review, and any in-flight work needing manual inspection (in halt case):
 
    ```
-   ── exp-swarm-teams complete ──────────────────
+   ── squad complete ────────────────────────────
    Issues resolved: <count>
    PRs open for review: <list with URLs>
    In-flight worktrees requiring inspection: <list or "none">

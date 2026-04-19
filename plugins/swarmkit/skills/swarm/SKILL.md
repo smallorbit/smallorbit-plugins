@@ -202,16 +202,34 @@ Each agent prompt MUST include these **workflow steps** (in order):
    git add <files> && git commit -m "<type>(<scope>): <description>"
 4. Push the branch:
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting the appropriate base:
+5. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
    # For independent issues:
    gh pr create --base develop --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
-     --body "Closes #<issue>"
+     --body "$(cat <<'EOF'
+   ## Summary
+   <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
+
+   ## Test plan
+   <how to verify the changes satisfy the acceptance criteria>
+
+   Closes #<issue>
+   EOF
+   )"
 
    # For dependent issues:
    gh pr create --base worktree-agent-<dependency-issue> --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
-     --body "Closes #<issue>"
+     --body "$(cat <<'EOF'
+   ## Summary
+   <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
+
+   ## Test plan
+   <how to verify the changes satisfy the acceptance criteria>
+
+   Closes #<issue>
+   EOF
+   )"
 ```
 
 ### 5. Handle completions
