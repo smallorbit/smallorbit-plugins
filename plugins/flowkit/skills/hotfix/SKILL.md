@@ -68,13 +68,25 @@ Follow the `pr-base-scope` sub-skill to unset `claude.prBase`.
 
 ### 10. Tag the hotfix on main
 
-Create and push a hotfix tag directly on main (no RC cycle):
+Tag the hotfix directly on main using the same CalVer MICRO-increment scheme as `/release`, so hotfix tags sort naturally alongside planned release tags. A companion `hotfix/` tag at the same commit preserves discoverability via `git tag --list 'hotfix/*'`.
 
 ```bash
-TAG="v$(date +%Y.%-m.%-d)-hotfix"
-git tag "$TAG" main
+BASE_TAG="v$(date +%Y.%-m.%-d)"
+N=1
+TAG="$BASE_TAG"
+while git ls-remote --exit-code origin "refs/tags/$TAG" &>/dev/null; do
+  TAG="$BASE_TAG.$N"
+  N=$((N + 1))
+done
+git tag -a "$TAG" main -m "Hotfix: <one-line reason from PR title>"
 git push origin "$TAG"
+
+COMPANION="hotfix/$TAG"
+git tag "$COMPANION" "$TAG"
+git push origin "$COMPANION"
 ```
+
+The annotation message preserves the "hotfix" signal for `git tag -n` queries; the companion tag keeps the canonical version tag clean while still flagging the commit as an emergency fix.
 
 ### 11. Close referenced issues
 
@@ -100,7 +112,7 @@ Follow the `git-sync-develop` sub-skill to confirm a clean local develop state.
 
 Summarize:
 - Hotfix PR merged into main
-- Tag created (include the tag name)
+- Tags created (include both the canonical version tag and the `hotfix/` companion tag)
 - Referenced issues closed
 - develop updated with back-merge
 
