@@ -140,13 +140,9 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 An [Agent Teams](https://code.claude.com/docs/en/agent-teams)-based variant of `/swarm`. Instead of fully independent isolated agents, it runs a structured team: a lead (the main session) coordinates N builder teammates and 1 dedicated reviewer teammate. The reviewer runs continuously alongside the builders — providing feedback before any PR is pushed — and uses peer notifications to stay in sync.
 
-**Enable it** by setting the environment variable before starting Claude Code:
+**Setup**: `/squad` requires the Agent Teams API to be enabled. See [SETUP.md](./SETUP.md) for the three ways to set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and how to verify it.
 
-```bash
-export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-```
-
-Then invoke it the same way as `/swarm`:
+Once enabled, invoke it the same way as `/swarm`:
 
 ```
 /squad 12 15 18
