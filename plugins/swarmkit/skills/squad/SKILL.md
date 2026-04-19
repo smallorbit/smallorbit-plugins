@@ -1,9 +1,9 @@
 ---
-name: exp-swarm-teams
+name: squad
 description: "EXPERIMENTAL — requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Spawn parallel agents for GitHub issues using the Agent Teams API instead of isolated worktrees. Same arg grammar as swarmkit:swarm. See epic #285 and https://code.claude.com/docs/en/agent-teams."
 ---
 
-# exp-swarm-teams Skill (Experimental)
+# squad Skill (Experimental)
 
 > **Experimental**: This skill uses the Claude Code Agent Teams API, which must be explicitly enabled.
 > Reference: [Agent Teams docs](https://code.claude.com/docs/en/agent-teams) | Epic: #285
@@ -287,7 +287,7 @@ The lead polls teammate health via the Agent Teams API (mailbox responsiveness o
 On halt, the lead prints:
 
 ```
-── exp-swarm-teams halted ────────────────────
+── squad halted ──────────────────────────────
 Cause: <what crashed and how>
 PRs opened this run: <list with URLs>
 In-flight builders: <list with issue numbers and worktree paths>
@@ -297,7 +297,7 @@ Recovery:
   1. Review opened PRs — they are safe to merge
   2. Inspect in-flight worktrees under .claude/worktrees/ for partial work
   3. Run: /clean-worktrees to discard partial state
-  4. Re-run: /exp-swarm-teams <args> to resume
+  4. Re-run: /squad <args> to resume
 ──────────────────────────────────────────────
 ```
 
@@ -341,7 +341,7 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 4. **Final summary** — print what ran, which PRs are open for review, and any in-flight work needing manual inspection (in halt case):
 
    ```
-   ── exp-swarm-teams complete ──────────────────
+   ── squad complete ────────────────────────────
    Issues resolved: <count>
    PRs open for review: <list with URLs>
    In-flight worktrees requiring inspection: <list or "none">

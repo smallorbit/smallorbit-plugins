@@ -134,7 +134,7 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 ## Experimental features
 
-### `exp-swarm-teams`
+### `squad`
 
 An [Agent Teams](https://code.claude.com/docs/en/agent-teams)-based variant of `/swarm`. Instead of fully independent isolated agents, it runs a structured team: a lead (the main session) coordinates N builder teammates and 1 dedicated reviewer teammate. The reviewer runs continuously alongside the builders — providing feedback before any PR is pushed — and uses peer notifications to stay in sync.
 
@@ -147,7 +147,7 @@ export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 Then invoke it the same way as `/swarm`:
 
 ```
-/exp-swarm-teams 12 15 18
+/squad 12 15 18
 ```
 
 **Known limits**:

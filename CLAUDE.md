@@ -16,7 +16,7 @@ Run it before staging and committing the release.
 
 ## Plugins
 
-`swarmkit` includes an experimental `exp-swarm-teams` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. See `plugins/swarmkit/README.md` for details.
+`swarmkit` includes an experimental `squad` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. See `plugins/swarmkit/README.md` for details.
 
 ## GitHub Pages
 
