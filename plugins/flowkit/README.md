@@ -31,7 +31,7 @@ claude --plugin-dir /path/to/flowkit
 |-------|--------|--------------|
 | **commit** | `/commit` | Stage and commit changes with conventional commit format. Infers logical groupings and writes `type(scope): description` messages. |
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
-| **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.prBase` for branch targeting. |
+| **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop`. |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
@@ -51,7 +51,7 @@ These are called by the skills above — you don't invoke them directly.
 | **git-sync-main** | release, hotfix | Checkout `main` and pull latest from origin. |
 | **git-sync-develop** | sync, release, hotfix | Checkout `develop` and pull latest from origin. |
 | **gh-close-referenced-issues** | release, hotfix | Parse merged PR bodies; close referenced issues and resolved epics. |
-| **pr-base-scope** | swarm | Set/unset `claude.prBase` git config for scoped PR targeting. |
+| **pr-base-scope** | swarm | Set/unset `claude.flowkit.prBase` git config for scoped PR targeting. |
 
 ## Typical Workflows
 
@@ -107,6 +107,42 @@ git checkout -b staging main && git push -u origin staging
 ```
 
 From that point on, all release skills pick it up automatically.
+
+## Configuration
+
+Flowkit reads one repo-local git config key:
+
+| Key | Purpose | Default |
+|-----|---------|---------|
+| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/ship` and `/swarm` loop mode; unset on teardown. | `develop` |
+
+Inspect or set manually:
+
+```bash
+# Show the effective setting (empty = falls through to default)
+git config claude.flowkit.prBase
+
+# Pin PRs to a non-default base for the current repo
+git config claude.flowkit.prBase main
+
+# Revert to the default
+git config --unset claude.flowkit.prBase
+```
+
+### Migrating from `claude.prBase`
+
+The legacy key `claude.prBase` is still read as a fallback so existing setups don't break. When flowkit falls back to the legacy key, it emits a one-line deprecation notice with the exact commands below. Migrate at your convenience:
+
+```bash
+# Read whatever was set on the legacy key
+LEGACY=$(git config claude.prBase)
+
+# Remove the legacy key and write the new one
+git config --unset claude.prBase
+git config claude.flowkit.prBase "$LEGACY"
+```
+
+The legacy fallback is a soft deprecation and will be kept indefinitely — no hard break is planned. The new key aligns with the `claude.<plugin>.<key>` convention used across smallorbit plugins.
 
 ## Assumptions & Conventions
 

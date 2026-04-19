@@ -265,10 +265,10 @@ Used when no issue numbers are given (no args or label filter). Continuously cle
 git fetch origin
 ```
 
-Set `claude.prBase` to scope the PR base for this operation:
+Set `claude.flowkit.prBase` to scope the PR base for this operation:
 
 ```bash
-git config --local claude.prBase $BASE
+git config --local claude.flowkit.prBase $BASE
 ```
 
 This is unset in the teardown step below. Leaving it set will cause subsequent PR creation (even in unrelated workflows) to target the wrong base, so cleanup is critical.
@@ -286,7 +286,7 @@ If no open issues remain, announce "Board is clear" and exit.
 
 **Step 2 — Swarm**
 
-Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately lands in `$BASE` when `swarmkit:merge-stack` cascades the merges.
+Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.flowkit.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately lands in `$BASE` when `swarmkit:merge-stack` cascades the merges.
 
 **Step 3 — Checkpoint**
 
@@ -308,9 +308,9 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
    ```bash
    git checkout $BASE && git pull origin $BASE
    ```
-3. Unset `claude.prBase` to clear the scoped PR base:
+3. Unset `claude.flowkit.prBase` to clear the scoped PR base:
    ```bash
-   git config --local --unset claude.prBase
+   git config --local --unset claude.flowkit.prBase
    ```
 3. Final summary:
 
