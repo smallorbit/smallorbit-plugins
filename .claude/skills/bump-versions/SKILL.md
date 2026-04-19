@@ -43,7 +43,7 @@ Count commits touching the plugin's directory since that tag:
 git log {tag}..HEAD --oneline -- plugins/{name}/ | wc -l
 ```
 
-### Step 2 — Present summary and ask for bump types
+### Step 2 — Recommend and confirm bump types
 
 Display a table of plugins with changes:
 
@@ -54,13 +54,37 @@ swarmkit    1.0.0     4
 flowkit     1.0.0     2
 ```
 
-For each changed plugin, ask the user whether to bump **patch**, **minor**, or **major**:
+If `$ARGUMENTS` is provided (e.g. `patch` or `minor`), apply that bump type to all changed plugins and skip the rest of Step 2 — do not prompt.
+
+Otherwise, for each changed plugin, list its commits since the last tag and derive a recommended bump from the conventional-commit prefixes:
+
+```bash
+git log {tag}..HEAD --oneline -- plugins/{name}/
+```
+
+Map prefixes to bump types (take the highest bump when multiple coexist; `major > minor > patch`):
+
+| Commit signal | Recommended bump |
+|---------------|------------------|
+| `feat:` or new skill file added | **minor** |
+| `fix:` / `docs:` / `chore:` / `refactor:` (no behavior change) | **patch** |
+| `refactor:` with noted behavior change, or `BREAKING CHANGE:` footer anywhere | **major** |
+
+Present the choice via the `AskUserQuestion` tool — **one question per changed plugin** — with the recommendation as the first (default) option. Each question should include a one-line rationale (e.g. "recommending **minor** — adds a new skill in `feat(flowkit): …`").
+
+Options for each question (in this order; default first):
+
+- **{recommendation}** — the derived bump
+- The other two bump types as alternatives
+- **skip** — do not bump this plugin in this run
+
+Semver semantics for reference when explaining options:
 
 - **patch** — bug fixes, no new behavior (`1.0.0 → 1.0.1`)
 - **minor** — new skills or backward-compatible features (`1.0.0 → 1.1.0`)
 - **major** — breaking changes (`1.0.0 → 2.0.0`)
 
-If `$ARGUMENTS` is provided (e.g. `patch` or `minor`), apply that bump type to all changed plugins without asking.
+Fall through to free-form prompting (asking the user to type patch/minor/major inline) only if `AskUserQuestion` is unavailable.
 
 Skip plugins with 0 commits since their last tag unless explicitly included via `$ARGUMENTS`.
 
