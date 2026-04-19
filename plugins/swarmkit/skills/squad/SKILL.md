@@ -250,9 +250,11 @@ Spawn the reviewer **once** at the start of the first cycle. It persists across 
 
 Determine the builder pool size using the same formula as One-Shot Mode step 4: `min(parallel_lanes, max_builders)`. Spawn that many builders, each assigned one initially-unblocked issue. Remaining unblocked issues stay on the TaskList for self-claim.
 
+**Builder naming in loop mode** — use a cycle-scoped suffix `builder-<issue>-c<cycle>` (where `<cycle>` starts at 1 and increments each time the board is re-seeded). This avoids roster collisions with stale entries from previous cycles: the Agent Teams config retains member records across cycles, so reusing a name like `builder-42` on cycle 2 would conflict with the cycle-1 entry that never received a clean shutdown.
+
 ```
 Agent({
-  name: "builder-<issue>",
+  name: "builder-<issue>-c<cycle>",
   team_name: "squad-<run-id>",
   isolation: "worktree",
   subagent_type: "general-purpose",
@@ -279,7 +281,7 @@ Remaining open issues: 5
 
 **Step 7 — Re-fetch and re-seed**
 
-After the current batch drains, re-run `swarmkit:gh-fetch-issues` + `swarmkit:issue-rank` to discover newly-opened or previously-blocked issues. If the re-fetch returns issues, populate a fresh TaskList and spawn new builders for the next cycle's unblocked issues (the reviewer persists — do not respawn it).
+After the current batch drains, increment the cycle counter, re-run `swarmkit:gh-fetch-issues` + `swarmkit:issue-rank` to discover newly-opened or previously-blocked issues. If the re-fetch returns issues, populate a fresh TaskList and spawn new builders for the next cycle's unblocked issues using the updated `c<cycle>` suffix (the reviewer persists — do not respawn it).
 
 Repeat from Step 1 until:
 - The board is clear (no open, non-on-hold issues match the filter) — proceed to Teardown
@@ -310,7 +312,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 |---|---|
 | Create the team | `TeamCreate({name: "<team-name>"})` — auto-registers the calling session as `team-lead@<team-name>` |
 | Spawn the reviewer | `Agent({name: "reviewer", team_name: "<team-name>", subagent_type: "general-purpose", prompt: "..."})` |
-| Spawn a builder | `Agent({name: "builder-<issue>", team_name: "<team-name>", isolation: "worktree", subagent_type: "general-purpose", prompt: "..."})` |
+| Spawn a builder | `Agent({name: "builder-<issue>" (one-shot) or "builder-<issue>-c<cycle>" (loop), team_name: "<team-name>", isolation: "worktree", subagent_type: "general-purpose", prompt: "..."})` |
 | Send a message | `SendMessage({to: "<teammate-name>", message: "..."})` |
 | Shut down a teammate | `SendMessage({to: "<teammate-name>", message: {type: "shutdown_request"}})` |
 | Receive messages | Automatic — messages from teammates are delivered into the conversation; there is no `ReceiveMessage` poll |
@@ -349,7 +351,8 @@ Once the target set is known, the lead spawns a **capped pool of teammates** —
 
    ```
    Agent({
-     name: "builder-<issue>",
+     name: "builder-<issue>",          // one-shot mode
+     name: "builder-<issue>-c<cycle>", // loop mode — cycle suffix prevents roster collisions across re-seeds
      team_name: "<team-name>",
      isolation: "worktree",
      subagent_type: "general-purpose",
