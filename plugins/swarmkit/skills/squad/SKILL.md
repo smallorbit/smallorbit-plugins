@@ -304,6 +304,8 @@ When an issue fails at any point:
 
 The lead agent orchestrates the team for the entire run. It does not fire-and-forget — it stays active from initial fetch through teardown, spawning a fixed pool of teammates upfront and then reading teammate status via the Agent Teams mailbox to monitor for crashes and stuck tasks. Builders self-claim additional work from the shared task list as upstream issues unblock, so the lead does not dispatch new teammates in response to completion events.
 
+**Mode entry points differ:** Loop mode enters at step 1 (Initial fetch) to build the target set from scratch. One-shot mode skips steps 1–2 entirely — it enters the Dispatch Loop at step 3 (Watch phase) with the target set and TaskList already populated from One-Shot steps 1–4.
+
 ### API reference
 
 The Agent Teams API is built from existing Claude Code primitives — there is no separate "spawn teammate" tool. Use this mapping when reading the steps below:
@@ -323,7 +325,7 @@ Notes:
 - **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 2). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
-### 1. Initial fetch
+### 1. Initial fetch _(loop mode only)_
 
 Before spawning anyone, the lead builds a starting batch of issues using swarmkit sub-skills:
 
