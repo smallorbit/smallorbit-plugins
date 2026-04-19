@@ -753,14 +753,6 @@ section + section { border-top: 1px solid var(--border); }
   align-items: center;
   gap: 10px;
 }
-.badge {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  padding: 3px 8px;
-  color: var(--text-muted);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-}
 .plugin-readme {
   font-family: var(--mono);
   font-size: 0.74rem;
