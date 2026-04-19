@@ -180,7 +180,24 @@ A builder is a short-lived teammate responsible for shipping exactly one issue. 
 5. **On `approve`**:
    - Commit using `swarmkit:conventional-commit-message` format. No Claude mentions, no co-author lines.
    - Push the branch
-   - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked)
+   - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked) with a richer body synthesized from the issue spec and your diff:
+
+     ```bash
+     gh pr create --base <base> --head <head> \
+       --title "<type>(<scope>): <description>" \
+       --body "$(cat <<'EOF'
+     ## Summary
+     <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
+
+     ## Test plan
+     <how to verify the changes satisfy the acceptance criteria>
+
+     Closes #<issue>
+     EOF
+     )"
+     ```
+
+     The `<...>` placeholders are instructions, not literal text — replace each with content you derive from the issue spec and your diff. Do not copy the placeholder strings into the PR body.
 
 6. **On `revise: <reasons>`**:
    - Address the feedback
