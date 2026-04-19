@@ -111,7 +111,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 Notes:
 
 - **`TeamCreate` registers the orchestrator as `team-lead`**, not `lead`. Always address the orchestrator with `SendMessage({to: "team-lead", ...})`.
-- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** This is what makes the builder's git-based worktree safety check pass (see Builder Teammate Contract, step 2). Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own).
+- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 2). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
 ### 1. Initial fetch
@@ -185,24 +185,51 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
 1. **Claim the assigned issue** on the Agent Teams shared task list. The claim is atomic — if another teammate has already claimed this issue, abort.
 
-2. **Worktree setup** — identical to `swarmkit:swarm`:
-   - Independent issues branch from `develop`:
+2. **Worktree setup** — detect whether `isolation: "worktree"` actually took effect, then either use the pre-created worktree or fall back to manual setup:
+
+   - **Isolation probe.** Compare `--git-dir` and `--git-common-dir`. Inside a linked worktree, `--git-dir` points at `.git/worktrees/<name>` while `--git-common-dir` points at the main repo's `.git`. Equal paths ⇒ not in a linked worktree:
      ```bash
-     git checkout -b worktree-agent-<issue> origin/develop
-     ```
-   - Downstream issues branch from their upstream's agent branch:
-     ```bash
-     git checkout -b worktree-agent-<issue> origin/worktree-agent-<upstream-issue>
-     ```
-   - Safety check — abort if not running inside an isolated worktree. If this check fails it means the builder was **not** spawned with `isolation: "worktree"`, so it will never reach a state where it can send an audit request. Before exiting, notify the lead so it can respawn under a new name rather than waiting for an audit request that will never arrive. Unlike `swarmkit:swarm`, this probe cannot rely on `$PWD` — under team-mode `Agent` spawns, the shell's working directory does not reliably track the worktree path. Compare the current worktree's toplevel against the main checkout's toplevel instead:
-     ```bash
-     TOP=$(git rev-parse --show-toplevel)
-     MAIN=$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)
-     if [[ "$TOP" == "$MAIN" ]]; then
-       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: operating in main checkout. Respawn under a new name."})
-       echo "ERROR: Operating in main checkout, not an isolated worktree. Aborting."
-       exit 1
+     if [[ "$(git rev-parse --git-common-dir 2>/dev/null)" == "$(git rev-parse --git-dir 2>/dev/null)" ]]; then
+       IN_WORKTREE=0
+     else
+       IN_WORKTREE=1
      fi
+     ```
+
+   - **Isolation took effect (`IN_WORKTREE=1`).** Create the agent branch inside the pre-created worktree, identical to `swarmkit:swarm`:
+     - Independent issues branch from `develop`:
+       ```bash
+       git checkout -b worktree-agent-<issue> origin/develop
+       ```
+     - Downstream issues branch from their upstream's agent branch:
+       ```bash
+       git checkout -b worktree-agent-<issue> origin/worktree-agent-<upstream-issue>
+       ```
+
+   - **Isolation was ignored (`IN_WORKTREE=0`) — manual fallback.** TEMPORARY: remove once the Agent Teams backend honors `isolation: "worktree"`. See #362. The in-process backend silently drops the flag, leaving the builder in the orchestrator's cwd (the main checkout). Create the worktree explicitly, then `cd` into it before proceeding:
+     ```bash
+     # --- BEGIN manual-worktree fallback (remove when #362 is fixed) ---
+     WORKTREE_ROOT=$(git rev-parse --show-toplevel)/.claude/worktrees
+     mkdir -p "$WORKTREE_ROOT" || {
+       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: cannot create worktree root under .claude/worktrees/. Respawn under a new name."})
+       echo "ERROR: Failed to create $WORKTREE_ROOT. Aborting."
+       exit 1
+     }
+     # Independent issue: branch from origin/<base> (typically origin/develop)
+     # Downstream issue: branch from origin/worktree-agent-<upstream-issue> instead
+     git worktree add -b worktree-agent-<issue> "$WORKTREE_ROOT/worktree-agent-<issue>" origin/<base> || {
+       SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: git worktree add failed. Respawn under a new name."})
+       echo "ERROR: git worktree add failed. Aborting."
+       exit 1
+     }
+     cd "$WORKTREE_ROOT/worktree-agent-<issue>"
+     # Branch is created by `git worktree add -b`, so skip the separate `git checkout -b` step above.
+     # --- END manual-worktree fallback ---
+     ```
+
+   - **Neither path succeeded — dead-on-arrival.** If the fallback itself fails (e.g. git unavailable, permission error, `git worktree add` fails), notify the lead so it can respawn under a new name rather than waiting for an audit request that will never arrive, then exit:
+     ```
+     SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: unable to establish isolated worktree. Respawn under a new name."})
      ```
 
 3. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
@@ -375,7 +402,7 @@ A builder can fail to start at all — for example, when the tmux shell is misco
 tmux/.tmux.conf:4: not a suitable shell
 ```
 
-A builder can also fail its worktree-isolation safety check (see Builder Teammate Contract, step 2). Note that squad's DOA signal here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --show-toplevel` vs. the main checkout's toplevel) instead of the `$PWD`-based check swarm uses.
+A builder can also fail its worktree setup step (see Builder Teammate Contract, step 2). Note that squad's DOA path here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --git-dir` vs. `--git-common-dir`) to decide whether `isolation: "worktree"` took effect. If it did not (the in-process Agent Teams backend silently ignores the flag today — see #362), the builder falls back to creating its own worktree under `<repo>/.claude/worktrees/`; DOA only fires when **both** isolation and manual setup fail (e.g. git unavailable, permission error).
 
 When this happens the builder process exits immediately without ever joining the team mailbox. Its `isActive` flag in the team config file (`~/.claude/teams/<team>/config.json`) remains `true` because no graceful shutdown message was exchanged. Any subsequent `TeamDelete` call will be blocked with:
 
