@@ -17,7 +17,7 @@ An optional kit-name argument passed by the user (e.g. `/kits speckit`). When pr
 
 Run the `detect-kits` sub-skill. This returns a detection map keyed by kit name, where each present kit carries `version`, `scope`, and `skills`.
 
-Store the result as `detectionMap`. If the argument was provided, restrict further rendering to that kit.
+Store the result as `detectionMap`.
 
 ### 2. Render the kits table
 
