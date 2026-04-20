@@ -70,11 +70,11 @@ Child issues are created via `/catalog`. An epic tracking issue is created last,
 
 ### Simple-path shortcut
 
-Before running the full interview, `/spec` classifies the request as **simple** or **full** based on a quick codebase scan. A request qualifies as simple when it is a single conceptual change AND touches a single file (or a few tightly co-located files in one skill/module directory). `/spec` surfaces the proposed classification via `AskUserQuestion` before committing — the decision is never silent.
+Before running the full interview, `/spec` classifies the request as **simple** or **full** based on a quick codebase scan. A request qualifies as simple when it is a single conceptual change AND touches a single file (or a few tightly co-located files in one skill/module directory).
 
-On simple-path confirmation, `/spec` runs a single lightweight interview round (1–3 questions), drafts a one-task plan, and hands it to `/catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). This keeps trivial changes from being inflated into multi-task epics.
+Classification is silent when the heuristic is confident. `/spec` narrates the routing inline (e.g. "This looks like a single-file, single-concept change — running simple path") and proceeds. An upfront `AskUserQuestion` prompt fires only when the heuristic is genuinely ambiguous — for example, a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope. The user's escape hatch is the final plan-approval prompt in step 3, which includes a re-scope option on both paths (`Run full interview instead` on a simple-path plan, `Condense to single issue` on a full-path plan).
 
-On rejection, the flow falls through to the full interview + epic path unchanged.
+On the simple path, `/spec` runs a single lightweight interview round (1–3 questions), drafts a one-task plan, and hands it to `/catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). This keeps trivial changes from being inflated into multi-task epics.
 
 ### Consolidation signals
 
