@@ -52,7 +52,9 @@ If `SOURCE` is empty, abort with an error — there is nothing to release.
 Find the last release tag and collect all `Closes/Fixes/Resolves #N` references from PRs merged into `develop` since that tag's date. The tag-date filter ensures only PRs from the current release cycle are included, not all PRs ever merged:
 
 ```bash
-LAST_TAG=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+LAST_TAG=$(git for-each-ref --sort=-creatordate \
+  --format='%(refname:short)' \
+  'refs/tags/v[0-9]*' | head -1)
 
 if [ -n "$LAST_TAG" ]; then
   TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG" \
