@@ -27,6 +27,23 @@ claude --plugin-dir /path/to/swarmkit
 - [GitHub CLI](https://cli.github.com/) (`gh`) authenticated with repo access
 - Git configured with push access to your target repos
 
+## Permissions
+
+Swarmkit is designed to run best when agents don't have to pause for per-command approvals.
+
+**Recommendation.** Run your Claude Code session in `bypassPermissions` mode, or pre-approve an allowlist covering the commands swarm agents rely on (`git`, `gh`, and `bash` for internal tooling). See the Anthropic docs on [Claude Code permission modes](https://code.claude.com/docs/en/permission-modes) for the authoritative how-to — setting a default mode, starting a session with `--permission-mode`, and configuring allow/ask/deny rules.
+
+**Why.** Parallel agents working in isolated worktrees cannot usefully pause for per-command approvals — the whole point of the swarm is that they run concurrently, and interactive prompts defeat that.
+
+**Safety caveats.** These share billing with the recommendation, not footnote status:
+
+- Only use `bypassPermissions` on trusted repositories.
+- Only use it when you're willing for agents to push branches and open PRs without per-action review.
+- Isolated-worktree scoping limits blast radius to the repo, but a buggy or malicious agent could still commit and push harmful code.
+- Swarmkit leaves PRs open for human review by design — do not skip reviewing PRs before merging.
+
+**Agent-level bypass is already applied.** Swarm spawns each agent internally with `mode: "bypassPermissions"` so the agent itself runs without prompts; the user-facing question is whether you also want the same mode at the session level that orchestrates them.
+
 ## Skills
 
 ### User-Facing
