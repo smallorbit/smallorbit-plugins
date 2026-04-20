@@ -117,13 +117,17 @@ Present the plan inline.
 
 ### 4. Hand off
 
-If you were invoked as a sub-skill (e.g. from `/speckit:spec`), return the
-structured plan output and stop — do not emit any hand-off suggestion. The
-orchestrating skill handles next steps.
+**When invoked as a sub-skill** (e.g. from `/speckit:spec`), the final output
+of this skill is the structured plan and nothing else. Do NOT emit any
+trailing sentence, next-steps paragraph, `/catalog` suggestion, or hand-off
+prose. The orchestrating skill owns the handoff — your response ends at the
+Tasks table. Any trailing prose is a defect: it bleeds into the orchestrator's
+output and strands the user with no approval call.
 
-If you were invoked standalone, end the response by stating that the plan is
-ready to feed into `/speckit:catalog` to file the task list as prioritised,
-labelled GitHub issues. Do not file issues from this skill — hand off cleanly.
+**When invoked standalone** (via `/interview`), end the response by stating
+that the plan is ready to feed into `/speckit:catalog` to file the task list as
+prioritised, labelled GitHub issues. Do not file issues from this skill — hand
+off cleanly.
 
 ## Constraints
 
