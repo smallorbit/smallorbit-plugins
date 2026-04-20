@@ -30,9 +30,9 @@ results before writing the plan in step 3.
 
 ### 2. Interview
 
-> **Path gate**: before running this step, execute step 2a below. Step 2a
-> classifies the request and may short-circuit the skill entirely. Only
-> continue with this step when step 2a selects the full-interview path.
+> **Path gate**: run step 2a first. It classifies the request and may
+> short-circuit the skill. Only run this step when step 2a selects
+> `Full interview`.
 
 Invoke `/speckit:interview` as a sub-skill, passing the freeform description from
 `$ARGUMENTS` as its input. Do not run inline `AskUserQuestion` rounds yourself —
@@ -52,11 +52,9 @@ unambiguous output with all five sections present.
 
 ### 2a. Classify simple vs. full path
 
-**Execution order**: this step runs BEFORE step 2 invokes
-`/speckit:interview`. It is documented here, between step 2 and step 2.5, to
-keep the numbering stable, but its gate fires at the start of the interview
-phase. The simple path exists to keep trivial changes from being inflated into
-multi-task epics.
+**Execution order**: this step runs BEFORE step 2. Numbered 2a to keep later
+step numbers stable, but it is the first gate after step 1. The simple path
+exists to keep trivial changes from being inflated into multi-task epics.
 
 Using the codebase scan from step 1 and the shape of `$ARGUMENTS`, classify
 the request as **simple** or **full**.
