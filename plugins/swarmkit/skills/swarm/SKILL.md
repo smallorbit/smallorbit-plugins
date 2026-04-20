@@ -253,7 +253,7 @@ Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This fre
 | #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
 
-All PRs are left open for review. If 1 PR open: use `/merge-pr` to land it into `develop`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
+All PRs are left open for review. If 1 PR open: use `/merge-pr` to merge it into `develop`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
 
 ---
 
@@ -288,7 +288,7 @@ If no open issues remain, announce "Board is clear" and exit.
 
 **Step 2 — Swarm**
 
-Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.flowkit.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately lands in `$BASE` when `swarmkit:merge-stack` cascades the merges.
+Run the one-shot swarm flow above on the batch. Independent issues target `$BASE` (enforced by `claude.flowkit.prBase`). Dependent issues target their dependency's branch, forming a stacked-PR chain that ultimately merges into `$BASE` when `swarmkit:merge-stack` cascades the merges.
 
 **Step 3 — Checkpoint**
 
@@ -326,7 +326,7 @@ Issues addressed: #12, #14, #15 (PRs open, awaiting review)
 Issues remaining: #25
 Open PRs: #31, #32, #33
 
-Open PRs are ready for review. If 1 PR open: use `/merge-pr` to land it into `$BASE`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
+Open PRs are ready for review. If 1 PR open: use `/merge-pr` to merge it into `$BASE`. If 2+ PRs: use `/merge-stack` — merges top-down: leaf PRs first, root last.
 ─────────────────────────────────────────────
 ```
 
@@ -345,7 +345,7 @@ When an issue fails at any point:
 
 ## Constraints
 
-- Never merge into `main` — all PRs ultimately land in `$BASE`; stacked (dependent) PRs may target an intermediate dependency branch and cascade into `$BASE` via `swarmkit:merge-stack`
+- Never merge into `main` — all PRs ultimately merge into `$BASE`; stacked (dependent) PRs may target an intermediate dependency branch and cascade into `$BASE` via `swarmkit:merge-stack`
 - Never pause between loop cycles — proceed immediately after printing the checkpoint summary
 - Never skip a failed issue's dependents — always analyze and block them
 - Every agent must work in an isolated worktree

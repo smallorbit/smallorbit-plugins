@@ -107,7 +107,7 @@ Use a single commit message listing all bumped plugins, e.g.:
 
 ### Step 5 — Create git tags
 
-After the commit lands, create a tag for each bumped plugin pointing at that commit:
+After the commit is pushed, create a tag for each bumped plugin pointing at that commit:
 
 ```bash
 git tag {plugin-name}--v{new-version}

@@ -11,7 +11,7 @@ This avoids the auto-close cascade caused by bottom-up merging: merging bottom-u
 
 ## When to use
 
-Run after `/swarm` finishes. All swarm agents have pushed branches and opened PRs; none have merged yet. You've reviewed the PRs and are ready to land them.
+Run after `/swarm` finishes. All swarm agents have pushed branches and opened PRs; none have merged yet. You've reviewed the PRs and are ready to merge them.
 
 ## Process
 
@@ -127,7 +127,7 @@ sleep 3
 
 After the chain's root PR merges into `$BASE`, delete every intermediate `worktree-agent-*` branch from the remote. Intermediate branches are every `headRefName` whose `baseRefName` was another `worktree-agent-*` branch — these were captured when building the stack graph in step 2.
 
-Run this sweep immediately after the root merge so partial runs still clean up the chains that did land. Skip if there are no intermediate branches (single-PR chain or independent PR).
+Run this sweep immediately after the root merge so partial runs still clean up the chains that did complete. Skip if there are no intermediate branches (single-PR chain or independent PR).
 
 When the full list is available up front, batch the deletes into one push call to minimize round-trips. Fall back to per-branch deletes if the batch call fails (e.g. mixed stale refs):
 
