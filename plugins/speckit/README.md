@@ -64,7 +64,7 @@ claude --plugin-dir /path/to/speckit
 
 ## How Spec Works
 
-`/spec` runs a structured interview using `AskUserQuestion` (1–4 questions per round), grounding each question in the actual codebase before asking. It continues until all ambiguities are resolved, then synthesizes a plan with goal, background, requirements, out-of-scope boundaries, and a task breakdown. The plan is shown for approval before any issues are filed.
+`/spec` runs a structured interview using `AskUserQuestion` (1–4 questions per round), grounding each question in the actual codebase before asking. It continues until all ambiguities are resolved, then synthesizes a plan with goal, background, requirements, out-of-scope boundaries, and a task breakdown. The plan and its approval prompt are always emitted in the same turn — the plan never appears without an immediate `AskUserQuestion` call to approve, adjust, re-scope, or cancel.
 
 Child issues are created via `/catalog`. An epic tracking issue is created last, after all child issue numbers are known. No issues are ever created without your explicit approval.
 
@@ -72,7 +72,9 @@ Child issues are created via `/catalog`. An epic tracking issue is created last,
 
 Before running the full interview, `/spec` classifies the request as **simple** or **full** based on a quick codebase scan. A request qualifies as simple when it is a single conceptual change AND touches a single file (or a few tightly co-located files in one skill/module directory).
 
-Classification is silent when the heuristic is confident. `/spec` narrates the routing inline (e.g. "This looks like a single-file, single-concept change — running simple path") and proceeds. An upfront `AskUserQuestion` prompt fires only when the heuristic is genuinely ambiguous — for example, a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope. The user's escape hatch is the final plan-approval prompt in step 3, which includes a re-scope option on both paths (`Run full interview instead` on a simple-path plan, `Condense to single issue` on a full-path plan).
+Classification is silent when the heuristic is confident. `/spec` narrates the routing inline (e.g. "This looks like a single-file, single-concept change — running simple path") and proceeds. An upfront `AskUserQuestion` prompt fires only when the heuristic is genuinely ambiguous — for example, a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope.
+
+On both paths the plan-presentation turn always ends with an `AskUserQuestion` approval call — it's the single, mandatory approval gate. The prompt includes a re-scope option on both paths (`Run full interview instead` on a simple-path plan, `Condense to single issue` on a full-path plan), so the final approval is also the escape hatch.
 
 On the simple path, `/spec` runs a single lightweight interview round (1–3 questions), drafts a one-task plan, and hands it to `/catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). This keeps trivial changes from being inflated into multi-task epics.
 
