@@ -68,6 +68,23 @@ claude --plugin-dir /path/to/speckit
 
 Child issues are created via `/catalog`. An epic tracking issue is created last, after all child issue numbers are known. No issues are ever created without your explicit approval.
 
+### Simple-path shortcut
+
+Before running the full interview, `/spec` classifies the request as **simple** or **full** based on a quick codebase scan. A request qualifies as simple when it is a single conceptual change AND touches a single file (or a few tightly co-located files in one skill/module directory). `/spec` surfaces the proposed classification via `AskUserQuestion` before committing — the decision is never silent.
+
+On simple-path confirmation, `/spec` runs a single lightweight interview round (1–3 questions), drafts a one-task plan, and hands it to `/catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). This keeps trivial changes from being inflated into multi-task epics.
+
+On rejection, the flow falls through to the full interview + epic path unchanged.
+
+### Consolidation signals
+
+When `/spec` runs the full interview path, the interview skill applies a silent consolidation pass before presenting the plan, so related tasks don't appear as separate issues when they should ship together. Four merge signals:
+
+1. **Same file + same logical change** — two tasks touching the same file and the same function or config block merge.
+2. **Strict ordering, no standalone value** — a task that can't ship without its predecessor and adds no independent acceptance criteria merges back into that predecessor.
+3. **Soft cap on epic size** — if the task count is still greater than 4 after signals 1 and 2, a second merge pass re-examines under looser interpretations of 1 and 2. The cap is a prompt to re-examine, not a hard limit — genuinely independent tasks are never forced together.
+4. **Docs-only tail merge** — if the auto-appended documentation task is the only non-implementation task remaining and the impl task(s) cover the same surface, docs fold into impl.
+
 ## How Catalog Works
 
 `/catalog` accepts findings from three sources (checked in order): explicit input in `$ARGUMENTS`, findings from earlier in the conversation, or a file path. It parses them into discrete issues, checks for existing duplicates and labels, shows a summary table for approval, then creates all issues in priority order (high first).

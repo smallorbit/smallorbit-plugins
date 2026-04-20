@@ -30,6 +30,10 @@ results before writing the plan in step 3.
 
 ### 2. Interview
 
+> **Path gate**: run step 2a first. It classifies the request and may
+> short-circuit the skill. Only run this step when step 2a selects
+> `Full interview`.
+
 Invoke `/speckit:interview` as a sub-skill, passing the freeform description from
 `$ARGUMENTS` as its input. Do not run inline `AskUserQuestion` rounds yourself —
 delegate the entire interview to `/speckit:interview` and wait for it to complete.
@@ -45,6 +49,56 @@ contain the following sections, which become the basis for the plan in step 3:
 
 Do not proceed to step 3 until `/speckit:interview` has produced a complete,
 unambiguous output with all five sections present.
+
+### 2a. Classify simple vs. full path
+
+**Execution order**: this step runs BEFORE step 2. Numbered 2a to keep later
+step numbers stable, but it is the first gate after step 1. The simple path
+exists to keep trivial changes from being inflated into multi-task epics.
+
+Using the codebase scan from step 1 and the shape of `$ARGUMENTS`, classify
+the request as **simple** or **full**.
+
+**Simple-path heuristic** — a request qualifies as simple only if BOTH hold:
+
+- **Single conceptual change** — one cohesive behaviour, fix, or tweak. Not a
+  bundle of independent changes hiding behind a shared theme.
+- **Single file, or tightly co-located files in one skill/module directory** —
+  the work touches one file, or a small number of files inside one
+  skill/module directory (e.g. `plugins/foo/skills/bar/*`).
+
+If either test fails (multiple conceptual changes, or changes spanning unrelated
+modules), the request is a full-path request.
+
+**Proposing the classification** — present the inferred classification to the
+user via a single `AskUserQuestion` call. Do not infer silently. State the
+inferred file(s) and one-line scope so the user can sanity-check the heuristic
+before choosing. Example:
+
+> "This looks like a small, single-file change. File as one standalone issue
+> via the simple path, or run the full interview?"
+>
+> Options: `Simple path — one issue`, `Full interview — epic path`, `Cancel`.
+
+**On `Simple path` confirmation** — short-circuit the rest of this skill:
+
+1. Run one lightweight interview round **inline in this skill** — a single
+   `AskUserQuestion` call with 1–3 questions covering the tightest remaining
+   gaps (scope, acceptance criteria, any blocking decision). Do NOT invoke
+   `speckit:interview` — keep the interview inline to preserve the short-circuit.
+2. Draft a single-issue plan with Goal, Background, Requirements, Out of Scope,
+   and exactly one task. Fold any documentation updates into that task's
+   acceptance criteria — do NOT append the auto-documentation task from the
+   full-interview flow.
+3. Show the plan and call `AskUserQuestion` for approval in the same turn (same
+   shape rules as step 3).
+4. On approval, hand the single task to `/catalog` with **no `--epic` flag**.
+   Catalog files one standalone issue. Skip step 2.5, step 5 (no epic tracking
+   issue), and the sub-issue / blocked-by wiring.
+5. Jump to step 6 to report the filed issue, then stop.
+
+**On `Full interview`**: fall through to step 2 (invoke `/speckit:interview`)
+unchanged. **On `Cancel`**: abort the skill.
 
 ### 2.5. Derive the epic slug
 
