@@ -1,10 +1,9 @@
 ---
 name: ship
-description: Repo-level landing command — merge all open swarm PRs, cut a release candidate, and promote to main. Run this after a swarm to land everything in one shot.
+description: Repo-level skill that merges all open swarm PRs, cuts a release candidate, and promotes to main. Run this after a swarm to merge everything in one shot.
 triggers:
   - "/ship"
   - "ship everything"
-  - "land the swarm"
   - "merge stack and release"
   - "ship after swarm"
 allowed-tools: Bash
@@ -12,7 +11,7 @@ allowed-tools: Bash
 
 # Ship
 
-Land a completed swarm run in one shot: merge all open swarm PRs into develop, cut a release candidate, and promote it to main.
+Merge a completed swarm run in one shot: merge all open swarm PRs into develop, cut a release candidate, and promote it to main.
 
 ## Input
 

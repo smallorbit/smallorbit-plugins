@@ -68,7 +68,7 @@ These are called by the skills above — you don't invoke them directly.
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
 3. Spawns one agent per issue (or grouped set) in isolated git worktrees
 4. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-5. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to land into `develop` — top-down: leaf PRs first, root last
+5. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge into `develop` — top-down: leaf PRs first, root last
 6. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.
@@ -88,7 +88,7 @@ Swarmkit is opinionated. Understanding these assumptions upfront will save you f
 
 By default, all PRs target a `develop` branch. If `develop` doesn't exist, `/swarm` creates it from `main` automatically.
 
-This assumes a **release-branch workflow**: feature work lands in `develop`, and a release process promotes `develop` → `main`. Issues are intentionally left open after their PRs merge to `develop`; they're closed when the release ships.
+This assumes a **release-branch workflow**: feature work merges into `develop`, and a release process promotes `develop` → `main`. Issues are intentionally left open after their PRs merge to `develop`; they're closed when the release ships.
 
 **If you use trunk-based development** (everything goes to `main`):
 
