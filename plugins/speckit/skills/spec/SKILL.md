@@ -70,17 +70,37 @@ the request as **simple** or **full**.
 If either test fails (multiple conceptual changes, or changes spanning unrelated
 modules), the request is a full-path request.
 
-**Proposing the classification** — present the inferred classification to the
-user via a single `AskUserQuestion` call. Do not infer silently. State the
-inferred file(s) and one-line scope so the user can sanity-check the heuristic
-before choosing. Example:
+**Classification handling** — do not prompt the user up front when the
+heuristic is confident. The routing decision is narrated inline for
+clearly-simple and clearly-full inputs; an `AskUserQuestion` call fires only
+when the heuristic is ambiguous. The final plan-approval gate in step 3 is the
+user's primary escape hatch (including re-scope between simple and full).
 
-> "This looks like a small, single-file change. File as one standalone issue
-> via the simple path, or run the full interview?"
->
-> Options: `Simple path — one issue`, `Full interview — epic path`, `Cancel`.
+Map every input to exactly one of the three cases below:
 
-**On `Simple path` confirmation** — short-circuit the rest of this skill:
+- **Clearly simple** — both heuristic tests pass unambiguously: the request
+  describes one cohesive change AND the codebase scan points at a single file
+  (or clearly co-located files in one skill/module directory). Narrate the
+  classification inline in one sentence (e.g. "This looks like a single-file,
+  single-concept change — running simple path") and proceed directly to the
+  inline lightweight interview under "On Simple path" below. **Do not call
+  `AskUserQuestion` for routing.**
+- **Clearly full** — at least one heuristic test fails unambiguously: the
+  request describes multiple independent conceptual changes, OR the scan points
+  at multiple files across unrelated modules. Narrate the classification inline
+  (e.g. "This looks like a multi-file change — running full interview") and
+  fall through to step 2 (`/speckit:interview`). **Do not call
+  `AskUserQuestion` for routing.**
+- **Ambiguous** — the heuristic is uncertain. Typical signals: single file but
+  multiple plausibly-independent concepts that could merge or split; input
+  under-specifies scope so file count is borderline; concepts read as one
+  theme but the implementation could fan out across modules. In this case
+  only, call `AskUserQuestion` once with options `Simple path — one issue`,
+  `Full interview — epic path`, `Cancel`. State the inferred file(s) and the
+  specific ambiguity in the question prose so the user can resolve it.
+
+**On Simple path** (clearly-simple narration, or `Simple path` picked in the
+ambiguous prompt) — short-circuit the rest of this skill:
 
 1. Run one lightweight interview round **inline in this skill** — a single
    `AskUserQuestion` call with 1–3 questions covering the tightest remaining
@@ -91,14 +111,16 @@ before choosing. Example:
    acceptance criteria — do NOT append the auto-documentation task from the
    full-interview flow.
 3. Show the plan and call `AskUserQuestion` for approval in the same turn (same
-   shape rules as step 3).
+   shape rules as step 3, using the simple-path option set).
 4. On approval, hand the single task to `/catalog` with **no `--epic` flag**.
    Catalog files one standalone issue. Skip step 2.5, step 5 (no epic tracking
    issue), and the sub-issue / blocked-by wiring.
 5. Jump to step 6 to report the filed issue, then stop.
 
-**On `Full interview`**: fall through to step 2 (invoke `/speckit:interview`)
-unchanged. **On `Cancel`**: abort the skill.
+**On Full interview** (clearly-full narration, or `Full interview` picked in
+the ambiguous prompt): fall through to step 2 (invoke `/speckit:interview`)
+unchanged. **On `Cancel`** (only reachable from the ambiguous prompt): abort
+the skill.
 
 ### 2.5. Derive the epic slug
 
@@ -153,9 +175,32 @@ Always append the following documentation task as the final row, unless the spec
 
 Include the `## Epic label` section **only when the plan produces an epic** (2+ tasks). Omit it for single-issue plans. Render the derived label as a single, editable line, for example: `Epic label: epic:catalog-epic-labels`.
 
-**In a single assistant turn**, emit (a) the plan markdown and (b) an `AskUserQuestion` call. Never end the turn after (a); always follow with (b) in the same response. A turn that presents the plan and stops — even with a prose invitation like "let me know what you think" — is a defect. The `AskUserQuestion` call is the only valid approval gate.
+**In a single assistant turn**, emit (a) the plan markdown and (b) an `AskUserQuestion` call. Never end the turn after (a); always follow with (b) in the same response. A turn that presents the plan and stops — even with a prose invitation like "let me know what you think" — is a defect. The `AskUserQuestion` call is the only valid approval gate and is the sole plan-filing approval for the skill on both paths.
 
-The question must be "Approve this plan and file the issues?" with options: `Approve and file issues`, `Edit epic label`, `Adjust priorities / tasks`, `Cancel`.
+The options depend on whether the plan is a simple-path single issue or a
+full-path epic. `AskUserQuestion` supports max 4 options total (including
+`Cancel`); `Other` is added automatically and does not count.
+
+- **Simple-path plan** (single issue, reached from the `On Simple path`
+  short-circuit in step 2a). Question: "Approve this plan and file the issue?"
+  Options: `Approve and file`, `Run full interview instead`, `Adjust`,
+  `Cancel`.
+  - On `Run full interview instead`: discard the single-issue draft and fall
+    through to step 2 (invoke `/speckit:interview`). Do not re-ask the step 2a
+    routing prompt.
+  - On `Adjust`: let the user revise the plan, then re-show the plan with the
+    same options in a new turn.
+- **Full-path plan** (epic). Question: "Approve this plan and file the
+  issues?" Options: `Approve and file issues`, `Condense to single issue`,
+  `Adjust plan`, `Cancel`. Epic-label edits happen through `Adjust plan` — the
+  user asks for a label change and the skill revises the `Epic label:` line
+  before re-asking.
+  - On `Condense to single issue`: discard the epic plan and re-run the
+    simple-path drafting inline — one lightweight `AskUserQuestion` interview
+    round (if needed to tighten scope), draft a single-issue plan with exactly
+    one task, then re-show using the simple-path option set above.
+  - On `Adjust plan`: revise the plan (priorities, tasks, or the epic label),
+    then re-show with the same options.
 
 **Wrong shape** (never do this):
 
@@ -168,7 +213,7 @@ Let me know if you'd like changes.
 ← turn ends here; silent wait
 ```
 
-**Right shape** (always do this):
+**Right shape — full-path plan** (always do this):
 
 ```
 Here is the plan:
@@ -178,15 +223,26 @@ Harden approval gates in speckit skills.
 ← immediately followed by AskUserQuestion in the same turn:
 AskUserQuestion("Approve this plan and file the issues?", [
   "Approve and file issues",
-  "Edit epic label",
-  "Adjust priorities / tasks",
+  "Condense to single issue",
+  "Adjust plan",
   "Cancel"
 ])
 ```
 
-**Pre-end self-check**: Before ending the turn in step 3, verify that the last action in the turn is an `AskUserQuestion` call with approval options. If the plan was presented but no `AskUserQuestion` was called, emit the call immediately — do not end the turn without it.
+**Right shape — simple-path plan**:
 
-Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If the user selects an adjust, edit-label, or cancel option, loop back (update the plan, revise the slug, or abort) before re-asking.
+```
+AskUserQuestion("Approve this plan and file the issue?", [
+  "Approve and file",
+  "Run full interview instead",
+  "Adjust",
+  "Cancel"
+])
+```
+
+**Pre-end self-check**: Before ending the turn in step 3, verify that the last action in the turn is an `AskUserQuestion` call with approval options matching the path (simple or full). If the plan was presented but no `AskUserQuestion` was called, emit the call immediately — do not end the turn without it.
+
+Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If the user selects an adjust, re-scope, or cancel option, loop back (revise the plan, fall through to the other path, or abort) before re-asking.
 
 The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
