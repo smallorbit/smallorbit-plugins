@@ -1,9 +1,9 @@
 ---
-name: self-review
-description: Run up to 3 passes of /simplify on changed files, committing and pushing between passes. Sub-skill used by ship and swarm agents.
+name: simplify-loop
+description: Run up to 3 iterative /simplify passes on changed files, committing and pushing between passes. Sub-skill used by swarmkit:swarm.
 ---
 
-# Self-Review
+# Simplify Loop
 
 Iterative quality pass on changed files. Runs `/simplify` in a loop, committing improvements between passes.
 
