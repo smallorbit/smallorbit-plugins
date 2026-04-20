@@ -27,8 +27,8 @@ claude --plugin-dir /path/to/sessionkit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **handoff** | `/handoff` | Captures session goal, progress, git state, and remaining work into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
-| **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session and orients the agent to continue seamlessly. |
+| **handoff** | `/handoff` | Captures session goal, progress, git state, remaining work, and active tasks into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
+| **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
 
@@ -62,15 +62,37 @@ claude --plugin-dir /path/to/sessionkit
 
 ## How Handoff / Pickup Works
 
-`/handoff` collects git state, todo files, and conversation history, synthesizes them into a structured document, prints it inline, then writes it immediately to `.sessionkit/HANDOFF.md` — no approval step. The only prompt is a one-time confirmation before adding `.sessionkit/` to `.gitignore`, if the entry is not already present.
+`/handoff` collects git state, todo files, conversation history, and the active task list, synthesizes them into a structured document, prints it inline, then writes it immediately to `.sessionkit/HANDOFF.md` — no approval step. The only prompt is a one-time confirmation before adding `.sessionkit/` to `.gitignore`, if the entry is not already present.
 
-`/pickup` reads that document at the start of a fresh session and produces an orientation summary — goal, progress, git state, remaining work, and key context — without re-executing anything.
+`/pickup` reads that document at the start of a fresh session, produces an orientation summary — goal, progress, git state, remaining work, and key context — and hydrates any serialized tasks back into the task system via `TaskCreate` and `TaskUpdate`.
 
 The two skills are intentionally separate: handoff writes, pickup reads. The handoff file is never modified or deleted by pickup.
 
+### Task Round-Trip
+
+`/handoff` snapshots every non-deleted task into a `## Task List` fenced JSON block inside `HANDOFF.md`. `/pickup` reads that block and recreates the tasks in the new session.
+
+**What survives the round-trip** (fields preserved verbatim):
+
+| Field | Notes |
+|-------|-------|
+| `id` | Carried in the snapshot to allow `blockedBy` rewiring; the new session assigns a fresh ID |
+| `subject` | Task title |
+| `description` | Full task description |
+| `activeForm` | The task's active form/view state |
+| `status` | Original status (`pending` or `in_progress`) — all recreated tasks start as `pending` |
+| `blockedBy` | Dependency edges; remapped to new IDs after all tasks are created |
+| `blocks` | Listed in the snapshot for reference; not re-wired (the inverse of `blockedBy` is implicit) |
+
+**What is not preserved**: `owner`, `metadata`.
+
+**Which tasks are restored**: only tasks with `status` of `pending` or `in_progress`. Completed tasks appear in the orientation summary as history but are not recreated.
+
+**Back-compat**: legacy `HANDOFF.md` files that were written before task-list support was added (i.e. no `## Task List` section) are fully valid. `/pickup` emits one warning line — `No task list snapshot — skipping hydration` — and continues with the orientation summary.
+
 ## Handoff Document Structure
 
-`.sessionkit/HANDOFF.md` is a structured Markdown file with these sections:
+`.sessionkit/HANDOFF.md` is a structured Markdown file with these sections, in order:
 
 | Section | Contents |
 |---------|----------|
@@ -78,6 +100,7 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 | **Progress** | Bullet list of completed steps and key decisions made |
 | **Git State** | Current branch, staged/unstaged files, recent commits |
 | **Remaining Work** | Prioritized list of what still needs to be done |
+| **Task List** | Fenced JSON array of task objects (see Task Round-Trip above) |
 | **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
 
 You can manually edit `.sessionkit/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
