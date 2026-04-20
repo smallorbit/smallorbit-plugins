@@ -7,7 +7,7 @@ triggers:
   - "load handoff"
   - "resume from handoff"
   - "continue previous session"
-allowed-tools: Bash, Read
+allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList
 ---
 
 # Pickup
@@ -44,7 +44,35 @@ Output a structured summary to orient the agent. Surface essentials, not the doc
 - **Remaining Work** — list in priority order
 - **Context** — surface any important gotchas or notes the next agent must know
 
-### 4. Restore git state (if needed)
+### 4. Hydrate task list
+
+Parse the `## Task List` section from `.sessionkit/HANDOFF.md`:
+
+1. Locate the fenced ` ```json ` block immediately following the `## Task List` heading.
+2. If no `## Task List` section exists, or the JSON block is absent or unparseable, emit exactly one line in the orientation summary:
+   > `No task list snapshot — skipping hydration`
+   Then skip the remaining steps in this section and continue with step 5.
+
+**Pass 1 — create tasks:**
+
+For each task object in the array whose `status` is `pending` or `in_progress`:
+
+- Call `TaskCreate` with `subject`, `description`, and `activeForm` from the JSON object.
+  - `TaskCreate` always creates tasks as `pending`; do not attempt to force `in_progress` status.
+- Record the mapping `oldId → newId` (old `id` comes from the JSON; new `id` is returned by `TaskCreate`).
+
+Skip tasks whose `status` is `completed` — they are history and are already surfaced in the orientation summary.
+
+**Pass 2 — restore blockedBy edges:**
+
+After all `TaskCreate` calls complete, iterate the same set of created tasks. For each task that had a non-empty `blockedBy` array in the JSON:
+
+- Remap each old ID in `blockedBy` to its new ID using the map built in Pass 1.
+- Call `TaskUpdate` with `addBlockedBy` for the new task ID.
+
+Do not wire `blocks` — the inverse relationship is implicit and wiring both directions would double-write the graph.
+
+### 5. Restore git state (if needed)
 
 Compare the handoff's branch against the current branch:
 
@@ -60,7 +88,7 @@ git checkout <branch-from-handoff>
 
 Only suggest this when there's a mismatch. Do not switch branches automatically.
 
-### 5. Confirm readiness
+### 6. Confirm readiness
 
 End with:
 
