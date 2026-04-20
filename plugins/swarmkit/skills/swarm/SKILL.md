@@ -5,6 +5,8 @@ description: Spawn parallel isolated-worktree agents for GitHub issues, open sta
 
 # Swarm Skill
 
+> See the swarmkit README's [Permissions](../../README.md#permissions) section for session-level permission guidance before first use.
+
 Spawn parallel agents for GitHub issues: $ARGUMENTS
 
 ## Arguments
