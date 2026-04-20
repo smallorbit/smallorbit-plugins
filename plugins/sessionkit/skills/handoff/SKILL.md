@@ -7,7 +7,7 @@ triggers:
   - "create handoff"
   - "save handoff"
   - "context is running low"
-allowed-tools: Bash, Read, Write
+allowed-tools: Bash, Read, Write, TaskList, TaskGet
 ---
 
 # Handoff
@@ -35,6 +35,8 @@ git log --oneline -5
 git diff --cached
 ```
 
+Also invoke `TaskList` to get all task IDs, then call `TaskGet` once per task ID to fetch full details. Collect every task that is **not** deleted (i.e. `status !== "deleted"`). This runs in parallel with the bash commands above.
+
 ### 2. Draft the document
 
 Synthesize the collected data plus conversation history into this exact structure:
@@ -61,6 +63,21 @@ How far we got — what's been completed, what's been decided.
 ## Remaining Work
 Outstanding todos and next steps in priority order.
 
+## Task List
+```json
+[
+  {
+    "id": "<task-id>",
+    "subject": "<subject>",
+    "description": "<description>",
+    "activeForm": "<activeForm>",
+    "status": "<status>",
+    "blockedBy": [],
+    "blocks": []
+  }
+]
+```
+
 ## Context
 Key decisions made, gotchas encountered, important notes the next agent must know.
 ```
@@ -69,6 +86,7 @@ Inference rules:
 - **Goal** — derive from branch name, recent commits, and the arc of the conversation.
 - **Progress** — what's been completed, decided, or abandoned this session.
 - **Remaining Work** — pull from the todo file and from any unfinished threads in the conversation; order by priority.
+- **Task List** — serialize the tasks collected in step 1 as a single fenced `json` code block. The JSON is an array of task objects. Include only these fields: `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, `blocks`. Exclude `owner`, `metadata`, and any deleted tasks. If no tasks exist, write an empty array `[]`. The `id` field preserves the original task ID so `/pickup` can wire `blockedBy` relationships in a follow-up pass.
 - **Context** — decisions, gotchas, dead ends, external references. Keep it to what the next agent genuinely needs.
 
 If `$ARGUMENTS` is provided, weave its guidance into the relevant sections (often Goal or Context).
@@ -108,3 +126,5 @@ Report the absolute path of the file written and suggest:
 - After presenting the draft, write it immediately — do not pause for approval
 - Keep the document concise — it's a recall aid, not full documentation
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
+- Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
+- Legacy HANDOFFs that lack a `## Task List` section remain valid inputs to `/pickup` — its absence is not an error
