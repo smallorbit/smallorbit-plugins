@@ -47,6 +47,12 @@ contain the following sections, which become the basis for the plan in step 3:
 - **Out of Scope** — explicit exclusions
 - **Tasks** — decomposed work items
 
+Parse the structured sections (Goal, Background, Requirements, Out of Scope,
+Tasks) from the sub-skill output. Ignore any prose that appears after the
+Tasks table — it belongs to the sub-skill's standalone mode and must not
+influence the orchestrator's next action. The orchestrator owns the handoff
+from here: step 3 is the only approval gate.
+
 Do not proceed to step 3 until `/speckit:interview` has produced a complete,
 unambiguous output with all five sections present.
 
@@ -175,7 +181,15 @@ Always append the following documentation task as the final row, unless the spec
 
 Include the `## Epic label` section **only when the plan produces an epic** (2+ tasks). Omit it for single-issue plans. Render the derived label as a single, editable line, for example: `Epic label: epic:catalog-epic-labels`.
 
-**In a single assistant turn**, emit (a) the plan markdown and (b) an `AskUserQuestion` call. Never end the turn after (a); always follow with (b) in the same response. A turn that presents the plan and stops — even with a prose invitation like "let me know what you think" — is a defect. The `AskUserQuestion` call is the only valid approval gate and is the sole plan-filing approval for the skill on both paths.
+**Required turn shape**: the turn that presents the plan MUST contain, in
+this exact order, (a) the plan markdown and (b) exactly one `AskUserQuestion`
+tool call. Any turn that emits the plan and ends without the tool call is a
+defect and must be corrected by immediately emitting the `AskUserQuestion`
+call. This is non-negotiable — no prose ending (silent wait, `/catalog`
+hand-off suggestion, encouragement to reply, or any other text) is acceptable
+in place of the tool call. The `AskUserQuestion` call is the only valid
+approval gate and is the sole plan-filing approval for the skill on both
+paths.
 
 The options depend on whether the plan is a simple-path single issue or a
 full-path epic. `AskUserQuestion` supports max 4 options total (including
@@ -202,7 +216,7 @@ full-path epic. `AskUserQuestion` supports max 4 options total (including
   - On `Adjust plan`: revise the plan (priorities, tasks, or the epic label),
     then re-show with the same options.
 
-**Wrong shape** (never do this):
+**Wrong shape — silent wait** (never do this):
 
 ```
 Here is the plan:
@@ -212,6 +226,22 @@ Harden approval gates in speckit skills.
 Let me know if you'd like changes.
 ← turn ends here; silent wait
 ```
+
+**Wrong shape — `/catalog` hand-off prose** (never do this):
+
+```
+Here is the plan:
+## Goal
+Harden approval gates in speckit skills.
+...
+Plan ready to feed into `/speckit:catalog` to file as a single prioritised, labelled GitHub issue.
+← turn ends here
+```
+
+This is a defect — the `/catalog` hand-off prose was inherited from the
+interview sub-skill's standalone-mode wording and must not be propagated. The
+orchestrator owns the handoff and the only legitimate way to end this turn is
+with an `AskUserQuestion` call.
 
 **Right shape — full-path plan** (always do this):
 
@@ -239,8 +269,6 @@ AskUserQuestion("Approve this plan and file the issue?", [
   "Cancel"
 ])
 ```
-
-**Pre-end self-check**: Before ending the turn in step 3, verify that the last action in the turn is an `AskUserQuestion` call with approval options matching the path (simple or full). If the plan was presented but no `AskUserQuestion` was called, emit the call immediately — do not end the turn without it.
 
 Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If the user selects an adjust, re-scope, or cancel option, loop back (revise the plan, fall through to the other path, or abort) before re-asking.
 
@@ -330,6 +358,7 @@ Epic:  #N  epic: <title>
 
 ## Constraints
 
+- A turn that presents the plan and ends without an `AskUserQuestion` call is a defect — whether the ending prose is silent waiting, a `/catalog` hand-off suggestion, or any other text.
 - The plan and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — presenting the plan and ending the turn without calling `AskUserQuestion` is a defect, even if a prose invitation is included.
 - Never create issues without showing the plan and getting approval first
 - Never write plan files to disk — the plan lives in the conversation only
