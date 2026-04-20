@@ -1,6 +1,6 @@
 ---
 name: open-pr
-description: Push the current branch and open a GitHub pull request. Use after committing changes to land work on develop.
+description: Push the current branch and open a GitHub pull request. Use after committing changes to merge work into develop.
 triggers:
   - "/open-pr"
   - "open a PR"

@@ -1,10 +1,9 @@
 ---
 name: ship-plugins
-description: Project-local landing command for this plugin monorepo. Reentrant chain — merge-stack → bump-versions → cut → release. Each stage gracefully skips if there's nothing to do, so an interrupted run can be resumed by re-invoking.
+description: Project-local skill that chains merge-stack → bump-versions → cut → release for this plugin monorepo. Reentrant — each stage gracefully skips if there's nothing to do, so an interrupted run can be resumed by re-invoking.
 triggers:
   - "/ship-plugins"
   - "ship plugins"
-  - "land the plugins"
 ---
 
 # Ship Plugins
@@ -15,7 +14,7 @@ Lives in `.claude/skills/` because this chain only makes sense for this monorepo
 
 ## When to use
 
-- After a swarm: land the stack, bump affected plugins, cut an RC, ship to main
+- After a swarm: merge the stack, bump affected plugins, cut an RC, ship to main
 - After merging PRs manually: catch up the bump / cut / release tail
 - To resume an interrupted run: re-invoke and each stage detects whether its work is done
 

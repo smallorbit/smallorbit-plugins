@@ -40,7 +40,7 @@ claude --plugin-dir /path/to/flowkit
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
 | **release** | `/release` | Detect staging at runtime, merge to `main`, tag, close issues, clean up RC branches. |
-| **ship** | `/ship` | Repo-level landing command: `merge-stack` → `cut` → `release`. Run after a swarm to land everything. |
+| **ship** | `/ship` | Repo-level skill: `merge-stack` → `cut` → `release`. Run after a swarm to merge everything. |
 | **hotfix** | `/hotfix` | Emergency fix: branch off `main`, apply fix, PR to `main`, tag, back-merge to `develop`. |
 | **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs/staging awaiting release, and the most recent tag. |
 
@@ -155,7 +155,7 @@ Flowkit is opinionated. Understanding these assumptions upfront will save you fr
 
 ### Branching Model: `develop` → `main` (with optional staging)
 
-Feature work lands in `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
+Feature work merges into `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
 
 ### RC Naming: `rc/YYYY-MM-DD.N`
 
