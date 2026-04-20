@@ -199,8 +199,8 @@ Each agent prompt MUST include these **workflow steps** (in order):
 3. Stage and commit using conventional-commit-message format:
    - No Claude mentions, no co-author lines
    git add <files> && git commit -m "<type>(<scope>): <description>"
-4. Run self-review (invoke `swarmkit:self-review` on changed files). Self-review runs up to 3 simplification passes, committing and pushing between passes. When it converges it returns here — continue with the remaining steps below.
-5. Push final branch state (unconditional — idempotent if self-review already pushed the last pass):
+4. Run simplify loop (invoke `swarmkit:simplify-loop` on changed files). It runs up to 3 iterative /simplify passes, committing and pushing between passes. When it converges it returns here — continue with the remaining steps below.
+5. Push final branch state (unconditional — idempotent if simplify-loop already pushed the last pass):
    git push -u origin worktree-agent-<issue>
 6. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
    # For independent issues:
