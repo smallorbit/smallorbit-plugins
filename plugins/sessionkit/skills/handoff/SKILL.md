@@ -107,6 +107,8 @@ test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" |
 - **`.gitignore` present but not covered**: ask "`.gitignore` doesn't cover `.sessionkit/`. Append it? (yes/no)". On yes, append `.sessionkit/` to `.gitignore`. On no, proceed.
 - **Already covered**: proceed silently.
 
+If `.sessionkit/HANDOFF.md` already exists, Read it first (the Write tool requires a prior Read of the target path). If the file doesn't exist yet, skip this step.
+
 Then create the directory and write the file:
 
 ```bash
@@ -128,3 +130,4 @@ Report the absolute path of the file written and suggest:
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
 - Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
 - Legacy HANDOFFs that lack a `## Task List` section remain valid inputs to `/pickup` — its absence is not an error
+- Always Read `.sessionkit/HANDOFF.md` before overwriting it with Write — the Write tool refuses to overwrite paths it hasn't read in the current conversation
