@@ -77,10 +77,12 @@ Always append the following documentation task as the final row, unless the plan
 
 After drafting the candidate tasks table and before presenting the plan, run a silent consolidation pass. This pass merges over-decomposed tasks so the approval step shows a clean, actionable plan. The user sees only the consolidated result; they can still request splits during approval if needed.
 
-**Merge signals** — merge two tasks if EITHER fires:
+**Merge signals** — merge two tasks if ANY fires:
 
 1. **Same file + same logical change** — both tasks touch only the same single file and address related changes to the same function, section, or config block.
 2. **Strict ordering, no standalone value** — one task cannot ship without the other and provides no independent acceptance criteria (e.g. "wire up the X added in task A").
+3. **Soft cap on epic size** — after applying signals 1 and 2, if the consolidated task count is still **>4**, run a second merge pass that re-examines the table under looser interpretations of signals 1 and 2. In this pass, prefer broader task descriptions with multiple sub-bullets over fine-grained separate tasks. Stop when no further defensible merges remain — do **not** force the count below 4 if the remaining tasks are genuinely independent (different files, different surfaces, independent acceptance criteria). The soft cap is a prompt to re-examine, not a hard limit.
+4. **Docs-only tail merge** — if after the main pass the auto-appended "Update documentation" task is the only remaining non-implementation task AND the remaining implementation task(s) touch the same conceptual surface that the docs would cover, fold the docs task into the implementation task by adding a documentation bullet to its description. This signal only fires when there is one clear implementation task, or a small group of impl tasks touching the same surface — do not apply it when impl work spans multiple unrelated surfaces.
 
 Only merge when a signal clearly applies. Tasks that are legitimately independent — even if related — must not be merged. The goal is to eliminate redundant decomposition, not to collapse distinct work items.
 
