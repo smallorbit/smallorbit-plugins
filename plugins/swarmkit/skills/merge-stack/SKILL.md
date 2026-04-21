@@ -81,17 +81,28 @@ Extract all `Closes/Fixes/Resolves #N` references from the PR body:
 REFS=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 ```
 
-#### 4c. Merge — without deleting the base branch
+#### 4c. Merge — strategy depends on the PR's role in the stack
 
-For PRs that are **not** merging into `$BASE` (i.e. their base is another `worktree-agent-*` branch), omit `--delete-branch` so the base branch survives for the next merge step:
+Three cases, each using a different strategy so that stacked PRs keep their individual commits on `$BASE` instead of being collapsed into a single squash commit:
 
 ```bash
 # Intermediate merge (base is a worktree-agent-* branch)
-gh pr merge <N> --squash
+# Rebase the leaf's commits onto its parent worktree-agent branch so each
+# per-PR commit is preserved as the chain collapses downward.
+# Omit --delete-branch so the base branch survives for the next merge step.
+gh pr merge <N> --rebase
 
-# Final merge into $BASE (root PR or independent PR)
+# Final merge into $BASE for the root of a multi-PR chain
+# Use --merge so the accumulated stack lands as a merge commit preserving
+# the per-PR commits underneath.
+gh pr merge <N> --merge --delete-branch
+
+# Final merge into $BASE for an independent (single-PR) chain
+# No stack to preserve — squash to match flowkit's one-PR-one-commit convention.
 gh pr merge <N> --squash --delete-branch
 ```
+
+A PR is the "root of a multi-PR chain" iff its `baseRefName` is `$BASE` **and** at least one other open PR has this PR's `headRefName` as its `baseRefName` (i.e. something sits on top of it). A PR is "independent" iff its `baseRefName` is `$BASE` and nothing sits on top. Both distinctions were captured when building the stack graph in step 2.
 
 #### 4d. Inject refs into the next PR down
 
@@ -168,6 +179,7 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 ## Constraints
 
 - Always merge top-down (leaf PRs first, root last)
+- Use `--rebase` for intermediate merges, `--merge` for the root of a multi-PR chain, `--squash` for independent single-PR chains — never collapse a stack with a single squash
 - Never use `--delete-branch` on intermediate merges — only on the final merge into `$BASE`
 - Always accumulate refs downward after each intermediate merge
 - Never merge into `main` directly — only into `$BASE` (e.g., `develop`)
