@@ -5,7 +5,7 @@ description: Merge all open swarm PRs top-down, accumulating issue refs as the s
 
 # merge-stack
 
-Merges all open swarm PRs top-down — leaf PRs first, cascading down to the base branch. Each merge injects the absorbed PR's `Closes` refs into the next PR's body so refs accumulate on the way down. The PR that finally merges into `$BASE` carries the complete ref set for the entire stack.
+Merges all open swarm PRs top-down — leaf PRs first, cascading down to the base branch. Each merge injects the absorbed PR's `Closes/Fixes/Resolves/Refs` tokens into the next PR's body so refs accumulate on the way down. The PR that finally merges into `$BASE` carries the complete ref set for the entire stack.
 
 This avoids the auto-close cascade caused by bottom-up merging: merging bottom-up deletes the base branch of the PR above it, which GitHub interprets as abandonment and auto-closes the dependent PR.
 
@@ -75,10 +75,10 @@ sleep 3
 
 #### 4b. Collect this PR's issue refs
 
-Extract all `Closes/Fixes/Resolves #N` references from the PR body:
+Extract all `Closes/Fixes/Resolves/Refs #N` references from the PR body:
 
 ```bash
-REFS=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
+REFS=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves|refs) #[0-9]+' | sort -u)
 ```
 
 #### 4c. Merge — strategy depends on the PR's role in the stack
