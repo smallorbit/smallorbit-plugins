@@ -45,7 +45,21 @@ gh pr merge "$PR_NUM" --squash --delete-branch
 
 ### 4. Label referenced issues
 
-Follow the `gh-label-merged-issues` sub-skill, passing `PR_NUM` as input. It will parse the PR body for `Closes/Fixes/Resolves #N` references and apply the `merged-to-develop` label to each referenced issue (skipping any with the `on-hold` label).
+Parse the PR body for `Closes/Fixes/Resolves #N` references (case-insensitive) and apply the `merged-to-develop` label to each referenced issue. Skip any issue labeled `on-hold`.
+
+```bash
+gh label list | grep -q "^merged-to-develop" || \
+  gh label create "merged-to-develop" --description "PR merged to develop; awaiting release" --color "0E8A16"
+
+gh pr view "$PR_NUM" --json body --jq .body \
+  | grep -oiE '(closes|fixes|resolves) #[0-9]+' \
+  | grep -oE '[0-9]+' \
+  | sort -u \
+  | while read N; do
+      gh issue view "$N" --json labels --jq '.labels[].name' | grep -q "^on-hold$" && continue
+      gh issue edit "$N" --add-label "merged-to-develop"
+    done
+```
 
 ### 5. Report
 
