@@ -165,8 +165,25 @@ $UNSCOPED_COMMITS
 "
 fi
 
+# --- narrative summary ---
+# Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
+# and version bumps. State what this release contains overall — e.g.
+# "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up."
+# Do not list individual file paths or repeat the title. Keep it to 3 sentences max.
+NARRATIVE_SUMMARY="<!-- Write 1–3 sentences summarising what this release contains.
+Derive the narrative from the version bumps and grouped changes computed above.
+Example: "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up." -->"
+
 # --- assemble PR body ---
-PR_BODY="## Release summary
+# <!-- include: plugins/_shared/pr-body.md -->
+# The body shape below follows the canonical PR body spec defined in
+# plugins/_shared/pr-body.md: Summary → Release summary → Version bumps →
+# Changes → issue-reference footer. Keep that order.
+PR_BODY="## Summary
+
+$NARRATIVE_SUMMARY
+
+## Release summary
 
 **Built from**: \`$SOURCE\`"
 
