@@ -121,5 +121,5 @@ Summarize:
 - Always wait for user confirmation between branch creation (step 2) and committing (step 4)
 - Always back-merge main into develop after the hotfix merges
 - Tag directly on main — do not run a full RC cycle for hotfixes
-- No simplify-loop step — hotfix is an emergency flow
+- No simplify pass — hotfix is an emergency flow
 - If any step fails, stop and report clearly — do not continue
