@@ -63,7 +63,6 @@ These are called by the skills above — you don't invoke them directly.
 
 | Skill | Used by | Purpose |
 |-------|---------|---------|
-| **simplify-loop** | swarm | Runs iterative `/simplify` passes on changed files before PR creation. |
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
 | **gh-fetch-issues** | next-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
 | **issue-rank** | next-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
