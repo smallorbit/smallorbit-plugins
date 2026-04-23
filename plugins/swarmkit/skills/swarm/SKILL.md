@@ -205,6 +205,10 @@ Each agent prompt MUST include these **workflow steps** (in order):
 5. Push final branch state (unconditional — idempotent if simplify-loop already pushed the last pass):
    git push -u origin worktree-agent-<issue>
 6. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+
+   <!-- include: plugins/_shared/pr-body.md -->
+   <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
+
    # For independent issues:
    gh pr create --base develop --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
