@@ -148,6 +148,16 @@ Each plugin's README describes how it pairs with the others.
 
 See each plugin's README for detailed usage.
 
+## Conventions
+
+### PR body
+
+All PRs opened by agents in this repo follow a canonical three-section shape (`## Summary`, `## Changes`, `## Test plan`) plus an issue-reference footer. See [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md) for the full spec.
+
+### Commit messages
+
+Agents use [Conventional Commits](https://www.conventionalcommits.org/) (`type(scope): description`). The swarmkit conventional-commit-message skill documents the exact rules.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).

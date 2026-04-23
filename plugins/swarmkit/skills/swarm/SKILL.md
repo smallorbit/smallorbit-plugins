@@ -185,14 +185,14 @@ Each agent prompt MUST include:
 Each agent prompt MUST include these **workflow steps** (in order):
 
 ```
-1. Create and check out branch from the appropriate base:
+1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout develop` would fail if `develop` is already checked out in the main repo.
    # For independent issues (no deps in this batch):
-   git checkout develop && git pull origin develop
-   git checkout -b worktree-agent-<issue>
+   git fetch origin develop
+   git checkout -B worktree-agent-<issue> origin/develop
 
    # For dependent issues (has a dependency in this batch):
    git fetch origin worktree-agent-<dependency-issue>
-   git checkout -b worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
+   git checkout -B worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
 
    # Safety check — abort if not in an isolated worktree
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not running in an isolated worktree. Aborting to prevent branch collision." && exit 1
@@ -201,10 +201,18 @@ Each agent prompt MUST include these **workflow steps** (in order):
 3. Stage and commit using conventional-commit-message format:
    - No Claude mentions, no co-author lines
    git add <files> && git commit -m "<type>(<scope>): <description>"
-4. Run simplify loop (invoke `swarmkit:simplify-loop` on changed files). It runs up to 3 iterative /simplify passes, committing and pushing between passes. When it converges it returns here — continue with the remaining steps below.
-5. Push final branch state (unconditional — idempotent if simplify-loop already pushed the last pass):
+4. Iterative simplify pass — run inline, not as a sub-skill call. Track a pass count starting at 0 (max 3). This is part of this workflow; there is no separate caller/callee to return to.
+   4a. Run `/simplify` on the changed files.
+   4b. Check for changes with `git diff`.
+       - If changes were produced AND pass count < 3: commit the simplification (conventional-commit format, no Claude mentions), push with `git push -u origin worktree-agent-<issue>`, increment the pass count, go back to 4a.
+       - If no changes were produced OR pass count >= 3: the pass has converged. Proceed immediately to step 5 — do NOT stop here. Convergence is not a termination condition.
+5. Push final branch state (unconditional — idempotent if the last simplify pass already pushed):
    git push -u origin worktree-agent-<issue>
 6. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+
+   <!-- include: plugins/_shared/pr-body.md -->
+   <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
+
    # For independent issues:
    gh pr create --base develop --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
@@ -232,6 +240,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
    Closes #<issue>
    EOF
    )"
+7. Report the PR URL. This is the ONLY acceptable termination condition for this workflow. Do not stop before the PR exists and its URL has been reported.
 ```
 
 ### 5. Handle completions
