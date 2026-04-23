@@ -20,7 +20,7 @@ Bulleted checklist (`- [ ]`) of verification steps. Each item is something a rev
 
 ## Issue-reference footer
 
-After the three sections, emit a blank line, then one token per line. Tokens use GitHub's closing-keyword grammar and appear at the end of the body.
+After the three sections, emit a blank line, then one token per line using GitHub's closing-keyword grammar.
 
 | Token | When to use |
 |-------|-------------|
