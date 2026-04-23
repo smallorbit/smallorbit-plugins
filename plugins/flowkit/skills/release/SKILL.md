@@ -88,23 +88,36 @@ echo "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
 done
 
 if [ -n "$ISSUE_REFS" ]; then
+  SKIPPED_EPICS_FILE=$(mktemp)
   gh issue list --label "epic" --state open --json number --jq '.[].number' \
   | while read EPIC_N; do
-    SUB_ISSUES=$(gh api "repos/$REPO/issues/$EPIC_N/sub_issues" 2>/dev/null || echo '[]')
-    SUB_ISSUES=$(printf '%s' "$SUB_ISSUES" | tr -d '\000-\010\013-\037')
-    TOTAL=$(echo "$SUB_ISSUES" | jq 'length')
-    [ "$TOTAL" = "0" ] && continue
+    # Let gh invoke jq internally. Never round-trip JSON through a shell
+    # variable: zsh's `echo` un-escapes backslash sequences by default, so
+    # `echo "$SUB_ISSUES" | jq` turns escaped control chars (\n, \t, \")
+    # inside string values into raw control bytes — invalid JSON. This is
+    # the root cause behind prior recurrences (#328, #355, #482); a `tr`
+    # filter cannot fix it because the hazardous bytes are 0x09 / 0x0a,
+    # which are legitimate JSON whitespace between tokens.
+    CHILDREN=$(gh api "repos/$REPO/issues/$EPIC_N/sub_issues" \
+      --jq 'if length > 0 and all(.state == "closed") then .[].number else empty end' \
+      2>/dev/null)
+    if [ $? -ne 0 ]; then
+      echo "$EPIC_N" >> "$SKIPPED_EPICS_FILE"
+      echo "Warning: failed to fetch or parse sub_issues for epic #$EPIC_N — skipping (will be listed in release report)" >&2
+      continue
+    fi
 
-    OPEN_COUNT=$(echo "$SUB_ISSUES" | jq '[.[] | select(.state == "open")] | length')
-    [ "$OPEN_COUNT" != "0" ] && continue
+    [ -z "$CHILDREN" ] && continue
 
-    for CHILD_N in $(echo "$SUB_ISSUES" | jq -r '.[].number'); do
+    for CHILD_N in $CHILDREN; do
       if echo "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b"; then
         echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
         break
       fi
     done
   done
+
+  SKIPPED_EPICS=$(sort -u "$SKIPPED_EPICS_FILE" 2>/dev/null); rm -f "$SKIPPED_EPICS_FILE"
 fi
 
 EPIC_REFS=$(sort -u "$EPIC_REFS_FILE"); rm -f "$EPIC_REFS_FILE"
@@ -272,6 +285,7 @@ Output:
 - PR number and URL
 - Issues closed
 - RC branches deleted
+- Epics skipped due to sub_issues parse error, if any — read `$SKIPPED_EPICS` (set in step 4). When non-empty, list each epic number and remind the operator to check manually and add `Closes #N` to the release PR body if needed.
 
 ## Constraints
 
