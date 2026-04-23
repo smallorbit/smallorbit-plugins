@@ -185,14 +185,14 @@ Each agent prompt MUST include:
 Each agent prompt MUST include these **workflow steps** (in order):
 
 ```
-1. Create and check out branch from the appropriate base:
+1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout develop` would fail if `develop` is already checked out in the main repo.
    # For independent issues (no deps in this batch):
-   git checkout develop && git pull origin develop
-   git checkout -b worktree-agent-<issue>
+   git fetch origin develop
+   git checkout -B worktree-agent-<issue> origin/develop
 
    # For dependent issues (has a dependency in this batch):
    git fetch origin worktree-agent-<dependency-issue>
-   git checkout -b worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
+   git checkout -B worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
 
    # Safety check — abort if not in an isolated worktree
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not running in an isolated worktree. Aborting to prevent branch collision." && exit 1
