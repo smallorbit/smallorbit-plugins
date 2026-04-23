@@ -30,3 +30,5 @@ Run it before staging and committing the release.
 ## Skill Authoring Conventions
 
 **Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
+
+**PR body standard**: All PRs opened by agents in this repo must follow the canonical three-section shape (`## Summary`, `## Changes`, `## Test plan`) plus an issue-reference footer. The spec lives at [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md) — reference it instead of inventing a local format.
