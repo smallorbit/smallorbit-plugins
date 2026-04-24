@@ -1029,22 +1029,34 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 
    If a teammate is already gone (crashed or already exited), the send is a no-op.
 
-2. **Force-clear stuck `isActive` members, then delete the team** — wait a reasonable timeout (e.g. 10 seconds) for each teammate to acknowledge the shutdown. Any member whose mailbox never responds within the timeout is considered dead-on-arrival: forcibly patch `~/.claude/teams/<team>/config.json` to set its `isActive` flag to `false` so that `TeamDelete` is not blocked:
+2. **Force-clear stuck `isActive` members, then delete the team** — three independent code paths feed the same jq patch against `~/.claude/teams/<team>/config.json`. They are additive: predecessor cleanup runs **in addition to**, not instead of, the other two.
+
+   **Path A — shutdown-ack timeout (10s).** Wait a reasonable timeout (e.g. 10 seconds) for each teammate to acknowledge the `shutdown_request` sent in step 1. Any member whose mailbox never responds within the timeout is considered dead-on-arrival and gets its `isActive` force-cleared via the patch below.
+
+   **Path B — `TeamDelete` active-member error.** If `TeamDelete` returns an active-member error for a name that never surfaced in path A, force-clear that name with the same patch and retry `TeamDelete`.
+
+   **Path C — predecessor cleanup (handoff chain).** For every teammate that completed a successful `handoff_ready` → successor-spawn sequence (see #514–#516), the predecessor exits without participating in the shutdown-ack handshake and without triggering the `TeamDelete` error — so paths A and B both miss it, and its `isActive` stays `true`, blocking future `TeamDelete` calls. Run the patch below on every such predecessor name recorded during the run.
+
+   The patch (used by all three paths):
 
    ```bash
-   # For each non-responding member <name>:
+   # For each name to force-clear <name>:
    jq '(.members[] | select(.name == "<name>")).isActive = false' \
      ~/.claude/teams/<team>/config.json > /tmp/team-config.json \
      && mv /tmp/team-config.json ~/.claude/teams/<team>/config.json
    ```
 
-   After all stuck members are cleared, delete the team:
+   The jq expression is idempotent: if `<name>` is already `isActive: false` (or the member is absent), the assignment is a no-op and the command exits cleanly. Running teardown twice on the same state must not error.
+
+   After all stuck members are cleared (via any of the three paths), delete the team:
 
    ```
    TeamDelete({name: "<team-name>"})
    ```
 
    This step must be idempotent — if the team was already deleted (e.g. teardown is running a second time), the `TeamDelete` call should be treated as a no-op.
+
+   **Test note:** verify by running a short squad that triggers at least one handoff, then re-running teardown and asserting no-op (no error, no config-file change, `TeamDelete` reports the team is already gone).
 
 3. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
 
