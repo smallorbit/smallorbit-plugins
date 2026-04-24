@@ -1,9 +1,11 @@
 ---
-name: swarm
-description: Spawn parallel isolated-worktree agents for GitHub issues, open stacked PRs in dependency order, and leave them open for review. Use `swarmkit:merge-stack` to merge. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
+name: swarm-experimental
+description: EXPERIMENTAL variant of `/swarm` that collapses preflight into a single scripted step. Same arg grammar and behavior — see `/swarm` for the stable version. Use this to dogfood script-extraction changes; switch back to `/swarm` if anything misbehaves.
 ---
 
-# Swarm Skill
+# Swarm Skill (Experimental)
+
+> **EXPERIMENTAL** — this is a parallel build of `/swarm` used to validate script extractions that reduce conversational bash round-trips. Behavior is intended to be identical to the stable `/swarm` skill on the same inputs. If you hit issues, fall back to `/swarm`.
 
 > See the swarmkit README's [Permissions](../../README.md#permissions) section for session-level permission guidance before first use.
 
@@ -23,30 +25,23 @@ Parse `$ARGUMENTS` to determine the mode:
 
 ## Setup
 
-Before entering either mode, ensure `develop` exists. This runs unconditionally.
+Run the preflight script once. It handles fetch, base-branch verification (creating it from `main` and pushing if missing), and `gh` auth check in a single call:
 
 ```bash
-git fetch origin
+plugins/swarmkit/skills/swarm-experimental/scripts/preflight.sh --base "$BASE"
 ```
 
-Check if `develop` exists on remote:
+On success the script exits 0 and emits a single JSON object on stdout:
 
-```bash
-git ls-remote --exit-code origin develop
+```json
+{"base": "develop", "base_existed": true, "base_created": false, "gh_authenticated": true, "repo": "owner/name"}
 ```
 
-If it does **not** exist, create it from `main` and announce it:
+Parse the JSON. If `gh_authenticated` is `false`, **stop immediately** and surface the script's stderr to the user — no swarm work can proceed without `gh` auth. If `base_created` is `true`, announce:
 
-```bash
-git checkout main
-git pull origin main
-git checkout -b develop
-git push -u origin develop
-```
+> Created `<base>` branch from `main`. All PRs will target `<base>`.
 
-> Created `develop` branch from `main`. All PRs will target `develop`.
-
-If `develop` already exists, do nothing — proceed.
+If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and stop.
 
 ---
 
@@ -56,46 +51,49 @@ Used when issue numbers are provided. Dispatches agents for the given set of iss
 
 ### 1. Gather issue details
 
-For each issue:
+Run the gather script once with all requested issue numbers. It batches title, body, labels, state, sub-issues, and native dependency edges (`blockedBy`) into a single `gh api graphql` call, collapsing what was ~3N bash turns into one script invocation:
 
 ```bash
-gh issue view <number> --json title,body,labels
+plugins/swarmkit/skills/swarm-experimental/scripts/gather_issues.sh <number> [<number> ...]
 ```
 
-**Skip any issue with the `on-hold` label** — per the `gh-fetch-issues` sub-skill filtering rules.
+On success the script exits 0 and emits one JSON object on stdout:
 
-**Epic expansion** — for each issue, query its children via GitHub's native sub-issue relationship:
-
-```bash
-gh api repos/{owner}/{repo}/issues/<number>/sub_issues
+```json
+{
+  "requested": [544, 545],
+  "work_items": [
+    {"number": 545, "title": "...", "body": "...", "labels": ["enhancement"],
+     "state": "OPEN", "is_epic": false, "deps": [544],
+     "skip": false, "skip_reason": null, "source_epic": null}
+  ],
+  "skipped":        [{"number": 541, "reason": "closed"}],
+  "epics_expanded": [{"number": 549, "children": [544, 545, 546, 547, 548]}],
+  "epics_unwired":  []
+}
 ```
 
-If the response is a non-empty array, the issue is an epic. Use the returned children (not the epic itself) as the work items: for each child, fetch `title,body,labels,state` in parallel, then filter:
+Parse the JSON. **Use `work_items` as the list to act on** for the rest of the swarm — each entry already has everything Steps 2–5 need (title, body, labels, state, deps, and the originating epic when expanded from one).
 
-- Skip any child with the `on-hold` label
-- Skip any child that is already `closed`
-
-If all children are skipped, announce and stop. Otherwise announce:
+**Skip announcement** — for each entry in `skipped`, the script has already applied the existing rules (`on-hold` label, `closed` state). If there are skipped issues from a requested epic's children, announce using the existing template:
 
 > `#N` is an epic. Swarming: `#101`, `#102`. Skipped (closed/on-hold): `#103`.
 
-**Epic label without sub-issues** — if the issue carries the `epic` label but the sub-issues API returns an empty array, the epic is not wired up. Do **not** fall through and treat it as a regular implementation issue — the epic body is a plan, not a spec. Announce and skip:
+If `work_items` is empty because every requested issue (or every child of a requested epic) was skipped, announce and stop.
+
+**Unwired epics** — for each number in `epics_unwired`, announce with the existing template and proceed with the remaining work items:
 
 > `#N` is labeled `epic` but has no sub-issues wired via the GitHub sub-issue API. Skipping — children must be attached via `gh api .../sub_issues` before swarming.
 
 The legacy `- [ ] #N` body-checklist format is no longer supported; speckit wires child issues via the native sub-issue API (see `plugins/speckit/skills/spec/SKILL.md`).
 
+If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and stop.
+
 ### 2. Analyze dependencies and grouping
 
-**Parse the dependency graph** from the issue bodies already fetched in Step 1:
+Use the pre-computed `deps` array on each `work_items` entry — the script already prefers GitHub's native `blockedBy` connection (the field `/spec` wires up) and falls back to parsing `Depends on #N` / `Blocked by #N` from the body when native is empty. Do **not** re-grep bodies here.
 
-For each issue body, extract `Depends on #N` and `Blocked by #N` references:
-
-```bash
-echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
-```
-
-Build a directed acyclic graph (DAG): each issue is a node; a `Depends on #N` or `Blocked by #N` relationship is a directed edge from the dependent to the dependency.
+Build a directed acyclic graph (DAG): each work item is a node; each number in its `deps` array is a directed edge from the dependent to the dependency.
 
 Produce a **topological sort** of the DAG. This sort determines:
 - Which issues can spawn in parallel (no incoming edges in this batch = independent)
@@ -240,9 +238,34 @@ Each agent prompt MUST include these **workflow steps** (in order):
 
 ### 5. Handle completions
 
-After each agent completes, always verify:
-- **(a) Branch is pushed to origin** — run `git ls-remote --exit-code origin worktree-agent-<issue>`. If absent, push it: `git push -u origin worktree-agent-<issue>`
-- **(b) A PR exists referencing the issue** — run `gh pr list --head worktree-agent-<issue>`. If none, create the PR on the agent's behalf using the agent's commits and the issue spec.
+After each agent completes, run the verify script once per agent:
+
+```bash
+plugins/swarmkit/skills/swarm-experimental/scripts/verify_agent.sh <issue>
+```
+
+On success the script exits 0 and emits a single JSON object on stdout:
+
+```json
+{
+  "issue": 102,
+  "branch": "worktree-agent-102",
+  "branch_pushed": true,
+  "pushed_now": false,
+  "pr_exists": true,
+  "pr_url": "https://github.com/owner/name/pull/210",
+  "pr_base": "develop"
+}
+```
+
+Parse the JSON and act on the fields:
+
+- **`branch_pushed: false` and no local branch** — the agent produced no push and no local branch exists; announce the unrecoverable failure and treat the issue as failed (do not attempt PR creation).
+- **`pushed_now: true`** — the script pushed the branch on the agent's behalf; announce this before proceeding.
+- **`pr_exists: false`** — create the PR on the agent's behalf using the agent's commits and the issue spec. PR creation (title, body, base branch selection) is a judgment call made by Claude using the existing PR-body template from Step 4. Use `pr_base` from the preflight JSON (or the appropriate stacked-branch base for dependent issues) as the `--base` argument.
+- **`pr_exists: true`** — no action needed; `pr_url` carries the existing PR link.
+
+If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and treat the issue as failed.
 
 Report the PR link once confirmed. Verify each PR's diff matches the issue scope.
 
@@ -269,17 +292,15 @@ Used when no issue numbers are given (no args or label filter). Continuously cle
 
 ### Setup
 
-```bash
-git fetch origin
-```
-
-Set `claude.flowkit.prBase` to scope the PR base for this operation:
+Run the preflight script with `--scope-pr-base` to also set `claude.flowkit.prBase` for this session:
 
 ```bash
-git config --local claude.flowkit.prBase $BASE
+plugins/swarmkit/skills/swarm-experimental/scripts/preflight.sh --base "$BASE" --scope-pr-base
 ```
 
-This is unset in the teardown step below. Leaving it set will cause subsequent PR creation (even in unrelated workflows) to target the wrong base, so cleanup is critical.
+Parse the JSON from stdout. Halt and surface stderr if the script exits non-zero or if `gh_authenticated` is `false`. Announce base creation if `base_created` is `true`.
+
+`claude.flowkit.prBase` is unset in the teardown step below. Leaving it set will cause subsequent PR creation (even in unrelated workflows) to target the wrong base, so cleanup is critical.
 
 ### Loop (repeat until board clear or user stops)
 
@@ -312,14 +333,7 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
 ### Teardown
 
 1. Run the `clean-worktrees` skill
-2. Restore the base branch (worktree removal may drift the shell to a detached HEAD or a different branch):
-   ```bash
-   git checkout $BASE && git pull origin $BASE
-   ```
-3. Unset `claude.flowkit.prBase` to clear the scoped PR base:
-   ```bash
-   git config --local --unset claude.flowkit.prBase
-   ```
+2. Run `scripts/teardown.sh` (optionally `--base <branch>` to override the default `develop`). Parse the returned JSON and confirm `base_restored: true`. If `config_unset: false`, log that `claude.flowkit.prBase` was already clear — this is not a failure.
 
 Optionally, run `swarmkit:clean-remote-worktrees` afterwards to sweep orphaned remote `worktree-agent-*` branches left behind by merged PRs. This is not automatic — invoke it when you want to tidy up.
 
