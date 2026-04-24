@@ -62,7 +62,7 @@ if [ -n "$LAST_TAG" ]; then
   MERGED_PRS=$(gh pr list --base develop --state merged --json body,mergedAt \
     | jq --arg td "$TAG_DATE" -r \
         '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601)) | .body')
-  ISSUE_REFS=$(echo "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
+  ISSUE_REFS=$(printf '%s\n' "$MERGED_PRS" | grep -oiE '(closes|fixes|resolves) #[0-9]+' | sort -u)
 fi
 ```
 
@@ -77,12 +77,12 @@ Both paths must be checked, and the combined refs de-duplicated:
 REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
 EPIC_REFS_FILE=$(mktemp)
 
-echo "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
+printf '%s\n' "$ISSUE_REFS" | grep -oE '[0-9]+' | sort -u | while read CHILD_N; do
   gh issue list --label "epic" --state open --json number,body \
       --jq ".[] | select(.body | test(\"- \\\\[[ x]\\\\] #${CHILD_N}\")) | .number" \
   | while read EPIC_N; do
     EPIC_BODY=$(gh issue view "$EPIC_N" --json body --jq '.body')
-    OPEN_CHILDREN=$(echo "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
+    OPEN_CHILDREN=$(printf '%s\n' "$EPIC_BODY" | grep -oE '- \[ \] #[0-9]+')
     [ -z "$OPEN_CHILDREN" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
   done
 done
@@ -109,8 +109,9 @@ if [ -n "$ISSUE_REFS" ]; then
 
     [ -z "$CHILDREN" ] && continue
 
-    for CHILD_N in $CHILDREN; do
-      if echo "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b"; then
+    printf '%s\n' "$CHILDREN" | while read CHILD_N; do
+      [ -z "$CHILD_N" ] && continue
+      if printf '%s\n' "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b"; then
         echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
         break
       fi
@@ -148,35 +149,39 @@ ALL_COMMITS=$(git log origin/main..origin/"$SOURCE" --oneline \
   | grep -ivE "bump|version|plugin\.json" \
   || true)
 
-# Extract known plugin scopes; extend this list as new plugins are added
-PLUGINS="flowkit speckit swarmkit sessionkit polishkit"
+# Extract known plugin scopes; extend this list as new plugins are added.
+# Newline-delimited so we can iterate via `while read` — `for X in $VAR` does
+# not word-split unquoted variables in zsh and would silently process the
+# whole list as a single value.
+PLUGINS="flowkit
+speckit
+swarmkit
+sessionkit
+polishkit"
 
-GROUPED_CHANGES=""
-for PLUGIN in $PLUGINS; do
-  PLUGIN_COMMITS=$(echo "$ALL_COMMITS" \
+GROUPED_CHANGES_FILE=$(mktemp)
+printf '%s\n' "$PLUGINS" | while read PLUGIN; do
+  [ -z "$PLUGIN" ] && continue
+  PLUGIN_COMMITS=$(printf '%s\n' "$ALL_COMMITS" \
     | grep -iE "\($PLUGIN\)" \
     | sed 's/^[a-f0-9]* /- /' \
     || true)
   if [ -n "$PLUGIN_COMMITS" ]; then
-    GROUPED_CHANGES="$GROUPED_CHANGES
-**$PLUGIN**
-$PLUGIN_COMMITS
-"
+    printf '\n**%s**\n%s\n' "$PLUGIN" "$PLUGIN_COMMITS" >> "$GROUPED_CHANGES_FILE"
   fi
 done
 
 # Commits with no recognised scope (chore, docs without scope, etc.)
-SCOPED_PATTERN=$(echo "$PLUGINS" | tr ' ' '|')
-UNSCOPED_COMMITS=$(echo "$ALL_COMMITS" \
+SCOPED_PATTERN=$(printf '%s\n' "$PLUGINS" | tr '\n' '|' | sed 's/|$//')
+UNSCOPED_COMMITS=$(printf '%s\n' "$ALL_COMMITS" \
   | grep -ivE "\($SCOPED_PATTERN\)" \
   | sed 's/^[a-f0-9]* /- /' \
   || true)
 if [ -n "$UNSCOPED_COMMITS" ]; then
-  GROUPED_CHANGES="$GROUPED_CHANGES
-**other**
-$UNSCOPED_COMMITS
-"
+  printf '\n**other**\n%s\n' "$UNSCOPED_COMMITS" >> "$GROUPED_CHANGES_FILE"
 fi
+
+GROUPED_CHANGES=$(cat "$GROUPED_CHANGES_FILE"); rm -f "$GROUPED_CHANGES_FILE"
 
 # --- narrative summary ---
 # Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
