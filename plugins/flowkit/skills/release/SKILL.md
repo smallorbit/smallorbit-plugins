@@ -99,7 +99,7 @@ if [ -n "$ISSUE_REFS" ]; then
     # filter cannot fix it because the hazardous bytes are 0x09 / 0x0a,
     # which are legitimate JSON whitespace between tokens.
     CHILDREN=$(gh api "repos/$REPO/issues/$EPIC_N/sub_issues" \
-      --jq 'if length > 0 and all(.state == "closed") then .[].number else empty end' \
+      --jq '.[] | "\(.number) \(.state)"' \
       2>/dev/null)
     if [ $? -ne 0 ]; then
       echo "$EPIC_N" >> "$SKIPPED_EPICS_FILE"
@@ -109,13 +109,18 @@ if [ -n "$ISSUE_REFS" ]; then
 
     [ -z "$CHILDREN" ] && continue
 
-    printf '%s\n' "$CHILDREN" | while read CHILD_N; do
+    ALL_RESOLVED=true
+    printf '%s\n' "$CHILDREN" | while read CHILD_N CHILD_STATE; do
       [ -z "$CHILD_N" ] && continue
-      if printf '%s\n' "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b"; then
-        echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
+      ALREADY_CLOSED=$([ "$CHILD_STATE" = "closed" ] && echo true || echo false)
+      IN_REFS=$(printf '%s\n' "$ISSUE_REFS" | grep -qiE "(closes|fixes|resolves) #${CHILD_N}\\b" && echo true || echo false)
+      if [ "$ALREADY_CLOSED" = "false" ] && [ "$IN_REFS" = "false" ]; then
+        ALL_RESOLVED=false
         break
       fi
     done
+
+    [ "$ALL_RESOLVED" = "true" ] && echo "Closes #$EPIC_N" >> "$EPIC_REFS_FILE"
   done
 
   SKIPPED_EPICS=$(sort -u "$SKIPPED_EPICS_FILE" 2>/dev/null); rm -f "$SKIPPED_EPICS_FILE"
@@ -126,7 +131,7 @@ EPIC_REFS=$(sort -u "$EPIC_REFS_FILE"); rm -f "$EPIC_REFS_FILE"
 $EPIC_REFS"
 ```
 
-The sub-issues-API path only adds an epic when at least one of its children appears in this release's `ISSUE_REFS` — this prevents closing unrelated epics that happened to have all children resolved outside the release cycle. The final `sort -u` de-duplicates any epic detected by both paths.
+The sub-issues-API path only adds an epic when every child is either already closed or its number appears in this release's `ISSUE_REFS` (i.e. will close via this PR). Epics with any unresolved children outside the release cycle are not auto-closed. The final `sort -u` de-duplicates any epic detected by both paths.
 
 If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
