@@ -542,6 +542,39 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
    The lead does not spawn a replacement when you exit — the fixed pool drains naturally as each builder runs out of claimable work.
 
+10. **Handle `request_handoff` from the lead.** At any point after step 2, the lead may send a `request_handoff` message signalling that the builder should retire voluntarily so a fresh successor can resume its work (see the Preemptive Handoff section for the schema). On receipt, the builder quiesces its in-flight state, releases its claim, reports back, and exits. Perform these steps **in order** — stashing must complete before the task-list claim is released so the worktree is quiesced and stable before any successor can re-claim it:
+
+    1. **Stash in-flight edits.** Run `git stash -u` in the current worktree to preserve both tracked and untracked uncommitted changes. Capture the resulting stash ref (typically `stash@{0}`). If the working tree is clean, there will be no stash — record `stash_ref: null` for the reply.
+       ```bash
+       if git stash -u --include-untracked 2>/dev/null | grep -q 'Saved working directory'; then
+         STASH_REF="stash@{0}"
+       else
+         STASH_REF=null
+       fi
+       ```
+
+    2. **Release the task-list claim.** Unassign the builder from the current issue on the Agent Teams shared task list so the successor can atomically re-claim it (same mechanism as step 1, in reverse). Until this release completes, the successor cannot claim the task and the handoff will stall.
+
+    3. **Reply with `handoff_ready`.** Send the builder-variant payload to the lead, carrying the state blob the lead needs to spawn the successor into the same worktree:
+       ```
+       SendMessage({
+         to: "team-lead",
+         message: {
+           type: "handoff_ready",
+           role: "builder",
+           predecessor: "builder-<issue>",       // or "builder-<issue>-c<cycle>" in loop mode
+           current_task_id: "<issue>",
+           state: {
+             worktree_path: "<absolute path to this worktree>",
+             stash_ref:     "<STASH_REF from step 10.1, or null>",
+             branch:        "worktree-agent-<issue>"
+           }
+         }
+       })
+       ```
+
+    4. **Exit cleanly.** Do not re-enter step 9's self-claim loop — the handoff is terminal for this teammate. The lead spawns the successor separately (see #516); this builder's lifetime ends here.
+
 ### Upstream → downstream notify protocol
 
 This protocol **supplements** the stacked-branching model from `swarmkit:swarm`; it does **not** replace it.
