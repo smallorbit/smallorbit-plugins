@@ -4,7 +4,7 @@ A Claude Code plugin that resolves GitHub issues with parallel agents. Pick what
 
 > **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — it covers install, `/spec`, and `/swarm` end to end.
 
-**Already here for swarmkit specifically?** Read [METHODOLOGY.md](./METHODOLOGY.md) for the full narrative on how the stacked agent/PR workflow fits together — worktree isolation, stacked branches, top-down merging with reference accumulation, and loop mode.
+**Already here for swarmkit specifically?** Read [METHODOLOGY.md](./METHODOLOGY.md) for the full narrative on how the stacked agent/PR workflow fits together — worktree isolation, stacked branches, bottom-up merging with up-front retargeting, and loop mode.
 
 ## Installation
 
@@ -53,7 +53,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
 | **swarm-experimental** | `/swarm-experimental` | Experimental parallel variant of `/swarm`. Script-backed mechanical phases (preflight, teardown) reduce model round-trips. Same arg grammar and behavior as `/swarm` — prefer `/swarm` for stable workflows. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
-| **merge-stack** | `/merge-stack` | Merges all open swarm PRs top-down (leaf PRs first, root last). |
+| **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 | **clean-remote-worktrees** | `/clean-remote-worktrees` | Sweeps orphaned remote `worktree-agent-*` branches from the remote. |
 | **squad** (experimental) | `/squad` | Agent Teams variant of `/swarm` — runs a structured lead/builder/reviewer team. See [Experimental features](#experimental-features). |
@@ -74,7 +74,7 @@ These are called by the skills above — you don't invoke them directly.
 /next-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Resolve specific issues in parallel
 /merge-pr       # If one PR — merge it directly (flowkit skill)
-/merge-stack    # If two or more PRs — merges top-down: leaf PRs first, root last
+/merge-stack    # If two or more PRs — retargets non-root PRs to $BASE, merges bottom-up: root first, leaves last
 /swarm                               # Or clear the entire board in a loop
 /clean-worktrees                     # Tidy up after a swarm run
 ```
@@ -85,7 +85,7 @@ These are called by the skills above — you don't invoke them directly.
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
 3. Spawns one agent per issue (or grouped set) in isolated git worktrees
 4. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-5. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge into `develop` — top-down: leaf PRs first, root last
+5. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge into `develop` — bottom-up: root PRs first, leaves last, after retargeting non-root PRs to `develop`
 6. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.

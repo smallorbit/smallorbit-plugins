@@ -149,7 +149,7 @@ Before spawning any teammates, print a summary table of builder assignments so t
 ```
 
 Include:
-- **Suggested merge order** — leaf PRs first (no dependents), root PRs last
+- **Suggested merge order** — root PRs first (targeting `$BASE`), leaves last; `swarmkit:merge-stack` retargets non-root PRs to `$BASE` up front and then merges each chain bottom-up
 - **Any issues too ambiguous to delegate** — list them with a brief reason; they are excluded from the dispatch but not from the target set
 
 After printing the table, continue immediately to the next step.

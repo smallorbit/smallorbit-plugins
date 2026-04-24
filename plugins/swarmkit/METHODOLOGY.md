@@ -2,11 +2,11 @@
 
 ## Overview
 
-Swarmkit resolves a batch of GitHub issues by spawning one agent per issue, each working in its own isolated git worktree. When issues are independent, the agents run fully in parallel and open pull requests that target the base branch directly. When issues depend on one another, the dependent agent branches from its dependency's branch tip instead of from the base, and opens its pull request against that dependency's branch — forming a stack. A separate merge step then collapses the stack top-down, accumulating issue references as it goes, and merges the whole thing into the base branch with a single reviewable history.
+Swarmkit resolves a batch of GitHub issues by spawning one agent per issue, each working in its own isolated git worktree. When issues are independent, the agents run fully in parallel and open pull requests that target the base branch directly. When issues depend on one another, the dependent agent branches from its dependency's branch tip instead of from the base, and opens its pull request against that dependency's branch — forming a stack. A separate merge step then retargets every non-root PR to the base branch up front, then merges the stack bottom-up — root first, then each former child in turn — with a uniform squash, landing each PR's own closing references natively as it merges.
 
 This shape exists because large features rarely factor cleanly into one pull request. The traditional alternatives are both painful: either the author opens one huge PR that is slow to review and risky to merge, or they open a sequence of PRs manually and spend significant effort keeping branches rebased against one another. Stacked pull requests — pioneered in tools like Gerrit and Phabricator and popularized on GitHub by Graphite and Aviator — solve this by treating each change as a small, independently reviewable unit that is explicitly stacked on its predecessor. Swarmkit takes the same idea and combines it with agent parallelism: independent work happens concurrently, dependent work is stacked, and both categories share a single merge strategy.
 
-The four ideas that make this work together are worktree isolation (so agents cannot step on each other), the stacked branch strategy (so dependent work can start before its predecessor merges), top-down merging with reference accumulation (so GitHub does not auto-close dependent PRs and so issue references survive the collapse), and loop mode with failure handling (so a long queue of issues can be cleared without manual babysitting).
+The four ideas that make this work together are worktree isolation (so agents cannot step on each other), the stacked branch strategy (so dependent work can start before its predecessor merges), bottom-up merging with up-front retargeting (so GitHub does not auto-close dependent PRs and so each PR lands with the same diff that was reviewed), and loop mode with failure handling (so a long queue of issues can be cleared without manual babysitting).
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ If you just want to run a swarm and merge the result, this is the full shape of 
 ```
 /next-issue          # see what is ready to work on
 /swarm 12 15 18      # spawn parallel agents for specific issues
-/merge-stack         # merge all open swarm PRs top-down (use /merge-pr for a single PR)
+/merge-stack         # merge all open swarm PRs bottom-up (use /merge-pr for a single PR)
 /clean-worktrees     # remove the worktree directories and orphaned branches
 ```
 
@@ -23,7 +23,7 @@ If you just want to run a swarm and merge the result, this is the full shape of 
 
 Each agent does the same thing: creates a branch named `worktree-agent-<issue>`, makes the changes described in the issue, commits in conventional-commit format, pushes, and opens a pull request whose body includes `Closes #<issue>`. The agent then stops. Nothing is merged automatically — swarm agents open PRs and leave them open for your review.
 
-When you are ready to merge the stack, run `/merge-stack`. It identifies every open pull request whose head branch starts with `worktree-agent-`, works out the stack graph from the head/base relationships, and merges top-down — leaf PRs first, root PRs last, with issue references accumulating into each surviving PR body as the stack collapses. The final PR into the base branch carries the full set of closing references for the entire chain.
+When you are ready to merge the stack, run `/merge-stack`. It identifies every open pull request whose head branch starts with `worktree-agent-`, works out the stack graph from the head/base relationships, retargets every non-root PR in each chain to the base branch, and then merges each chain bottom-up — root PR first, then its former children, up to the leaf — with a uniform `gh pr merge <N> --squash --delete-branch`. Each PR closes its own `Closes #N` references natively as it merges.
 
 ## How It Works
 
@@ -65,15 +65,15 @@ This is the stack. Each pull request in a chain has a head branch and a base bra
 
 The reason this works as a concurrency primitive is that the dependent agent already has access to everything the upstream agent produced — the upstream output is in the working tree from the moment the dependent branch is created. The dependent agent never needs to wait for the upstream pull request to merge. That is also why swarmkit forbids merging a dependency PR mid-swarm "to unblock" a downstream agent: the downstream agent is already unblocked by virtue of branching from the upstream tip, and an early merge would bypass your review gate for no gain.
 
-### Top-Down Merge with Ref Accumulation
+### Bottom-Up Merge with Up-Front Retargeting
 
-The naive way to merge a stack is bottom-up: merge the PR that targets `develop` first, then the one above it, then the one above that. This fails badly on GitHub. When the bottom PR merges and its branch is deleted, the PR immediately above it loses its base branch, and GitHub interprets the missing base as abandonment and auto-closes the dependent PR. You end up fighting the platform to re-open and re-target PRs that were perfectly healthy a minute earlier.
+The naive way to merge a stack bottom-up fails badly on GitHub: when the root PR merges and its branch is deleted, the PR immediately above it loses its base branch, and GitHub interprets the missing base as abandonment and auto-closes the dependent PR. You end up fighting the platform to re-open and re-target PRs that were perfectly healthy a minute earlier.
 
-`/merge-stack` merges top-down instead: leaf PRs first, then the PR below each leaf, cascading down until the root PR finally merges into the base branch. Intermediate merges deliberately omit `--delete-branch` so the base branch of the PR below survives for the next merge step. Only the final merge into the base branch deletes its branch.
+`/merge-stack` sidesteps this with an up-front retarget. Before any merge runs, every non-root PR in a multi-PR chain is retargeted to the base branch with `gh pr edit <N> --base $BASE`. Once a child's base is the base branch, deleting its predecessor's branch no longer looks like abandonment — the auto-close cascade never fires. This is the direction used by Graphite, git-spice, Sapling, and Phabricator, and it means the diff a reviewer approves is the diff that lands: no successive rebases into the root, no CI re-runs on a growing stack, no ref-juggling to preserve closing metadata.
 
-As each intermediate PR merges, its closing issue references are extracted from its body and appended to the body of the next PR down in the chain. By the time the root PR is merged, its body carries the complete set of `Closes #N` references for every issue in the chain. This matters for two reasons: the PR that merges into the base branch contains a full audit trail of what it resolved, and if the merge halts partway down (for example, because of a conflict), the lowest unmerged PR in the chain already contains every reference that successfully merged above it. Nothing is lost mid-collapse.
+With retargeting in place, every PR merges uniformly with `gh pr merge <N> --squash --delete-branch`. There is no per-role strategy matrix and no intermediate-branch sweep — `--delete-branch` handles cleanup inline. Each PR's own body closes its own `Closes #N` references natively as it merges. Chains merge from the root upward to the leaf; independent PRs (whose base is already `develop` and that have nothing stacked on them) may merge in any order.
 
-Independent PRs — those whose base is already `develop` and that no other PR sits on top of — may be merged in any order after the stacked chains resolve. They do not need the ref-accumulation dance because they are not part of a chain.
+If a merge halts partway up a chain (for example, because of a conflict), the remaining PRs above the halt point are marked blocked and reported at the end. Each PR above the halt still targets the base branch after the retarget, so the user can resolve the conflict and re-run `/merge-stack` without re-threading the stack.
 
 ### Loop Mode and Failure Handling
 
@@ -105,21 +105,20 @@ Agent 103 waits for #202 to exist, then spawns. It fetches `origin/worktree-agen
 
 At this point three PRs are open: #201 (→ `develop`), #202 (→ `worktree-agent-101`), #203 (→ `worktree-agent-102`). You review each one. None of them has merged yet.
 
-You run `/merge-stack`. It discovers the three PRs by scanning for open PRs with `worktree-agent-` head branches, builds the stack graph from the head/base fields, and prints a merge plan:
+You run `/merge-stack`. It discovers the three PRs by scanning for open PRs with `worktree-agent-` head branches, builds the stack graph from the head/base fields, retargets every non-root PR to `develop`, and prints a merge plan:
 
 ```
-Chain 1:  PR #203 → PR #202 → PR #201 → develop
+Chain 1:  develop ← PR #201 ← PR #202 ← PR #203
 
-  Step 1. Merge PR #203 into worktree-agent-102 (leaf of chain 1)
-  Step 2. Accumulate refs from #203 into PR #202 body
-  Step 3. Merge PR #202 into worktree-agent-101
-  Step 4. Accumulate refs from #202 into PR #201 body
-  Step 5. Merge PR #201 into develop
+  Retargeted 2 non-root PRs to develop: #202, #203
+  Step 1. Merge PR #201 into develop (squash, delete branch)
+  Step 2. Merge PR #202 into develop (squash, delete branch)
+  Step 3. Merge PR #203 into develop (squash, delete branch)
 ```
 
-Step 1 squash-merges #203 into `worktree-agent-102`. The `--delete-branch` flag is omitted because `worktree-agent-103` is not a base-branch target. In step 2, `Closes #103` is appended to the body of #202. Step 3 squash-merges #202 into `worktree-agent-101`, again without deleting the branch. Step 4 appends `Closes #102` and `Closes #103` to the body of #201. Step 5 squash-merges #201 into `develop` with `--delete-branch`, closing issues #101, #102, and #103 in a single merge. Finally `/clean-worktrees` removes the three worktree directories and the three local `worktree-agent-*` branches.
+Step 1 squash-merges #201 into `develop` and deletes `worktree-agent-101`. Because #202 was already retargeted to `develop`, GitHub does not auto-close it — #202's base is still `develop`. Step 2 squash-merges #202 into `develop` and deletes `worktree-agent-102`; step 3 does the same for #203. Each PR carries its own `Closes #10N` reference, so each issue closes natively on merge. Finally `/clean-worktrees` removes the three worktree directories and the three local `worktree-agent-*` branches.
 
-If anything had gone wrong on the way down — a merge conflict on #202, for example — the merge would have stopped there and reported the chain as halted at #202 with #201 as blocked downstream. PR #201's body would still carry the accumulated `Closes #103` reference from the successful #203 merge, so nothing from the completed work above is lost.
+If anything had gone wrong on the way up — a merge conflict on #202, for example — the merge would have stopped there and reported the chain as halted at #202 with #203 as blocked upstream. The retarget happened before the first merge, so #203 still targets `develop`; the user can resolve the conflict on #202 and re-run `/merge-stack` without re-threading the stack.
 
 ## Further Reading
 
