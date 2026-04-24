@@ -661,6 +661,105 @@ Cannot cleanup team with N active member(s): <name>. Use requestShutdown to grac
 
 ---
 
+## Preemptive Handoff Messages
+
+Preemptive handoff lets a long-running teammate retire voluntarily before it crashes against its context window and hand its in-flight work to a fresh successor. Two inline `SendMessage` payloads carry the lead↔teammate dialogue: `request_handoff` (lead → teammate) initiates the handoff; `handoff_ready` (teammate → lead) returns the state blob the lead needs to spawn the successor.
+
+This section defines the message schemas only. The polling loop that emits `request_handoff`, the teammate's handler for receiving it, and the lead's successor-spawn path are specified in separate issues (#513–#516) and must not be inferred from this section.
+
+### `request_handoff` (lead → teammate)
+
+Sent by the lead when it observes that a teammate's context usage has crossed a configured threshold and a preemptive handoff should begin. The recipient is a single teammate (builder or reviewer); the payload is addressed via `SendMessage({to: "<teammate-name>", ...})`.
+
+**Payload shape:**
+
+```
+SendMessage({
+  to: "<teammate-name>",
+  message: {
+    type: "request_handoff",
+    role: "builder" | "reviewer",
+    reason: "context_threshold",
+    threshold_bytes: <integer>
+  }
+})
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"request_handoff"` | yes | Discriminator — matches the dispatcher on the teammate side. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the recipient. Echoes the teammate's role so the teammate can assert it matches its own and the lead knows which variant of `handoff_ready` to expect. |
+| `reason` | enum | yes | Why the handoff was initiated. v1 defines a single value: `"context_threshold"`. Future reasons (e.g. `"manual"`, `"stuck_task"`) will extend the enum; unknown values must be rejected by the teammate. |
+| `threshold_bytes` | integer | yes | Observed context-usage measurement (in bytes) that triggered the handoff. Informational — the teammate does not re-check this; the lead's decision is authoritative. |
+
+**Direction:** lead → teammate (unicast). The lead never broadcasts `request_handoff`; one message per teammate being retired.
+
+### `handoff_ready` (teammate → lead)
+
+Sent by the teammate in response to `request_handoff` once it has quiesced its in-flight work (committed or stashed local edits, recorded the current task) and is ready to be replaced. The lead uses the returned state blob to spawn a successor that resumes exactly where the predecessor left off.
+
+**Payload shape (builder variant):**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "handoff_ready",
+    role: "builder",
+    predecessor: "<teammate-name>",
+    current_task_id: "<issue-or-task-id>",
+    state: {
+      worktree_path: "<absolute path to the builder's worktree>",
+      stash_ref:     "<git stash ref, e.g. stash@{0}, or null if nothing was stashed>",
+      branch:        "<current branch name, e.g. worktree-agent-<issue>>"
+    }
+  }
+})
+```
+
+**Payload shape (reviewer variant):**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "handoff_ready",
+    role: "reviewer",
+    predecessor: "<teammate-name>",
+    current_task_id: "<issue-or-task-id-being-reviewed, or null if idle>",
+    state: {}
+  }
+})
+```
+
+**Common fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"handoff_ready"` | yes | Discriminator. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the sender — selects which `state` variant applies. |
+| `predecessor` | string | yes | Teammate name being retired (e.g. `builder-123` or `builder-123-c2`). The lead uses this to derive the successor name and mark the predecessor for shutdown. |
+| `current_task_id` | string \| null | yes | Issue or task identifier the predecessor was working on at the moment of handoff. For the reviewer this may be null if the reviewer was idle between audits. The successor resumes from this task. |
+| `state` | object | yes | Role-specific resume blob — see variants below. |
+
+**Builder `state` variant (required when `role == "builder"`):**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `worktree_path` | string | yes | Absolute path to the builder's isolated worktree. The successor `cd`s into this path instead of creating a fresh worktree. |
+| `stash_ref` | string \| null | yes | Git stash ref (e.g. `stash@{0}`) capturing any uncommitted edits the predecessor chose to preserve, or `null` if the predecessor committed everything before quiescing. The successor pops this stash after entering the worktree. |
+| `branch` | string | yes | Current branch checked out in the worktree (e.g. `worktree-agent-<issue>`). The successor asserts it matches before resuming. |
+
+**Reviewer `state` variant (required when `role == "reviewer"`):**
+
+- Empty object `{}`. The reviewer is stateless on the filesystem — it writes nothing, owns no worktree, and stashes nothing — so the successor needs no resume blob beyond `current_task_id`. Additional reviewer state fields may be introduced in later versions; none are defined for v1.
+
+**Direction:** teammate → lead (unicast to `team-lead`). Exactly one `handoff_ready` is sent per `request_handoff` received.
+
+---
+
 ## Teardown
 
 Runs **regardless of success or halt**. Every step must be idempotent — running teardown twice must not error or leave the repo in a worse state.
