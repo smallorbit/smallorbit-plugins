@@ -120,7 +120,7 @@ Add one task per issue to the Agent Teams shared TaskList:
 - `blockedBy`: list of upstream issue numbers (empty for independent issues)
 - `assignee`: `null` (builders self-claim)
 
-Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 8).
+Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 9).
 
 ### 4. Apply `status:in-progress` label
 
@@ -194,7 +194,7 @@ Agent({
 })
 ```
 
-Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
+Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 9), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
 
 ### 7. Monitor and exit
 
@@ -281,7 +281,7 @@ Agent({
 })
 ```
 
-Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
+Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 9). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
 
 **Step 5 — Monitor current batch**
 
@@ -341,7 +341,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 Notes:
 
 - **`TeamCreate` registers the orchestrator as `team-lead`**, not `lead`. Always address the orchestrator with `SendMessage({to: "team-lead", ...})`.
-- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 2). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
+- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 3). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
 ### 1. Initial fetch _(loop mode only)_
@@ -416,7 +416,30 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
 1. **Claim the assigned issue** on the Agent Teams shared task list. The claim is atomic — if another teammate has already claimed this issue, abort.
 
-2. **Worktree setup** — detect whether `isolation: "worktree"` actually took effect, then either use the pre-created worktree or fall back to manual setup:
+2. **Self-report session UUID to the lead.** As the FIRST outbound message after spawn (before worktree setup, before any other coordination), resolve the session UUID and send a `teammate_hello` payload to the lead. See the Teammate Hello section for the schema and resolution steps:
+
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+   ```
+
+   Then:
+
+   ```
+   SendMessage({
+     to: "team-lead",
+     message: {
+       type: "teammate_hello",
+       role: "builder",
+       name: "builder-<issue>",           // or "builder-<issue>-c<cycle>" in loop mode
+       session_uuid: "<resolved-uuid>"
+     }
+   })
+   ```
+
+   The lead caches this mapping (see Teammate Hello, lead-side handling) before any further coordination happens.
+
+3. **Worktree setup** — detect whether `isolation: "worktree"` actually took effect, then either use the pre-created worktree or fall back to manual setup:
 
    - **Isolation probe.** Compare `--git-dir` and `--git-common-dir`. Inside a linked worktree, `--git-dir` points at `.git/worktrees/<name>` while `--git-common-dir` points at the main repo's `.git`. Equal paths ⇒ not in a linked worktree:
      ```bash
@@ -463,9 +486,9 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: unable to establish isolated worktree. Respawn under a new name."})
      ```
 
-3. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
+4. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
 
-4. **Request review** by sending the reviewer the issue number and the diff path, then wait for a response:
+5. **Request review** by sending the reviewer the issue number and the diff path, then wait for a response:
 
    ```
    SendMessage({to: "reviewer", message: "<issue>#<diff-path>"})
@@ -473,7 +496,7 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
    Block on the mailbox until the reviewer replies with `approve` or `revise: <reasons>`.
 
-5. **On `approve`**:
+6. **On `approve`**:
    - Commit using `swarmkit:conventional-commit-message` format. No Claude mentions, no co-author lines.
    - Push the branch
    - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked) with a richer body synthesized from the issue spec and your diff:
@@ -495,12 +518,12 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
      The `<...>` placeholders are instructions, not literal text — replace each with content you derive from the issue spec and your diff. Do not copy the placeholder strings into the PR body.
 
-6. **On `revise: <reasons>`**:
+7. **On `revise: <reasons>`**:
    - Address the feedback
-   - Re-request review (repeat step 4)
+   - Re-request review (repeat step 5)
    - Repeat until the reviewer responds `approve`
 
-7. **Notify**:
+8. **Notify**:
    - After a successful push, notify any downstream builder so they can rebase onto the updated upstream:
      ```
      SendMessage({to: "builder-<downstream>", message: "pushed"})
@@ -510,11 +533,11 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      SendMessage({to: "team-lead", message: "<issue> completed, PR: <url>"})
      ```
 
-8. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
+9. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
 
    - Call `TaskList` and scan for an issue that is unblocked and unassigned
    - Atomically claim it (same mechanism as step 1). If another teammate beat you to the claim, re-scan the list and try the next candidate
-   - On a successful claim, **repeat from step 2** using the newly claimed issue as the current one (new worktree, new implementation, new review cycle, new notify)
+   - On a successful claim, **repeat from step 3** (worktree setup) using the newly claimed issue as the current one (new worktree, new implementation, new review cycle, new notify). Do **not** repeat step 2 — the `teammate_hello` handshake is spawn-scoped and fires only once per teammate lifetime
    - If no unblocked, unassigned tasks remain, exit cleanly
 
    The lead does not spawn a replacement when you exit — the fixed pool drains naturally as each builder runs out of claimable work.
@@ -545,26 +568,49 @@ The reviewer is the single long-running auditor for the team. It never writes to
 
 ### Workflow
 
-1. **Wait for an audit request.** Audit requests from builders are delivered into the conversation automatically — no polling primitive is required.
+1. **Self-report session UUID to the lead.** As the FIRST outbound message after spawn (before waiting on audit requests), resolve the session UUID and send a `teammate_hello` payload to the lead. See the Teammate Hello section for the schema and resolution steps:
 
-2. **Parse the request.** Builders send structured payloads of the form:
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+   ```
+
+   Then:
+
+   ```
+   SendMessage({
+     to: "team-lead",
+     message: {
+       type: "teammate_hello",
+       role: "reviewer",
+       name: "reviewer",
+       session_uuid: "<resolved-uuid>"
+     }
+   })
+   ```
+
+   This fires exactly once per reviewer spawn — the reviewer is long-running across the whole team lifetime, so there is no per-audit repeat.
+
+2. **Wait for an audit request.** Audit requests from builders are delivered into the conversation automatically — no polling primitive is required.
+
+3. **Parse the request.** Builders send structured payloads of the form:
 
    ```
    {from: "builder-N", issue: "N", branch: "worktree-agent-N", diff-path: "<worktree path>"}
    ```
 
-3. **Read the diff** directly from the builder's worktree — no filesystem writes, no `git checkout`:
+4. **Read the diff** directly from the builder's worktree — no filesystem writes, no `git checkout`:
 
    ```bash
    git -C <diff-path> diff develop...HEAD
    ```
 
-4. **Audit against the issue spec.** Check the diff against the acceptance criteria on the referenced issue:
+5. **Audit against the issue spec.** Check the diff against the acceptance criteria on the referenced issue:
    - Is the scope correct? (no extra files, no unrelated refactors)
    - Any obvious bugs?
    - Are tests present where the spec calls for them?
 
-5. **Respond** to the requesting builder:
+6. **Respond** to the requesting builder:
    - Approve:
      ```
      SendMessage({to: "builder-N", message: "approve"})
@@ -574,7 +620,7 @@ The reviewer is the single long-running auditor for the team. It never writes to
      SendMessage({to: "builder-N", message: "revise: <concise actionable reasons>"})
      ```
 
-6. **Return to step 1** and serve the next audit request.
+7. **Return to step 2** and serve the next audit request.
 
 ### Hard constraints
 
@@ -633,7 +679,7 @@ A builder can fail to start at all — for example, when the tmux shell is misco
 tmux/.tmux.conf:4: not a suitable shell
 ```
 
-A builder can also fail its worktree setup step (see Builder Teammate Contract, step 2). Note that squad's DOA path here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --git-dir` vs. `--git-common-dir`) to decide whether `isolation: "worktree"` took effect. If it did not (the in-process Agent Teams backend silently ignores the flag today — see #362), the builder falls back to creating its own worktree under `<repo>/.claude/worktrees/`; DOA only fires when **both** isolation and manual setup fail (e.g. git unavailable, permission error).
+A builder can also fail its worktree setup step (see Builder Teammate Contract, step 3). Note that squad's DOA path here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --git-dir` vs. `--git-common-dir`) to decide whether `isolation: "worktree"` took effect. If it did not (the in-process Agent Teams backend silently ignores the flag today — see #362), the builder falls back to creating its own worktree under `<repo>/.claude/worktrees/`; DOA only fires when **both** isolation and manual setup fail (e.g. git unavailable, permission error).
 
 When this happens the builder process exits immediately without ever joining the team mailbox. Its `isActive` flag in the team config file (`~/.claude/teams/<team>/config.json`) remains `true` because no graceful shutdown message was exchanged. Any subsequent `TeamDelete` call will be blocked with:
 
@@ -658,6 +704,68 @@ Cannot cleanup team with N active member(s): <name>. Use requestShutdown to grac
 - No auto-respawn of crashed teammates (deferred to v2)
 - No partial-success continuation — one crash halts entire run
 - No automatic cleanup on halt — teardown runs but in-flight worktrees may contain uncommitted work the user should inspect first
+
+---
+
+## Teammate Hello
+
+Every teammate (builder or reviewer) self-reports its Claude Code session UUID to the lead as its FIRST outbound message after spawn. The lead needs this UUID to externally observe the teammate's transcript file (e.g. for context-size polling — see #513) without scanning the raw JSONL stream itself. A single inline `SendMessage` payload, `teammate_hello`, carries the report.
+
+This section defines the `teammate_hello` schema and the lead-side cache it populates. The polling loop that consumes the cache is out of scope here and is specified in #513.
+
+### Session UUID resolution (teammate side)
+
+Before sending `teammate_hello`, the teammate resolves its own session UUID using the `sessionkit:get-session-id` path scheme:
+
+- **Project slug** — derived from the current working directory by replacing every `/` with `-`:
+  ```bash
+  SLUG=$(pwd | sed 's|/|-|g')
+  ```
+- **Session UUID** — the basename (without the `.jsonl` extension) of the most-recently-modified `.jsonl` file under `~/.claude/projects/<slug>/`:
+  ```bash
+  SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+  ```
+
+If the resolution yields an empty string (no project dir, no transcripts), the teammate sends `teammate_hello` with `session_uuid: null` so the lead can log the gap without crashing its cache update.
+
+### `teammate_hello` (teammate → lead)
+
+Sent by every teammate — builder or reviewer — as its first outbound message after spawn, before any worktree setup, audit handling, or other coordination.
+
+**Payload shape:**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "teammate_hello",
+    role: "builder" | "reviewer",
+    name: "<teammate-name>",
+    session_uuid: "<resolved-uuid-or-null>"
+  }
+})
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"teammate_hello"` | yes | Discriminator — matches the dispatcher on the lead side. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the sender. The lead may use this for per-role policies (e.g. distinct polling thresholds) but does not key the cache on it. |
+| `name` | string | yes | Teammate name exactly as spawned (e.g. `builder-123`, `builder-123-c2`, `reviewer`). This is the cache key. |
+| `session_uuid` | string \| null | yes | Claude Code session UUID resolved via the `sessionkit:get-session-id` path scheme. `null` if resolution failed. |
+
+**Direction:** teammate → lead (unicast to `team-lead`). Exactly one `teammate_hello` is sent per teammate spawn. It is **not** re-sent when a builder self-claims a follow-on task — self-claim stays within the same session, so the cached UUID is still valid.
+
+### Lead-side handling
+
+The lead maintains an in-memory **name → session_uuid** cache for the lifetime of the team. When a `teammate_hello` arrives:
+
+1. **Key by `name`.** The cache is keyed on the `name` field — not on role or session UUID — because name is the same handle the lead uses for `SendMessage`, `shutdown_request`, and successor-spawn accounting.
+2. **Overwrite on respawn.** If an entry for the incoming `name` already exists (e.g. a preemptive-handoff successor reusing the predecessor's name, or a DOA-recovery respawn), overwrite it unconditionally. The successor's session UUID cleanly replaces the predecessor's — the lead does not keep stale UUIDs around.
+3. **No broadcast.** The lead does not propagate the cache to other teammates; it is consumed only by lead-side processes (e.g. transcript-size polling in #513).
+
+The cache is discarded at teardown along with the rest of the team state.
 
 ---
 
