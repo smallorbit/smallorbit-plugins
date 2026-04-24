@@ -46,27 +46,23 @@ fi
 
 base_existed=true
 base_created=false
-if ! git ls-remote --exit-code origin "$BASE" >/dev/null 2>&1; then
+if ! git rev-parse --verify --quiet "refs/remotes/origin/$BASE" >/dev/null; then
   base_existed=false
-  if ! git ls-remote --exit-code origin main >/dev/null 2>&1; then
+  if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
     echo "preflight: base '$BASE' is missing on origin and 'main' does not exist to seed it from" >&2
     exit 1
   fi
-  if ! git fetch origin main >/dev/null 2>&1 \
-    || ! git push origin "refs/remotes/origin/main:refs/heads/$BASE" >/dev/null 2>&1; then
+  if ! git push origin "refs/remotes/origin/main:refs/heads/$BASE" >/dev/null 2>&1; then
     echo "preflight: failed to create '$BASE' on origin from 'main'" >&2
     exit 1
   fi
   base_created=true
 fi
 
-gh_authenticated=true
-if ! gh auth status >/dev/null 2>&1; then
-  gh_authenticated=false
-fi
-
+gh_authenticated=false
 repo=""
-if [[ "$gh_authenticated" == "true" ]]; then
+if gh auth status >/dev/null 2>&1; then
+  gh_authenticated=true
   if ! repo="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)"; then
     echo "preflight: 'gh repo view' failed despite authenticated session" >&2
     exit 1
