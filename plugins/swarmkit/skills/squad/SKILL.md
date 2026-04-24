@@ -397,6 +397,44 @@ Completion messages (`<issue> completed, PR: <url>`) are logged for the final su
 
 The lead reads teammate status by handling incoming messages from teammates — they are delivered automatically into the lead's conversation, so there is no `ReceiveMessage` poll. The lead does **not** probe teammates directly; all coordination flows through messages.
 
+#### 3a. Post-roundtrip transcript-size poll
+
+After **every** `SendMessage` roundtrip with a named teammate (i.e. every time the lead sends a message to a teammate and receives a reply, or otherwise completes an exchange with a named teammate during watch), the lead performs a lightweight transcript-size check to detect teammate context exhaustion before it crashes the teammate. The check piggybacks on Dispatch Loop iteration — **there is no periodic timer; time-based polling is explicitly out of scope for v1**.
+
+Declare the threshold as a named constant:
+
+```
+ROTATE_THRESHOLD_BYTES = 1048576   # 1.0 MB
+```
+
+**Rationale (from empirical probe #452):** a teammate transcript on disk grows roughly from ~300 KB when fresh to ~1.4 MB when the session has exhausted its context window. 1.0 MB is the conservative midpoint — large enough to avoid churning handoffs on healthy sessions, small enough to fire well before the teammate actually crashes. **Making this threshold configurable is out of scope for v1** — it is hard-coded deliberately until real-world data justifies a knob.
+
+For each roundtrip with teammate `<name>`, run these three steps **in order**:
+
+1. **Look up the session UUID** for `<name>` in the `teammate_hello` cache (see the Teammate Hello section, lead-side handling). If the cache has no entry for `<name>` — or the cached `session_uuid` is `null` — skip the check for this roundtrip and log the gap. The hello handshake may not have been processed yet, or resolution failed on the teammate side; either way, there is nothing to `stat`.
+
+2. **`stat` the transcript file** at `~/.claude/projects/<slug>/<uuid>.jsonl`, where `<slug>` is derived from the current working directory the same way the teammate derives it for `teammate_hello` — by replacing every `/` with `-`:
+
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SIZE=$(stat -f %z ~/.claude/projects/"$SLUG"/"$UUID".jsonl 2>/dev/null || stat -c %s ~/.claude/projects/"$SLUG"/"$UUID".jsonl 2>/dev/null)
+   ```
+
+   If the file does not exist or `stat` fails, skip the check for this roundtrip and log the gap — do not error out.
+
+3. **Emit `request_handoff` if size ≥ `ROTATE_THRESHOLD_BYTES`.** Send the `request_handoff` message (schema defined in the Preemptive Handoff section) to `<name>`:
+
+   ```
+   SendMessage({
+     to: "<name>",
+     message: { type: "request_handoff", ... }
+   })
+   ```
+
+   The handoff dialogue itself — the teammate's `handoff_ready` reply, successor spawn, and teardown cleanup — is specified in separate issues (#514–#517) and is not part of this check. The check's sole responsibility is **detecting the threshold breach and emitting `request_handoff`**.
+
+Do not re-emit `request_handoff` to the same teammate while an earlier one for that teammate is still outstanding — one handoff request per teammate at a time.
+
 ### 4. Mode-specific termination
 
 - **One-shot mode** — exits as soon as every issue in the initial target set has a PR. No re-fetching.
