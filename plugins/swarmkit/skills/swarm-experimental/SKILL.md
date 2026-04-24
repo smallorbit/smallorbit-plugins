@@ -238,9 +238,34 @@ Each agent prompt MUST include these **workflow steps** (in order):
 
 ### 5. Handle completions
 
-After each agent completes, always verify:
-- **(a) Branch is pushed to origin** — run `git ls-remote --exit-code origin worktree-agent-<issue>`. If absent, push it: `git push -u origin worktree-agent-<issue>`
-- **(b) A PR exists referencing the issue** — run `gh pr list --head worktree-agent-<issue>`. If none, create the PR on the agent's behalf using the agent's commits and the issue spec.
+After each agent completes, run the verify script once per agent:
+
+```bash
+plugins/swarmkit/skills/swarm-experimental/scripts/verify_agent.sh <issue>
+```
+
+On success the script exits 0 and emits a single JSON object on stdout:
+
+```json
+{
+  "issue": 102,
+  "branch": "worktree-agent-102",
+  "branch_pushed": true,
+  "pushed_now": false,
+  "pr_exists": true,
+  "pr_url": "https://github.com/owner/name/pull/210",
+  "pr_base": "develop"
+}
+```
+
+Parse the JSON and act on the fields:
+
+- **`branch_pushed: false` and no local branch** — the agent produced no push and no local branch exists; announce the unrecoverable failure and treat the issue as failed (do not attempt PR creation).
+- **`pushed_now: true`** — the script pushed the branch on the agent's behalf; announce this before proceeding.
+- **`pr_exists: false`** — create the PR on the agent's behalf using the agent's commits and the issue spec. PR creation (title, body, base branch selection) is a judgment call made by Claude using the existing PR-body template from Step 4. Use `pr_base` from the preflight JSON (or the appropriate stacked-branch base for dependent issues) as the `--base` argument.
+- **`pr_exists: true`** — no action needed; `pr_url` carries the existing PR link.
+
+If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and treat the issue as failed.
 
 Report the PR link once confirmed. Verify each PR's diff matches the issue scope.
 
