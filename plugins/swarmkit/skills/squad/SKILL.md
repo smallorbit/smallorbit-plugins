@@ -120,7 +120,7 @@ Add one task per issue to the Agent Teams shared TaskList:
 - `blockedBy`: list of upstream issue numbers (empty for independent issues)
 - `assignee`: `null` (builders self-claim)
 
-Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 8).
+Blocked tasks transition to `unblocked` when all their `blockedBy` dependencies report completion. Builders check the TaskList for claimable work after finishing each issue (see Builder Teammate Contract, step 9).
 
 ### 4. Apply `status:in-progress` label
 
@@ -194,7 +194,7 @@ Agent({
 })
 ```
 
-Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 8), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
+Builders self-claim the next unblocked task from the TaskList when they finish (see Builder Teammate Contract, step 9), so a pool smaller than the unblocked count still processes every issue — it just takes more rounds.
 
 ### 7. Monitor and exit
 
@@ -281,7 +281,7 @@ Agent({
 })
 ```
 
-Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 8). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
+Builders self-claim downstream tasks from the TaskList as they unblock (see Builder Teammate Contract, step 9). Between cycles, top up the pool if builders have exited and new unblocked issues exist — but never exceed `max_builders` active builders at once.
 
 **Step 5 — Monitor current batch**
 
@@ -341,7 +341,7 @@ The Agent Teams API is built from existing Claude Code primitives — there is n
 Notes:
 
 - **`TeamCreate` registers the orchestrator as `team-lead`**, not `lead`. Always address the orchestrator with `SendMessage({to: "team-lead", ...})`.
-- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 2). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
+- **`isolation: "worktree"` on the `Agent` tool is what gives the builder its isolated git worktree.** Builders must be spawned with this flag; the reviewer must not (it audits inside the builders' worktrees, not its own). Today's in-process Agent Teams backend silently ignores the flag — see #362 — so the builder contract includes a manual-worktree fallback (see Builder Teammate Contract, step 3). Once the backend honors `isolation: "worktree"`, the fallback is a no-op.
 - **Only actual squad members join the team.** The reviewer and the builders use `team_name`. Any utility/research subagents the lead spawns for its own work (codebase exploration, etc.) must be plain `Agent({...})` calls **without** `team_name` — otherwise they pollute the team mailbox.
 
 ### 1. Initial fetch _(loop mode only)_
@@ -397,6 +397,98 @@ Completion messages (`<issue> completed, PR: <url>`) are logged for the final su
 
 The lead reads teammate status by handling incoming messages from teammates — they are delivered automatically into the lead's conversation, so there is no `ReceiveMessage` poll. The lead does **not** probe teammates directly; all coordination flows through messages.
 
+#### 3a. Post-roundtrip transcript-size poll
+
+After **every** `SendMessage` roundtrip with a named teammate (i.e. every time the lead sends a message to a teammate and receives a reply, or otherwise completes an exchange with a named teammate during watch), the lead performs a lightweight transcript-size check to detect teammate context exhaustion before it crashes the teammate. The check piggybacks on Dispatch Loop iteration — **there is no periodic timer; time-based polling is explicitly out of scope for v1**.
+
+Declare the threshold as a named constant:
+
+```
+ROTATE_THRESHOLD_BYTES = 1048576   # 1.0 MB
+```
+
+**Rationale (from empirical probe #452):** a teammate transcript on disk grows roughly from ~300 KB when fresh to ~1.4 MB when the session has exhausted its context window. 1.0 MB is the conservative midpoint — large enough to avoid churning handoffs on healthy sessions, small enough to fire well before the teammate actually crashes. **Making this threshold configurable is out of scope for v1** — it is hard-coded deliberately until real-world data justifies a knob.
+
+For each roundtrip with teammate `<name>`, run these three steps **in order**:
+
+1. **Look up the session UUID** for `<name>` in the `teammate_hello` cache (see the Teammate Hello section, lead-side handling). If the cache has no entry for `<name>` — or the cached `session_uuid` is `null` — skip the check for this roundtrip and log the gap. The hello handshake may not have been processed yet, or resolution failed on the teammate side; either way, there is nothing to `stat`.
+
+2. **`stat` the transcript file** at `~/.claude/projects/<slug>/<uuid>.jsonl`, where `<slug>` is derived from the current working directory the same way the teammate derives it for `teammate_hello` — by replacing every `/` with `-`:
+
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SIZE=$(stat -f %z ~/.claude/projects/"$SLUG"/"$UUID".jsonl 2>/dev/null || stat -c %s ~/.claude/projects/"$SLUG"/"$UUID".jsonl 2>/dev/null)
+   ```
+
+   If the file does not exist or `stat` fails, skip the check for this roundtrip and log the gap — do not error out.
+
+3. **Emit `request_handoff` if size ≥ `ROTATE_THRESHOLD_BYTES`.** Send the `request_handoff` message (schema defined in the Preemptive Handoff section) to `<name>`:
+
+   ```
+   SendMessage({
+     to: "<name>",
+     message: { type: "request_handoff", ... }
+   })
+   ```
+
+   The handoff dialogue itself — the teammate's `handoff_ready` reply, successor spawn, and teardown cleanup — is specified in separate issues (#514–#517) and is not part of this check. The check's sole responsibility is **detecting the threshold breach and emitting `request_handoff`**.
+
+Do not re-emit `request_handoff` to the same teammate while an earlier one for that teammate is still outstanding — one handoff request per teammate at a time.
+
+#### 3b. Successor spawn on `handoff_ready` receipt
+
+When the lead receives a `handoff_ready` message (schema in the Preemptive Handoff Messages section) from a retiring teammate, it spawns a fresh successor that resumes the predecessor's in-flight work. This is the step that keeps headcount stable — without it, every preemptive handoff permanently reduces the pool by one and the squad eventually starves.
+
+On receipt of `handoff_ready` from predecessor `<predecessor>` carrying `current_task_id` and a role-specific `state` blob, the lead spawns the successor immediately — before clearing the outstanding `request_handoff` entry for `<predecessor>`.
+
+##### Successor name: `<role>-h<N>` lineage counter
+
+The successor's `Agent({name: ...})` is derived by appending (or incrementing) a `-h<N>` suffix on the predecessor's name:
+
+| Predecessor name | Successor name |
+|---|---|
+| `reviewer` | `reviewer-h1` |
+| `reviewer-h1` | `reviewer-h2` |
+| `builder-42` | `builder-42-h1` |
+| `builder-42-c2` | `builder-42-c2-h1` |
+| `builder-42-h1` | `builder-42-h2` |
+| `builder-42-h2` | `builder-42-h3` |
+
+**Counter rules:**
+
+- The counter `N` is **per-lineage**, not per-cycle: every successor in the same chain increments from the last `-h<N>` on the predecessor's name. A chain may grow arbitrarily long (`builder-42` → `-h1` → `-h2` → `-h3` → ...) within a single run.
+- **The counter spans chains** — it is not reset by loop-mode cycle boundaries, by reviewer handoffs, or by unrelated builder handoffs. As long as a teammate is the handoff descendant of another, the counter continues climbing on that lineage.
+- The counter is derived mechanically from the predecessor's name — parse the trailing `-h<digits>` if present, increment it; otherwise append `-h1`. The lead does not maintain a separate counter store; the name itself is the source of truth.
+- Names from other axes (`-c<cycle>` loop suffix, issue numbers) are preserved verbatim; only the `-h<N>` segment moves.
+
+##### Spawn options: no `isolation: "worktree"`
+
+The successor is spawned via `Agent({...})` with the **same** `team_name`, `subagent_type`, and general spawn shape as the predecessor, with one critical exception:
+
+> **Do not pass `isolation: "worktree"` on the successor spawn.** The predecessor's `handoff_ready` payload carries the `worktree_path` (builder variant) where the in-flight work — including any `stash_ref` — lives. A fresh isolated worktree would orphan the stash: the successor would land in a brand-new empty working tree with no path back to the predecessor's stashed edits or branch. Reusing the predecessor's worktree is what makes the stash-pop and branch continuity possible.
+
+For reviewers the flag is already omitted (reviewers never spawn with `isolation: "worktree"` in the first place), so the rule is a no-op on that side; it is stated here for consistency so the spawn shape matches across roles.
+
+##### Spawn prompt
+
+The successor's prompt is the same role contract (Builder Teammate Contract or Reviewer Teammate Contract) as the predecessor, **prefixed** with a handoff-resume preamble derived from the `handoff_ready` payload:
+
+1. **`cd` into the predecessor's worktree.** For the builder variant, use `state.worktree_path` verbatim. For the reviewer variant, the `state` blob is empty and no `cd` is needed — the reviewer is stateless on the filesystem.
+
+   ```bash
+   cd <state.worktree_path>        # builder only
+   ```
+
+2. **`git stash pop <stash_ref>` — builders only, and only if `state.stash_ref` is non-null.** The reviewer has no stash (its `state` is empty), so no pop is performed. If the builder's predecessor committed everything before quiescing and `state.stash_ref` is null, skip the pop.
+
+   ```bash
+   git stash pop <state.stash_ref>   # builder only, only when stash_ref != null
+   ```
+
+3. **Re-claim the task.** The preamble includes `current_task_id` from the payload so the successor can atomically re-claim it on the shared task list (the predecessor released the claim as part of its quiesce sequence — see Builder Teammate Contract step 10 and Reviewer Teammate Contract step 8). The successor then resumes the role's normal workflow from the appropriate step (builder: implementation; reviewer: audit loop).
+
+After spawning, the lead clears the outstanding-handoff tracking entry for `<predecessor>` so a future transcript-size breach against the successor can issue its own `request_handoff`. Predecessor teardown (removing the stale name from the team config, verifying it has exited) is out of scope here and handled separately.
+
 ### 4. Mode-specific termination
 
 - **One-shot mode** — exits as soon as every issue in the initial target set has a PR. No re-fetching.
@@ -416,7 +508,30 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
 1. **Claim the assigned issue** on the Agent Teams shared task list. The claim is atomic — if another teammate has already claimed this issue, abort.
 
-2. **Worktree setup** — detect whether `isolation: "worktree"` actually took effect, then either use the pre-created worktree or fall back to manual setup:
+2. **Self-report session UUID to the lead.** As the FIRST outbound message after spawn (before worktree setup, before any other coordination), resolve the session UUID and send a `teammate_hello` payload to the lead. See the Teammate Hello section for the schema and resolution steps:
+
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+   ```
+
+   Then:
+
+   ```
+   SendMessage({
+     to: "team-lead",
+     message: {
+       type: "teammate_hello",
+       role: "builder",
+       name: "builder-<issue>",           // or "builder-<issue>-c<cycle>" in loop mode
+       session_uuid: "<resolved-uuid>"
+     }
+   })
+   ```
+
+   The lead caches this mapping (see Teammate Hello, lead-side handling) before any further coordination happens.
+
+3. **Worktree setup** — detect whether `isolation: "worktree"` actually took effect, then either use the pre-created worktree or fall back to manual setup:
 
    - **Isolation probe.** Compare `--git-dir` and `--git-common-dir`. Inside a linked worktree, `--git-dir` points at `.git/worktrees/<name>` while `--git-common-dir` points at the main repo's `.git`. Equal paths ⇒ not in a linked worktree:
      ```bash
@@ -463,9 +578,9 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      SendMessage({to: "team-lead", message: "builder-<issue> dead-on-arrival: unable to establish isolated worktree. Respawn under a new name."})
      ```
 
-3. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
+4. **Implement the issue changes.** Use relative paths only from CWD. Stay scoped to the issue's acceptance criteria.
 
-4. **Request review** by sending the reviewer the issue number and the diff path, then wait for a response:
+5. **Request review** by sending the reviewer the issue number and the diff path, then wait for a response:
 
    ```
    SendMessage({to: "reviewer", message: "<issue>#<diff-path>"})
@@ -473,7 +588,7 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
    Block on the mailbox until the reviewer replies with `approve` or `revise: <reasons>`.
 
-5. **On `approve`**:
+6. **On `approve`**:
    - Commit using `swarmkit:conventional-commit-message` format. No Claude mentions, no co-author lines.
    - Push the branch
    - Create the PR targeting the correct base (`develop` for independent issues, `worktree-agent-<upstream>` for stacked) with a richer body synthesized from the issue spec and your diff:
@@ -495,12 +610,12 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
 
      The `<...>` placeholders are instructions, not literal text — replace each with content you derive from the issue spec and your diff. Do not copy the placeholder strings into the PR body.
 
-6. **On `revise: <reasons>`**:
+7. **On `revise: <reasons>`**:
    - Address the feedback
-   - Re-request review (repeat step 4)
+   - Re-request review (repeat step 5)
    - Repeat until the reviewer responds `approve`
 
-7. **Notify**:
+8. **Notify**:
    - After a successful push, notify any downstream builder so they can rebase onto the updated upstream:
      ```
      SendMessage({to: "builder-<downstream>", message: "pushed"})
@@ -510,14 +625,47 @@ A builder is a teammate responsible for shipping one or more issues. It is spawn
      SendMessage({to: "team-lead", message: "<issue> completed, PR: <url>"})
      ```
 
-8. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
+9. **Self-claim the next unblocked task.** After notifying the lead, do not exit — check the shared task list for more work:
 
    - Call `TaskList` and scan for an issue that is unblocked and unassigned
    - Atomically claim it (same mechanism as step 1). If another teammate beat you to the claim, re-scan the list and try the next candidate
-   - On a successful claim, **repeat from step 2** using the newly claimed issue as the current one (new worktree, new implementation, new review cycle, new notify)
+   - On a successful claim, **repeat from step 3** (worktree setup) using the newly claimed issue as the current one (new worktree, new implementation, new review cycle, new notify). Do **not** repeat step 2 — the `teammate_hello` handshake is spawn-scoped and fires only once per teammate lifetime
    - If no unblocked, unassigned tasks remain, exit cleanly
 
    The lead does not spawn a replacement when you exit — the fixed pool drains naturally as each builder runs out of claimable work.
+
+10. **Handle `request_handoff` from the lead.** At any point after step 2, the lead may send a `request_handoff` message signalling that the builder should retire voluntarily so a fresh successor can resume its work (see the Preemptive Handoff section for the schema). On receipt, the builder quiesces its in-flight state, releases its claim, reports back, and exits. Perform these steps **in order** — stashing must complete before the task-list claim is released so the worktree is quiesced and stable before any successor can re-claim it:
+
+    1. **Stash in-flight edits.** Run `git stash -u` in the current worktree to preserve both tracked and untracked uncommitted changes. Capture the resulting stash ref (typically `stash@{0}`). If the working tree is clean, there will be no stash — record `stash_ref: null` for the reply.
+       ```bash
+       if git stash -u --include-untracked 2>/dev/null | grep -q 'Saved working directory'; then
+         STASH_REF="stash@{0}"
+       else
+         STASH_REF=null
+       fi
+       ```
+
+    2. **Release the task-list claim.** Unassign the builder from the current issue on the Agent Teams shared task list so the successor can atomically re-claim it (same mechanism as step 1, in reverse). Until this release completes, the successor cannot claim the task and the handoff will stall.
+
+    3. **Reply with `handoff_ready`.** Send the builder-variant payload to the lead, carrying the state blob the lead needs to spawn the successor into the same worktree:
+       ```
+       SendMessage({
+         to: "team-lead",
+         message: {
+           type: "handoff_ready",
+           role: "builder",
+           predecessor: "builder-<issue>",       // or "builder-<issue>-c<cycle>" in loop mode
+           current_task_id: "<issue>",
+           state: {
+             worktree_path: "<absolute path to this worktree>",
+             stash_ref:     "<STASH_REF from step 10.1, or null>",
+             branch:        "worktree-agent-<issue>"
+           }
+         }
+       })
+       ```
+
+    4. **Exit cleanly.** Do not re-enter step 9's self-claim loop — the handoff is terminal for this teammate. The lead spawns the successor separately (see #516); this builder's lifetime ends here.
 
 ### Upstream → downstream notify protocol
 
@@ -545,26 +693,49 @@ The reviewer is the single long-running auditor for the team. It never writes to
 
 ### Workflow
 
-1. **Wait for an audit request.** Audit requests from builders are delivered into the conversation automatically — no polling primitive is required.
+1. **Self-report session UUID to the lead.** As the FIRST outbound message after spawn (before waiting on audit requests), resolve the session UUID and send a `teammate_hello` payload to the lead. See the Teammate Hello section for the schema and resolution steps:
 
-2. **Parse the request.** Builders send structured payloads of the form:
+   ```bash
+   SLUG=$(pwd | sed 's|/|-|g')
+   SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+   ```
+
+   Then:
+
+   ```
+   SendMessage({
+     to: "team-lead",
+     message: {
+       type: "teammate_hello",
+       role: "reviewer",
+       name: "reviewer",
+       session_uuid: "<resolved-uuid>"
+     }
+   })
+   ```
+
+   This fires exactly once per reviewer spawn — the reviewer is long-running across the whole team lifetime, so there is no per-audit repeat.
+
+2. **Wait for an audit request.** Audit requests from builders are delivered into the conversation automatically — no polling primitive is required.
+
+3. **Parse the request.** Builders send structured payloads of the form:
 
    ```
    {from: "builder-N", issue: "N", branch: "worktree-agent-N", diff-path: "<worktree path>"}
    ```
 
-3. **Read the diff** directly from the builder's worktree — no filesystem writes, no `git checkout`:
+4. **Read the diff** directly from the builder's worktree — no filesystem writes, no `git checkout`:
 
    ```bash
    git -C <diff-path> diff develop...HEAD
    ```
 
-4. **Audit against the issue spec.** Check the diff against the acceptance criteria on the referenced issue:
+5. **Audit against the issue spec.** Check the diff against the acceptance criteria on the referenced issue:
    - Is the scope correct? (no extra files, no unrelated refactors)
    - Any obvious bugs?
    - Are tests present where the spec calls for them?
 
-5. **Respond** to the requesting builder:
+6. **Respond** to the requesting builder:
    - Approve:
      ```
      SendMessage({to: "builder-N", message: "approve"})
@@ -574,7 +745,28 @@ The reviewer is the single long-running auditor for the team. It never writes to
      SendMessage({to: "builder-N", message: "revise: <concise actionable reasons>"})
      ```
 
-6. **Return to step 1** and serve the next audit request.
+7. **Return to step 2** and serve the next audit request.
+
+8. **Handle `request_handoff` from the lead.** At any point after step 1, the lead may send a `request_handoff` message signalling that the reviewer should retire voluntarily so a fresh successor can take over (see the Preemptive Handoff section for the schema). The reviewer handoff is strictly cheaper than the builder variant — the reviewer is stateless on the filesystem, holds no worktree, owns no stash, and carries no task-list claim — so there is nothing to quiesce. Perform these steps **in order**:
+
+   1. **Do not drain the mailbox.** Any pending audit requests queued by builders are **left unanswered** for the successor. Draining near context exhaustion is precisely where the reviewer fails — the successor, spawned fresh, handles the unserved queue instead. Do not attempt to flush, ack, or partially process queued audits.
+
+   2. **Reply with `handoff_ready`.** Send the reviewer-variant payload to the lead:
+      ```
+      SendMessage({
+        to: "team-lead",
+        message: {
+          type: "handoff_ready",
+          role: "reviewer",
+          predecessor: "reviewer",
+          current_task_id: null,
+          state: {}
+        }
+      })
+      ```
+      `current_task_id` is `null` between audits; if the reviewer was mid-audit when `request_handoff` arrived, set it to the issue identifier from the in-flight audit request so the successor knows which builder is still waiting. The `state` blob is empty — the reviewer owns no worktree, branch, or stash.
+
+   3. **Exit cleanly.** Do not re-enter step 2's mailbox wait — the handoff is terminal for this reviewer. The lead spawns the successor separately (see #516), and the successor inherits the undrained mailbox and responds to its queued audit requests fresh. Post-PR revision by a handed-off reviewer is explicitly out of scope.
 
 ### Hard constraints
 
@@ -633,7 +825,7 @@ A builder can fail to start at all — for example, when the tmux shell is misco
 tmux/.tmux.conf:4: not a suitable shell
 ```
 
-A builder can also fail its worktree setup step (see Builder Teammate Contract, step 2). Note that squad's DOA path here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --git-dir` vs. `--git-common-dir`) to decide whether `isolation: "worktree"` took effect. If it did not (the in-process Agent Teams backend silently ignores the flag today — see #362), the builder falls back to creating its own worktree under `<repo>/.claude/worktrees/`; DOA only fires when **both** isolation and manual setup fail (e.g. git unavailable, permission error).
+A builder can also fail its worktree setup step (see Builder Teammate Contract, step 3). Note that squad's DOA path here differs from `swarmkit:swarm`'s: under team-mode `Agent` spawns, `$PWD` does not reliably track the worktree path, so the builder uses a git-based probe (`git rev-parse --git-dir` vs. `--git-common-dir`) to decide whether `isolation: "worktree"` took effect. If it did not (the in-process Agent Teams backend silently ignores the flag today — see #362), the builder falls back to creating its own worktree under `<repo>/.claude/worktrees/`; DOA only fires when **both** isolation and manual setup fail (e.g. git unavailable, permission error).
 
 When this happens the builder process exits immediately without ever joining the team mailbox. Its `isActive` flag in the team config file (`~/.claude/teams/<team>/config.json`) remains `true` because no graceful shutdown message was exchanged. Any subsequent `TeamDelete` call will be blocked with:
 
@@ -661,6 +853,167 @@ Cannot cleanup team with N active member(s): <name>. Use requestShutdown to grac
 
 ---
 
+## Teammate Hello
+
+Every teammate (builder or reviewer) self-reports its Claude Code session UUID to the lead as its FIRST outbound message after spawn. The lead needs this UUID to externally observe the teammate's transcript file (e.g. for context-size polling — see #513) without scanning the raw JSONL stream itself. A single inline `SendMessage` payload, `teammate_hello`, carries the report.
+
+This section defines the `teammate_hello` schema and the lead-side cache it populates. The polling loop that consumes the cache is out of scope here and is specified in #513.
+
+### Session UUID resolution (teammate side)
+
+Before sending `teammate_hello`, the teammate resolves its own session UUID using the `sessionkit:get-session-id` path scheme:
+
+- **Project slug** — derived from the current working directory by replacing every `/` with `-`:
+  ```bash
+  SLUG=$(pwd | sed 's|/|-|g')
+  ```
+- **Session UUID** — the basename (without the `.jsonl` extension) of the most-recently-modified `.jsonl` file under `~/.claude/projects/<slug>/`:
+  ```bash
+  SESSION_UUID=$(ls -t ~/.claude/projects/"$SLUG"/*.jsonl 2>/dev/null | head -n1 | xargs -n1 basename | sed 's/\.jsonl$//')
+  ```
+
+If the resolution yields an empty string (no project dir, no transcripts), the teammate sends `teammate_hello` with `session_uuid: null` so the lead can log the gap without crashing its cache update.
+
+### `teammate_hello` (teammate → lead)
+
+Sent by every teammate — builder or reviewer — as its first outbound message after spawn, before any worktree setup, audit handling, or other coordination.
+
+**Payload shape:**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "teammate_hello",
+    role: "builder" | "reviewer",
+    name: "<teammate-name>",
+    session_uuid: "<resolved-uuid-or-null>"
+  }
+})
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"teammate_hello"` | yes | Discriminator — matches the dispatcher on the lead side. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the sender. The lead may use this for per-role policies (e.g. distinct polling thresholds) but does not key the cache on it. |
+| `name` | string | yes | Teammate name exactly as spawned (e.g. `builder-123`, `builder-123-c2`, `reviewer`). This is the cache key. |
+| `session_uuid` | string \| null | yes | Claude Code session UUID resolved via the `sessionkit:get-session-id` path scheme. `null` if resolution failed. |
+
+**Direction:** teammate → lead (unicast to `team-lead`). Exactly one `teammate_hello` is sent per teammate spawn. It is **not** re-sent when a builder self-claims a follow-on task — self-claim stays within the same session, so the cached UUID is still valid.
+
+### Lead-side handling
+
+The lead maintains an in-memory **name → session_uuid** cache for the lifetime of the team. When a `teammate_hello` arrives:
+
+1. **Key by `name`.** The cache is keyed on the `name` field — not on role or session UUID — because name is the same handle the lead uses for `SendMessage`, `shutdown_request`, and successor-spawn accounting.
+2. **Overwrite on respawn.** If an entry for the incoming `name` already exists (e.g. a preemptive-handoff successor reusing the predecessor's name, or a DOA-recovery respawn), overwrite it unconditionally. The successor's session UUID cleanly replaces the predecessor's — the lead does not keep stale UUIDs around.
+3. **No broadcast.** The lead does not propagate the cache to other teammates; it is consumed only by lead-side processes (e.g. transcript-size polling in #513).
+
+The cache is discarded at teardown along with the rest of the team state.
+
+---
+
+## Preemptive Handoff Messages
+
+Preemptive handoff lets a long-running teammate retire voluntarily before it crashes against its context window and hand its in-flight work to a fresh successor. Two inline `SendMessage` payloads carry the lead↔teammate dialogue: `request_handoff` (lead → teammate) initiates the handoff; `handoff_ready` (teammate → lead) returns the state blob the lead needs to spawn the successor.
+
+This section defines the message schemas only. The polling loop that emits `request_handoff`, the teammate's handler for receiving it, and the lead's successor-spawn path are specified in separate issues (#513–#516) and must not be inferred from this section.
+
+### `request_handoff` (lead → teammate)
+
+Sent by the lead when it observes that a teammate's context usage has crossed a configured threshold and a preemptive handoff should begin. The recipient is a single teammate (builder or reviewer); the payload is addressed via `SendMessage({to: "<teammate-name>", ...})`.
+
+**Payload shape:**
+
+```
+SendMessage({
+  to: "<teammate-name>",
+  message: {
+    type: "request_handoff",
+    role: "builder" | "reviewer",
+    reason: "context_threshold",
+    threshold_bytes: <integer>
+  }
+})
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"request_handoff"` | yes | Discriminator — matches the dispatcher on the teammate side. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the recipient. Echoes the teammate's role so the teammate can assert it matches its own and the lead knows which variant of `handoff_ready` to expect. |
+| `reason` | enum | yes | Why the handoff was initiated. v1 defines a single value: `"context_threshold"`. Future reasons (e.g. `"manual"`, `"stuck_task"`) will extend the enum; unknown values must be rejected by the teammate. |
+| `threshold_bytes` | integer | yes | Observed context-usage measurement (in bytes) that triggered the handoff. Informational — the teammate does not re-check this; the lead's decision is authoritative. |
+
+**Direction:** lead → teammate (unicast). The lead never broadcasts `request_handoff`; one message per teammate being retired.
+
+### `handoff_ready` (teammate → lead)
+
+Sent by the teammate in response to `request_handoff` once it has quiesced its in-flight work (committed or stashed local edits, recorded the current task) and is ready to be replaced. The lead uses the returned state blob to spawn a successor that resumes exactly where the predecessor left off.
+
+**Payload shape (builder variant):**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "handoff_ready",
+    role: "builder",
+    predecessor: "<teammate-name>",
+    current_task_id: "<issue-or-task-id>",
+    state: {
+      worktree_path: "<absolute path to the builder's worktree>",
+      stash_ref:     "<git stash ref, e.g. stash@{0}, or null if nothing was stashed>",
+      branch:        "<current branch name, e.g. worktree-agent-<issue>>"
+    }
+  }
+})
+```
+
+**Payload shape (reviewer variant):**
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "handoff_ready",
+    role: "reviewer",
+    predecessor: "<teammate-name>",
+    current_task_id: "<issue-or-task-id-being-reviewed, or null if idle>",
+    state: {}
+  }
+})
+```
+
+**Common fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string literal `"handoff_ready"` | yes | Discriminator. |
+| `role` | enum `"builder"` \| `"reviewer"` | yes | Role of the sender — selects which `state` variant applies. |
+| `predecessor` | string | yes | Teammate name being retired (e.g. `builder-123` or `builder-123-c2`). The lead uses this to derive the successor name and mark the predecessor for shutdown. |
+| `current_task_id` | string \| null | yes | Issue or task identifier the predecessor was working on at the moment of handoff. For the reviewer this may be null if the reviewer was idle between audits. The successor resumes from this task. |
+| `state` | object | yes | Role-specific resume blob — see variants below. |
+
+**Builder `state` variant (required when `role == "builder"`):**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `worktree_path` | string | yes | Absolute path to the builder's isolated worktree. The successor `cd`s into this path instead of creating a fresh worktree. |
+| `stash_ref` | string \| null | yes | Git stash ref (e.g. `stash@{0}`) capturing any uncommitted edits the predecessor chose to preserve, or `null` if the predecessor committed everything before quiescing. The successor pops this stash after entering the worktree. |
+| `branch` | string | yes | Current branch checked out in the worktree (e.g. `worktree-agent-<issue>`). The successor asserts it matches before resuming. |
+
+**Reviewer `state` variant (required when `role == "reviewer"`):**
+
+- Empty object `{}`. The reviewer is stateless on the filesystem — it writes nothing, owns no worktree, and stashes nothing — so the successor needs no resume blob beyond `current_task_id`. Additional reviewer state fields may be introduced in later versions; none are defined for v1.
+
+**Direction:** teammate → lead (unicast to `team-lead`). Exactly one `handoff_ready` is sent per `request_handoff` received.
+
+---
+
 ## Teardown
 
 Runs **regardless of success or halt**. Every step must be idempotent — running teardown twice must not error or leave the repo in a worse state.
@@ -676,22 +1029,34 @@ Runs **regardless of success or halt**. Every step must be idempotent — runnin
 
    If a teammate is already gone (crashed or already exited), the send is a no-op.
 
-2. **Force-clear stuck `isActive` members, then delete the team** — wait a reasonable timeout (e.g. 10 seconds) for each teammate to acknowledge the shutdown. Any member whose mailbox never responds within the timeout is considered dead-on-arrival: forcibly patch `~/.claude/teams/<team>/config.json` to set its `isActive` flag to `false` so that `TeamDelete` is not blocked:
+2. **Force-clear stuck `isActive` members, then delete the team** — three independent code paths feed the same jq patch against `~/.claude/teams/<team>/config.json`. They are additive: predecessor cleanup runs **in addition to**, not instead of, the other two.
+
+   **Path A — shutdown-ack timeout (10s).** Wait a reasonable timeout (e.g. 10 seconds) for each teammate to acknowledge the `shutdown_request` sent in step 1. Any member whose mailbox never responds within the timeout is considered dead-on-arrival and gets its `isActive` force-cleared via the patch below.
+
+   **Path B — `TeamDelete` active-member error.** If `TeamDelete` returns an active-member error for a name that never surfaced in path A, force-clear that name with the same patch and retry `TeamDelete`.
+
+   **Path C — predecessor cleanup (handoff chain).** For every teammate that completed a successful `handoff_ready` → successor-spawn sequence (see #514–#516), the predecessor exits without participating in the shutdown-ack handshake and without triggering the `TeamDelete` error — so paths A and B both miss it, and its `isActive` stays `true`, blocking future `TeamDelete` calls. Run the patch below on every such predecessor name recorded during the run.
+
+   The patch (used by all three paths):
 
    ```bash
-   # For each non-responding member <name>:
+   # For each name to force-clear <name>:
    jq '(.members[] | select(.name == "<name>")).isActive = false' \
      ~/.claude/teams/<team>/config.json > /tmp/team-config.json \
      && mv /tmp/team-config.json ~/.claude/teams/<team>/config.json
    ```
 
-   After all stuck members are cleared, delete the team:
+   The jq expression is idempotent: if `<name>` is already `isActive: false` (or the member is absent), the assignment is a no-op and the command exits cleanly. Running teardown twice on the same state must not error.
+
+   After all stuck members are cleared (via any of the three paths), delete the team:
 
    ```
    TeamDelete({name: "<team-name>"})
    ```
 
    This step must be idempotent — if the team was already deleted (e.g. teardown is running a second time), the `TeamDelete` call should be treated as a no-op.
+
+   **Test note:** verify by running a short squad that triggers at least one handoff, then re-running teardown and asserting no-op (no error, no config-file change, `TeamDelete` reports the team is already gone).
 
 3. **Invoke `clean-worktrees` sub-skill** — reuses existing logic to remove all `worktree-agent-*` worktrees, delete orphan local branches, and restore the caller's branch:
 
