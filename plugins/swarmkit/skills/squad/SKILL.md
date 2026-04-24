@@ -655,6 +655,27 @@ The reviewer is the single long-running auditor for the team. It never writes to
 
 7. **Return to step 2** and serve the next audit request.
 
+8. **Handle `request_handoff` from the lead.** At any point after step 1, the lead may send a `request_handoff` message signalling that the reviewer should retire voluntarily so a fresh successor can take over (see the Preemptive Handoff section for the schema). The reviewer handoff is strictly cheaper than the builder variant — the reviewer is stateless on the filesystem, holds no worktree, owns no stash, and carries no task-list claim — so there is nothing to quiesce. Perform these steps **in order**:
+
+   1. **Do not drain the mailbox.** Any pending audit requests queued by builders are **left unanswered** for the successor. Draining near context exhaustion is precisely where the reviewer fails — the successor, spawned fresh, handles the unserved queue instead. Do not attempt to flush, ack, or partially process queued audits.
+
+   2. **Reply with `handoff_ready`.** Send the reviewer-variant payload to the lead:
+      ```
+      SendMessage({
+        to: "team-lead",
+        message: {
+          type: "handoff_ready",
+          role: "reviewer",
+          predecessor: "reviewer",
+          current_task_id: null,
+          state: {}
+        }
+      })
+      ```
+      `current_task_id` is `null` between audits; if the reviewer was mid-audit when `request_handoff` arrived, set it to the issue identifier from the in-flight audit request so the successor knows which builder is still waiting. The `state` blob is empty — the reviewer owns no worktree, branch, or stash.
+
+   3. **Exit cleanly.** Do not re-enter step 2's mailbox wait — the handoff is terminal for this reviewer. The lead spawns the successor separately (see #516), and the successor inherits the undrained mailbox and responds to its queued audit requests fresh. Post-PR revision by a handed-off reviewer is explicitly out of scope.
+
 ### Hard constraints
 
 - **Never creates PRs.** Review happens before push — the builder owns the PR.
