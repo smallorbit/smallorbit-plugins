@@ -435,6 +435,60 @@ For each roundtrip with teammate `<name>`, run these three steps **in order**:
 
 Do not re-emit `request_handoff` to the same teammate while an earlier one for that teammate is still outstanding — one handoff request per teammate at a time.
 
+#### 3b. Successor spawn on `handoff_ready` receipt
+
+When the lead receives a `handoff_ready` message (schema in the Preemptive Handoff Messages section) from a retiring teammate, it spawns a fresh successor that resumes the predecessor's in-flight work. This is the step that keeps headcount stable — without it, every preemptive handoff permanently reduces the pool by one and the squad eventually starves.
+
+On receipt of `handoff_ready` from predecessor `<predecessor>` carrying `current_task_id` and a role-specific `state` blob, the lead spawns the successor immediately — before clearing the outstanding `request_handoff` entry for `<predecessor>`.
+
+##### Successor name: `<role>-h<N>` lineage counter
+
+The successor's `Agent({name: ...})` is derived by appending (or incrementing) a `-h<N>` suffix on the predecessor's name:
+
+| Predecessor name | Successor name |
+|---|---|
+| `reviewer` | `reviewer-h1` |
+| `reviewer-h1` | `reviewer-h2` |
+| `builder-42` | `builder-42-h1` |
+| `builder-42-c2` | `builder-42-c2-h1` |
+| `builder-42-h1` | `builder-42-h2` |
+| `builder-42-h2` | `builder-42-h3` |
+
+**Counter rules:**
+
+- The counter `N` is **per-lineage**, not per-cycle: every successor in the same chain increments from the last `-h<N>` on the predecessor's name. A chain may grow arbitrarily long (`builder-42` → `-h1` → `-h2` → `-h3` → ...) within a single run.
+- **The counter spans chains** — it is not reset by loop-mode cycle boundaries, by reviewer handoffs, or by unrelated builder handoffs. As long as a teammate is the handoff descendant of another, the counter continues climbing on that lineage.
+- The counter is derived mechanically from the predecessor's name — parse the trailing `-h<digits>` if present, increment it; otherwise append `-h1`. The lead does not maintain a separate counter store; the name itself is the source of truth.
+- Names from other axes (`-c<cycle>` loop suffix, issue numbers) are preserved verbatim; only the `-h<N>` segment moves.
+
+##### Spawn options: no `isolation: "worktree"`
+
+The successor is spawned via `Agent({...})` with the **same** `team_name`, `subagent_type`, and general spawn shape as the predecessor, with one critical exception:
+
+> **Do not pass `isolation: "worktree"` on the successor spawn.** The predecessor's `handoff_ready` payload carries the `worktree_path` (builder variant) where the in-flight work — including any `stash_ref` — lives. A fresh isolated worktree would orphan the stash: the successor would land in a brand-new empty working tree with no path back to the predecessor's stashed edits or branch. Reusing the predecessor's worktree is what makes the stash-pop and branch continuity possible.
+
+For reviewers the flag is already omitted (reviewers never spawn with `isolation: "worktree"` in the first place), so the rule is a no-op on that side; it is stated here for consistency so the spawn shape matches across roles.
+
+##### Spawn prompt
+
+The successor's prompt is the same role contract (Builder Teammate Contract or Reviewer Teammate Contract) as the predecessor, **prefixed** with a handoff-resume preamble derived from the `handoff_ready` payload:
+
+1. **`cd` into the predecessor's worktree.** For the builder variant, use `state.worktree_path` verbatim. For the reviewer variant, the `state` blob is empty and no `cd` is needed — the reviewer is stateless on the filesystem.
+
+   ```bash
+   cd <state.worktree_path>        # builder only
+   ```
+
+2. **`git stash pop <stash_ref>` — builders only, and only if `state.stash_ref` is non-null.** The reviewer has no stash (its `state` is empty), so no pop is performed. If the builder's predecessor committed everything before quiescing and `state.stash_ref` is null, skip the pop.
+
+   ```bash
+   git stash pop <state.stash_ref>   # builder only, only when stash_ref != null
+   ```
+
+3. **Re-claim the task.** The preamble includes `current_task_id` from the payload so the successor can atomically re-claim it on the shared task list (the predecessor released the claim as part of its quiesce sequence — see Builder Teammate Contract step 10 and Reviewer Teammate Contract step 8). The successor then resumes the role's normal workflow from the appropriate step (builder: implementation; reviewer: audit loop).
+
+After spawning, the lead clears the outstanding-handoff tracking entry for `<predecessor>` so a future transcript-size breach against the successor can issue its own `request_handoff`. Predecessor teardown (removing the stale name from the team config, verifying it has exited) is out of scope here and handled separately.
+
 ### 4. Mode-specific termination
 
 - **One-shot mode** — exits as soon as every issue in the initial target set has a PR. No re-fetching.
