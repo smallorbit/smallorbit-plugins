@@ -201,14 +201,9 @@ Each agent prompt MUST include these **workflow steps** (in order):
 3. Stage and commit using conventional-commit-message format:
    - No Claude mentions, no co-author lines
    git add <files> && git commit -m "<type>(<scope>): <description>"
-4. Iterative simplify pass — run inline, not as a sub-skill call. Track a pass count starting at 0 (max 3). This is part of this workflow; there is no separate caller/callee to return to.
-   4a. Run `/simplify` on the changed files.
-   4b. Check for changes with `git diff`.
-       - If changes were produced AND pass count < 3: commit the simplification (conventional-commit format, no Claude mentions), push with `git push -u origin worktree-agent-<issue>`, increment the pass count, go back to 4a.
-       - If no changes were produced OR pass count >= 3: the pass has converged. Proceed immediately to step 5 — do NOT stop here. Convergence is not a termination condition.
-5. Push final branch state (unconditional — idempotent if the last simplify pass already pushed):
+4. Push the branch:
    git push -u origin worktree-agent-<issue>
-6. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+5. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
 
    <!-- include: plugins/_shared/pr-body.md -->
    <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
@@ -240,7 +235,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
    Closes #<issue>
    EOF
    )"
-7. Report the PR URL. This is the ONLY acceptable termination condition for this workflow. Do not stop before the PR exists and its URL has been reported.
+6. Report the PR URL. This is the ONLY acceptable termination condition for this workflow. Do not stop before the PR exists and its URL has been reported.
 ```
 
 ### 5. Handle completions
