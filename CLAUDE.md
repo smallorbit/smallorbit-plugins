@@ -25,7 +25,7 @@ Run it before staging and committing the release.
 
 ## Plugins
 
-`swarmkit` includes an experimental `squad` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. See `plugins/swarmkit/README.md` for details.
+`swarmkit` includes an experimental `squad` skill gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. Squad supports preemptive handoff: builders near their context limit are rotated to a `-hN` successor before crashing. See `plugins/swarmkit/README.md` for details.
 
 ## Skill Authoring Conventions
 
