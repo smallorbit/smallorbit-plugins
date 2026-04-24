@@ -51,46 +51,49 @@ Used when issue numbers are provided. Dispatches agents for the given set of iss
 
 ### 1. Gather issue details
 
-For each issue:
+Run the gather script once with all requested issue numbers. It batches title, body, labels, state, sub-issues, and native dependency edges (`blockedBy`) into a single `gh api graphql` call, collapsing what was ~3N bash turns into one script invocation:
 
 ```bash
-gh issue view <number> --json title,body,labels
+plugins/swarmkit/skills/swarm-experimental/scripts/gather_issues.sh <number> [<number> ...]
 ```
 
-**Skip any issue with the `on-hold` label** — per the `gh-fetch-issues` sub-skill filtering rules.
+On success the script exits 0 and emits one JSON object on stdout:
 
-**Epic expansion** — for each issue, query its children via GitHub's native sub-issue relationship:
-
-```bash
-gh api repos/{owner}/{repo}/issues/<number>/sub_issues
+```json
+{
+  "requested": [544, 545],
+  "work_items": [
+    {"number": 545, "title": "...", "body": "...", "labels": ["enhancement"],
+     "state": "OPEN", "is_epic": false, "deps": [544],
+     "skip": false, "skip_reason": null, "source_epic": null}
+  ],
+  "skipped":        [{"number": 541, "reason": "closed"}],
+  "epics_expanded": [{"number": 549, "children": [544, 545, 546, 547, 548]}],
+  "epics_unwired":  []
+}
 ```
 
-If the response is a non-empty array, the issue is an epic. Use the returned children (not the epic itself) as the work items: for each child, fetch `title,body,labels,state` in parallel, then filter:
+Parse the JSON. **Use `work_items` as the list to act on** for the rest of the swarm — each entry already has everything Steps 2–5 need (title, body, labels, state, deps, and the originating epic when expanded from one).
 
-- Skip any child with the `on-hold` label
-- Skip any child that is already `closed`
-
-If all children are skipped, announce and stop. Otherwise announce:
+**Skip announcement** — for each entry in `skipped`, the script has already applied the existing rules (`on-hold` label, `closed` state). If there are skipped issues from a requested epic's children, announce using the existing template:
 
 > `#N` is an epic. Swarming: `#101`, `#102`. Skipped (closed/on-hold): `#103`.
 
-**Epic label without sub-issues** — if the issue carries the `epic` label but the sub-issues API returns an empty array, the epic is not wired up. Do **not** fall through and treat it as a regular implementation issue — the epic body is a plan, not a spec. Announce and skip:
+If `work_items` is empty because every requested issue (or every child of a requested epic) was skipped, announce and stop.
+
+**Unwired epics** — for each number in `epics_unwired`, announce with the existing template and proceed with the remaining work items:
 
 > `#N` is labeled `epic` but has no sub-issues wired via the GitHub sub-issue API. Skipping — children must be attached via `gh api .../sub_issues` before swarming.
 
 The legacy `- [ ] #N` body-checklist format is no longer supported; speckit wires child issues via the native sub-issue API (see `plugins/speckit/skills/spec/SKILL.md`).
 
+If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and stop.
+
 ### 2. Analyze dependencies and grouping
 
-**Parse the dependency graph** from the issue bodies already fetched in Step 1:
+Use the pre-computed `deps` array on each `work_items` entry — the script already prefers GitHub's native `blockedBy` connection (the field `/spec` wires up) and falls back to parsing `Depends on #N` / `Blocked by #N` from the body when native is empty. Do **not** re-grep bodies here.
 
-For each issue body, extract `Depends on #N` and `Blocked by #N` references:
-
-```bash
-echo "$BODY" | grep -oiE '(depends on|blocked by) #[0-9]+' | grep -oE '[0-9]+'
-```
-
-Build a directed acyclic graph (DAG): each issue is a node; a `Depends on #N` or `Blocked by #N` relationship is a directed edge from the dependent to the dependency.
+Build a directed acyclic graph (DAG): each work item is a node; each number in its `deps` array is a directed edge from the dependent to the dependency.
 
 Produce a **topological sort** of the DAG. This sort determines:
 - Which issues can spawn in parallel (no incoming edges in this batch = independent)
