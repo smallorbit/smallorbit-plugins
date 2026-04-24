@@ -1,13 +1,15 @@
 ---
 name: merge-stack
-description: Merge all open swarm PRs top-down, accumulating issue refs as the stack collapses into the base branch.
+description: Merge all open swarm PRs bottom-up after retargeting every non-root PR to the base branch, using a uniform squash-and-delete-branch strategy.
 ---
 
 # merge-stack
 
-Merges all open swarm PRs top-down — leaf PRs first, cascading down to the base branch. Each merge injects the absorbed PR's `Closes/Fixes/Resolves/Refs` tokens into the next PR's body so refs accumulate on the way down. The PR that finally merges into `$BASE` carries the complete ref set for the entire stack.
+Merges all open swarm PRs bottom-up — root PRs first, then their former children, up to the leaves. Before any merge happens, every non-root PR in a multi-PR chain is retargeted to `$BASE` so GitHub never fires its auto-close cascade. Every PR then merges uniformly with `gh pr merge <N> --squash --delete-branch`, and each PR closes its own `Closes/Fixes/Resolves/Refs` references on merge.
 
-This avoids the auto-close cascade caused by bottom-up merging: merging bottom-up deletes the base branch of the PR above it, which GitHub interprets as abandonment and auto-closes the dependent PR.
+Between merges, each still-open downstream branch is locally rebased onto the freshly-updated `$BASE` and force-pushed. Git's patch-id matching drops the predecessor commits (which are already on `$BASE` in squashed form under a different SHA), leaving only the downstream PR's own new commits. Without this rebase, the next PR would flip to `CONFLICTING` the moment its predecessor merges, because the old predecessor commits in its history collide with the new squash commit on `$BASE`.
+
+This matches the merge direction used by Graphite, git-spice, Sapling, and Phabricator: reviewers see and land the same diff, CI runs once per PR instead of re-running on every rebase, and conflicts surface at the leaf instead of cascading down into the root.
 
 ## When to use
 
@@ -31,128 +33,106 @@ If no open swarm PRs are found, report "No open swarm PRs found" and stop.
 Model the PRs as a directed graph where an edge A → B means "A's head branch is B's base branch" (A sits on top of B). Build this from the `headRefName` / `baseRefName` fields — no issue-body parsing needed for ordering.
 
 Identify:
-- **Leaves**: PRs whose `headRefName` is not the `baseRefName` of any other open PR — these are the tops of chains and merge first.
-- **Root PRs**: PRs whose `baseRefName` is `$BASE` (e.g. `develop`) — these merge last.
-- **Independent PRs**: PRs whose `baseRefName` is already `$BASE` and that no other PR sits on top of — these have no stack relationship and can merge in any order after stacked chains resolve.
+- **Root PRs**: PRs whose `baseRefName` is `$BASE` (e.g. `develop`) and that have at least one other PR stacked on top — these merge first in their chain.
+- **Leaves**: PRs whose `headRefName` is not the `baseRefName` of any other open PR — these are the tops of chains and merge last.
+- **Independent PRs**: PRs whose `baseRefName` is already `$BASE` and that no other PR sits on top of — these have no stack relationship and can merge in any order.
 
-For each chain, the merge order is: leaf → … → root (top-down).
+For each chain, the merge order is: root → … → leaf (bottom-up).
 
-### 3. Present merge plan
+### 3. Retarget non-root PRs to `$BASE`
+
+For every multi-PR chain, retarget every non-root PR to `$BASE` before merging anything. This neutralizes GitHub's auto-close cascade: once a child's base is `$BASE`, deleting a predecessor's branch on merge no longer looks like abandonment.
+
+```bash
+gh pr edit <N> --base $BASE
+```
+
+Apply this to every PR in a multi-PR chain except the chain root. Independent PRs already target `$BASE` and need no retargeting. Track the retarget count for the plan preview and final report.
+
+### 4. Present merge plan
 
 Show the plan before proceeding:
 
 ```
-Merge order (top-down per chain):
-  Chain 1:  PR #105 → PR #104 → PR #103 → develop
-  Chain 2:  PR #108 → develop  (independent)
+Merge order (bottom-up per chain):
+  Chain 1:  develop ← PR #103 ← PR #104 ← PR #105
+  Chain 2:  develop ← PR #108  (independent)
 
-  Step 1. Merge PR #105 into worktree-agent-104 (head of chain 1)
-  Step 2. Accumulate refs from #105 into PR #104 body
-  Step 3. Merge PR #104 into worktree-agent-103
-  Step 4. Accumulate refs from #104 into PR #103 body
-  Step 5. Merge PR #103 into develop
-  Step 6. Merge PR #108 into develop
+  Retargeted 2 non-root PRs to develop: #104, #105
+  Step 1. Merge PR #103 into develop (squash, delete branch)
+  Step 2. Rebase #104, #105 onto develop (drop #103's commits via patch-id)
+  Step 3. Merge PR #104 into develop (squash, delete branch)
+  Step 4. Rebase #105 onto develop (drop #104's commits via patch-id)
+  Step 5. Merge PR #105 into develop (squash, delete branch)
+  Step 6. Merge PR #108 into develop (squash, delete branch)
 ```
 
 Proceed immediately.
 
-### 4. Merge top-down with ref accumulation
+### 5. Merge bottom-up
 
-For each chain, work from the leaf down. For each PR in order:
+For each chain, work from the root up to the leaf. For each PR in order:
 
-#### 4a. Check mergeability
+#### 5a. Check mergeability
 
 ```bash
 gh pr view <N> --json mergeable,mergeStateStatus,baseRefName
 ```
 
-If `mergeStateStatus` is `BEHIND`: update the branch and re-check:
+If `mergeStateStatus` is `BEHIND` (or `UNKNOWN` — retry after a short sleep): run the local rebase step from 5d against this branch, then re-check.
+
+#### 5b. Merge
+
+Every PR uses the same strategy — uniform squash with branch deletion:
 
 ```bash
-gh pr update-branch <N>
-sleep 3
-```
-
-#### 4b. Collect this PR's issue refs
-
-Extract all `Closes/Fixes/Resolves/Refs #N` references from the PR body:
-
-```bash
-REFS=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves|refs) #[0-9]+' | sort -u)
-```
-
-#### 4c. Merge — strategy depends on the PR's role in the stack
-
-Three cases, each using a different strategy so that stacked PRs keep their individual commits on `$BASE` instead of being collapsed into a single squash commit:
-
-```bash
-# Intermediate merge (base is a worktree-agent-* branch)
-# Rebase the leaf's commits onto its parent worktree-agent branch so each
-# per-PR commit is preserved as the chain collapses downward.
-# Omit --delete-branch so the base branch survives for the next merge step.
-gh pr merge <N> --rebase
-
-# Final merge into $BASE for the root of a multi-PR chain
-# Use --merge so the accumulated stack lands as a merge commit preserving
-# the per-PR commits underneath.
-gh pr merge <N> --merge --delete-branch
-
-# Final merge into $BASE for an independent (single-PR) chain
-# No stack to preserve — squash to match flowkit's one-PR-one-commit convention.
 gh pr merge <N> --squash --delete-branch
 ```
 
-A PR is the "root of a multi-PR chain" iff its `baseRefName` is `$BASE` **and** at least one other open PR has this PR's `headRefName` as its `baseRefName` (i.e. something sits on top of it). A PR is "independent" iff its `baseRefName` is `$BASE` and nothing sits on top. Both distinctions were captured when building the stack graph in step 2.
+Each PR's own body closes its own issues natively on merge. No ref injection, no body rewriting.
 
-#### 4d. Inject refs into the next PR down
+#### 5c. Conflict handling
 
-After a non-root merge, append this PR's refs into the body of the PR immediately below it in the chain (the PR whose `headRefName` equals the just-merged PR's `baseRefName`):
-
-```bash
-NEXT_PR=<number of the PR below in the chain>
-CURRENT_BODY=$(gh pr view $NEXT_PR --json body --jq '.body')
-NEW_BODY="$CURRENT_BODY
-
-$REFS"
-gh pr edit $NEXT_PR --body "$NEW_BODY"
-```
-
-This ensures that if the merge halts mid-stack (conflict, failure), the surviving lowest unmerged PR already contains all refs from everything above it that successfully merged.
-
-#### 4e. Conflict handling
-
-If a merge fails with `CONFLICTING`:
+If a merge fails with `CONFLICTING`, or if the rebase in 5d fails with a genuine content conflict (not a patch-id-matchable duplicate):
 - Stop the chain at this PR
 - Report the conflict with the PR number and branch names
-- Mark all PRs below it in the same chain as blocked
+- Mark all PRs above it in the same chain as blocked
 - Continue with any independent PRs or unrelated chains
 - At the end, list all stopped and blocked PRs so the user can resolve and re-run
 
-#### 4f. Pause between merges
+#### 5d. Rebase downstream PRs before merging the next one
+
+After merging a non-leaf PR in a chain, every still-open downstream PR in that chain has its predecessor's commits in its history under the old (pre-squash) SHAs. `$BASE` now carries the same content under a new squash SHA, so GitHub will flag the next PR as `DIRTY`/`CONFLICTING` even though the content overlap is benign. `gh pr update-branch` cannot resolve this — it fails with `Cannot update PR branch due to conflicts`. A local rebase is required because only `git rebase`'s patch-id matching drops the already-applied commits.
+
+For every still-open PR in the chain, from closest-to-root to leaf:
+
+```bash
+git fetch origin <head-branch> $BASE
+git checkout <head-branch>
+if ! git rebase origin/$BASE; then
+  git rebase --abort
+  # Real content conflict (e.g. add/add on a file two chains both created).
+  # Fall through to 5c: stop this chain, block its dependents, continue with
+  # other chains/independents. Do NOT force-push; leave the PR untouched so
+  # the user can resolve by hand.
+  continue  # or equivalent control flow in the skill's execution loop
+fi
+git push --force-with-lease origin <head-branch>
+```
+
+`git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. A non-zero exit from `git rebase` means a real merge conflict git could not auto-resolve; handle it per 5c. Always `git rebase --abort` before falling through so the branch returns to its pre-rebase state and no partial work is pushed.
+
+After the rebases, re-query `mergeStateStatus` for the next PR to merge and proceed to 5b. GitHub may report `UNKNOWN` briefly after a force-push; poll with `sleep 3` until it resolves to `CLEAN`, `BEHIND`, or `DIRTY`.
+
+For independent PRs (no chain), skip this step — they target `$BASE` directly and have no predecessor commits to drop.
+
+#### 5e. Pause between merges
 
 ```bash
 sleep 3
 ```
 
-#### 4g. Sweep intermediate remote branches
-
-After the chain's root PR merges into `$BASE`, delete every intermediate `worktree-agent-*` branch from the remote. Intermediate branches are every `headRefName` whose `baseRefName` was another `worktree-agent-*` branch — these were captured when building the stack graph in step 2.
-
-Run this sweep immediately after the root merge so partial runs still clean up the chains that did complete. Skip if there are no intermediate branches (single-PR chain or independent PR).
-
-When the full list is available up front, batch the deletes into one push call to minimize round-trips. Fall back to per-branch deletes if the batch call fails (e.g. mixed stale refs):
-
-```bash
-if [ -n "$INTERMEDIATE_BRANCHES" ]; then
-  echo "$INTERMEDIATE_BRANCHES" | while read branch; do
-    git push origin --delete "$branch" 2>/dev/null || true
-  done
-fi
-```
-
-The `|| true` on each delete keeps a stale-ref failure from aborting the rest of the sweep. Track the count of swept branches for the report.
-
-### 5. Sync base branch
+### 6. Sync base branch
 
 After all merges:
 
@@ -163,13 +143,12 @@ git pull origin $BASE
 
 Where `$BASE` is the base branch of the root PRs (typically `develop`).
 
-### 6. Report
+### 7. Report
 
 ```
 ── merge-stack complete ──────────────────────────────
-✓ Merged (chain 1): PR #105 → #104 → #103 → develop
-    Refs accumulated into PR #103: Closes #90, #91, #92, #93, #94
-    Swept 2 intermediate remote branches (worktree-agent-105, worktree-agent-104)
+✓ Retargeted 2 non-root PRs to develop
+✓ Merged (chain 1): PR #103 → PR #104 → PR #105 → develop
 ✓ Merged (independent): PR #108 → develop
 ✗ Conflicted: PR #107 — stopped mid-chain
 ⊘ Blocked: PR #106 — depends on #107
@@ -178,11 +157,10 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 
 ## Constraints
 
-- Always merge top-down (leaf PRs first, root last)
-- Use `--rebase` for intermediate merges, `--merge` for the root of a multi-PR chain, `--squash` for independent single-PR chains — never collapse a stack with a single squash
-- Never use `--delete-branch` on intermediate merges — only on the final merge into `$BASE`
-- Always accumulate refs downward after each intermediate merge
+- Always merge bottom-up (root PRs first, leaves last)
+- Always retarget every non-root PR in a multi-PR chain to `$BASE` before merging anything in that chain
+- After each non-leaf merge in a chain, always rebase every still-open downstream branch onto `$BASE` locally and force-push before merging the next one — `gh pr update-branch` cannot resolve the squash-history collision
+- Use `gh pr merge <N> --squash --delete-branch` for every PR — no per-role strategy matrix
 - Never merge into `main` directly — only into `$BASE` (e.g., `develop`)
 - Never skip a conflicted chain's dependents — block and report them
 - Independent PRs (targeting `$BASE` with nothing stacked on them) may merge in any order
-- After a chain's root PR merges, delete every intermediate `worktree-agent-*` branch from the remote — their only purpose was to host the stack, and they are redundant once the root is in `$BASE`
