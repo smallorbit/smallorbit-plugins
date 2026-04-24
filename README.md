@@ -103,7 +103,7 @@ Swarm complete — 4 PRs opened:
   #212 feat(notes): render tag chips on note cards            → worktree-agent-103
   #213 feat(notes): filter notes by tag from the sidebar      → worktree-agent-104
 
-Stack root: #210. Run /merge-stack to merge top-down.
+Stack root: #210. Run /merge-stack to merge bottom-up.
 ```
 
 ### 4. Ship it (optional — use your own process if you prefer)
@@ -117,7 +117,7 @@ Once the PRs look right, merge and release them however you normally would. If y
 Then merge everything in three commands:
 
 ```
-/merge-stack     # merge all swarm PRs top-down into develop
+/merge-stack     # merge all swarm PRs bottom-up into develop
 /cut             # create a release candidate from develop
 /release         # promote to main, tag the release, close referenced issues
 ```
