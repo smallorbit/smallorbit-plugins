@@ -109,11 +109,18 @@ For every still-open PR in the chain, from closest-to-root to leaf:
 ```bash
 git fetch origin <head-branch> $BASE
 git checkout <head-branch>
-git rebase origin/$BASE
+if ! git rebase origin/$BASE; then
+  git rebase --abort
+  # Real content conflict (e.g. add/add on a file two chains both created).
+  # Fall through to 5c: stop this chain, block its dependents, continue with
+  # other chains/independents. Do NOT force-push; leave the PR untouched so
+  # the user can resolve by hand.
+  continue  # or equivalent control flow in the skill's execution loop
+fi
 git push --force-with-lease origin <head-branch>
 ```
 
-`git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. If rebase stops with a real merge conflict, follow 5c.
+`git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. A non-zero exit from `git rebase` means a real merge conflict git could not auto-resolve; handle it per 5c. Always `git rebase --abort` before falling through so the branch returns to its pre-rebase state and no partial work is pushed.
 
 After the rebases, re-query `mergeStateStatus` for the next PR to merge and proceed to 5b. GitHub may report `UNKNOWN` briefly after a force-push; poll with `sleep 3` until it resolves to `CLEAN`, `BEHIND`, or `DIRTY`.
 
