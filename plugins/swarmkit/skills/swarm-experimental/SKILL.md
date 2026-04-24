@@ -333,14 +333,7 @@ Proceed immediately to the next cycle after printing the checkpoint summary. The
 ### Teardown
 
 1. Run the `clean-worktrees` skill
-2. Restore the base branch (worktree removal may drift the shell to a detached HEAD or a different branch):
-   ```bash
-   git checkout $BASE && git pull origin $BASE
-   ```
-3. Unset `claude.flowkit.prBase` to clear the scoped PR base:
-   ```bash
-   git config --local --unset claude.flowkit.prBase
-   ```
+2. Run `scripts/teardown.sh` (optionally `--base <branch>` to override the default `develop`). Parse the returned JSON and confirm `base_restored: true`. If `config_unset: false`, log that `claude.flowkit.prBase` was already clear — this is not a failure.
 
 Optionally, run `swarmkit:clean-remote-worktrees` afterwards to sweep orphaned remote `worktree-agent-*` branches left behind by merged PRs. This is not automatic — invoke it when you want to tidy up.
 
