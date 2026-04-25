@@ -155,7 +155,7 @@ done
 
 Assert each returned title matches the corresponding row in your catalog
 table. If any mismatch, halt and report — do not pass unverified numbers
-to downstream steps (e.g., /swarm, /squad, /ship) where Closes-ref accuracy
+to downstream steps (e.g., /swarm, /x-squad, /ship) where Closes-ref accuracy
 depends on the mapping.
 
 ### 5. Report

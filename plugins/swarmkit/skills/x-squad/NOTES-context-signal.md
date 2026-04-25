@@ -2,7 +2,7 @@
 
 ## Goal
 
-Determine whether a `/squad` teammate can read its own context usage (tokens used, percentage of budget, or equivalent) from inside its own turn so the squad skill can implement preemptive handoff (epic #459) before the teammate hits its context limit.
+Determine whether a `/x-squad` teammate can read its own context usage (tokens used, percentage of budget, or equivalent) from inside its own turn so the skill can implement preemptive handoff (epic #459) before the teammate hits its context limit.
 
 ## Investigation steps
 
@@ -54,7 +54,7 @@ Documented for completeness:
 
 ### 6. Local repo search
 
-`Grep` for `context.?usage|token.?count|token.?budget|tokens.?used|context.?budget|context.?window|context.?limit|contextPercent|tokenCount` across the repo returns exactly one hit — a narrative reference to "agent context limits" in the root `README.md`. No existing squad or swarmkit code reads a context-usage field. `Grep` for `TaskList|TaskGet|TaskCreate|TaskUpdate|Teammate|team_name|isActive|used_percentage` across the repo returns only `plugins/swarmkit/skills/squad/SKILL.md`. There is no hidden prior art in this codebase that contradicts the findings above.
+`Grep` for `context.?usage|token.?count|token.?budget|tokens.?used|context.?budget|context.?window|context.?limit|contextPercent|tokenCount` across the repo returns exactly one hit — a narrative reference to "agent context limits" in the root `README.md`. No existing squad or swarmkit code reads a context-usage field. `Grep` for `TaskList|TaskGet|TaskCreate|TaskUpdate|Teammate|team_name|isActive|used_percentage` across the repo returns only `plugins/swarmkit/skills/x-squad/SKILL.md`. There is no hidden prior art in this codebase that contradicts the findings above.
 
 ## Findings
 
