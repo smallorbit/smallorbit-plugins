@@ -51,12 +51,12 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
-| **swarm-experimental** | `/swarm-experimental` | Experimental parallel variant of `/swarm`. Script-backed mechanical phases (preflight, teardown) reduce model round-trips. Same arg grammar and behavior as `/swarm` — prefer `/swarm` for stable workflows. |
+| **x-swarm** | `/x-swarm` | Experimental parallel variant of `/swarm`. Script-backed mechanical phases (preflight, teardown) reduce model round-trips. Same arg grammar and behavior as `/swarm` — prefer `/swarm` for stable workflows. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 | **clean-remote-worktrees** | `/clean-remote-worktrees` | Sweeps orphaned remote `worktree-agent-*` branches from the remote. |
-| **squad** (experimental) | `/squad` | Agent Teams variant of `/swarm` — runs a structured lead/builder/reviewer team. See [Experimental features](#experimental-features). |
+| **x-squad** | `/x-squad` | Experimental Agent Teams variant of `/swarm` — runs a structured lead/builder/reviewer team. See [Experimental features](#experimental-features). |
 
 ### Sub-Skills (internal)
 
@@ -157,28 +157,28 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 ## Experimental features
 
-### `swarm-experimental`
+### `x-swarm`
 
 A parallel, experimental variant of `/swarm`. It accepts the same arguments and produces the same outcomes, but collapses deterministic mechanical phases — preflight, issue gathering, post-agent verification, and loop-mode teardown — into shell scripts rather than conversational model steps. This reduces model round-trips for work that doesn't require judgment.
 
 **When to use it**: dogfooding script-extraction changes or benchmarking round-trip reduction. `/swarm` remains the stable entry point — if anything misbehaves, fall back to it.
 
 ```
-/swarm-experimental 12 15 18
+/x-swarm 12 15 18
 ```
 
 No special setup is required beyond what `/swarm` needs. See [Prerequisites](#prerequisites) and [Permissions](#permissions).
 
-### `squad`
+### `x-squad`
 
 An [Agent Teams](https://code.claude.com/docs/en/agent-teams)-based variant of `/swarm`. Instead of fully independent isolated agents, it runs a structured team: a lead (the main session) coordinates N builder teammates and 1 dedicated reviewer teammate. The reviewer runs continuously alongside the builders — providing feedback before any PR is pushed — and uses peer notifications to stay in sync.
 
-**Setup**: `/squad` requires the Agent Teams API to be enabled. See [SETUP.md](./SETUP.md) for the three ways to set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and how to verify it.
+**Setup**: `/x-squad` requires the Agent Teams API to be enabled. See [SETUP.md](./SETUP.md) for the three ways to set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and how to verify it.
 
 Once enabled, invoke it the same way as `/swarm`:
 
 ```
-/squad 12 15 18
+/x-squad 12 15 18
 ```
 
 **Known limits**:
@@ -187,7 +187,7 @@ Once enabled, invoke it the same way as `/swarm`:
 - **No session resumption** — if the Claude Code session dies, the entire team goes with it. There is no way to reconnect or hand off to a new session.
 - **Halt-only on teammate crash** — if a builder or reviewer crashes, the swarm halts. There is no automatic respawning in v1.
 - **Reviewer is pre-push only** — the reviewer teammate provides feedback before PRs are opened. It does not perform GitHub-side code review after the PR is created.
-- **In-process backend ignores `isolation: "worktree"`** — today's default Agent Teams backend silently drops the flag, leaving builders in the orchestrator's cwd. The squad builder contract includes a temporary manual-worktree fallback that creates the worktree itself when this happens. See [#362](https://github.com/smallorbit/smallorbit-plugins/issues/362) — the fallback will be removed once the backend honors the flag.
+- **In-process backend ignores `isolation: "worktree"`** — today's default Agent Teams backend silently drops the flag, leaving builders in the orchestrator's cwd. The x-squad builder contract includes a temporary manual-worktree fallback that creates the worktree itself when this happens. See [#362](https://github.com/smallorbit/smallorbit-plugins/issues/362) — the fallback will be removed once the backend honors the flag.
 - **Experimental** — API and behavior may change without notice as the Agent Teams feature evolves.
 
 ### Preemptive handoff
@@ -196,7 +196,7 @@ Builder teammates have a finite context window. Without intervention, a builder 
 
 Preemptive handoff is the mechanism that rotates a builder out before that happens.
 
-**The signal.** Squad monitors each builder's transcript size. When the transcript crosses a configured threshold, the lead treats that builder as context-exhausted and initiates a handoff. The threshold was chosen empirically — see [#452](https://github.com/smallorbit/smallorbit-plugins/issues/452) for the probe that established it. There is no timer and no self-rotation: the signal is the transcript size, nothing else.
+**The signal.** x-squad monitors each builder's transcript size. When the transcript crosses a configured threshold, the lead treats that builder as context-exhausted and initiates a handoff. The threshold was chosen empirically — see [#452](https://github.com/smallorbit/smallorbit-plugins/issues/452) for the probe that established it. There is no timer and no self-rotation: the signal is the transcript size, nothing else.
 
 **Successor naming.** When a builder is rotated, its successor takes the same base name with an `-hN` suffix counting up from 1:
 
@@ -210,11 +210,11 @@ The suffix is purely informational. If you see `builder-42-h2` in a log or workt
 
 **Worktree continuity.** Successors reuse the same isolated worktree as their predecessor. Partial work, staged files, and in-progress commits carry over. The successor picks up where the prior builder left off.
 
-**Teardown.** When a run completes, squad's teardown phase automatically removes stale teammate entries — including any `-hN` members that are no longer active. You do not need to clean them up manually.
+**Teardown.** When a run completes, x-squad's teardown phase automatically removes stale teammate entries — including any `-hN` members that are no longer active. You do not need to clean them up manually.
 
 **What falls through to Halt-and-Report.** Preemptive handoff only covers the transcript-size signal. The following are out of scope and still halt the team:
 
 - A builder crashes for a reason unrelated to context size (process error, unhandled exception, etc.)
 - The lead itself exhausts its context — lead self-exhaustion has no rotation mechanism.
 
-Schema details and the full handoff protocol live in [`skills/squad/SKILL.md`](./skills/squad/SKILL.md).
+Schema details and the full handoff protocol live in [`skills/x-squad/SKILL.md`](./skills/x-squad/SKILL.md).

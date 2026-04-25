@@ -1,9 +1,9 @@
 ---
-name: squad
+name: x-squad
 description: "EXPERIMENTAL — requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Spawn parallel agents for GitHub issues using the Agent Teams API instead of isolated worktrees. Same arg grammar as swarmkit:swarm. See epic #285 and https://code.claude.com/docs/en/agent-teams."
 ---
 
-# squad Skill (Experimental)
+# x-squad Skill (Experimental)
 
 > **Experimental**: This skill uses the Claude Code Agent Teams API, which must be explicitly enabled.
 > Reference: [Agent Teams docs](https://code.claude.com/docs/en/agent-teams) | Epic: #285
@@ -811,7 +811,7 @@ Recovery:
   1. Review opened PRs — they are safe to merge
   2. Inspect in-flight worktrees under .claude/worktrees/ for partial work
   3. Run: /clean-worktrees to discard partial state
-  4. Re-run: /squad <args> to resume
+  4. Re-run: /x-squad <args> to resume
 ──────────────────────────────────────────────
 ```
 

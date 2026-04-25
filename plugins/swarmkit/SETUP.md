@@ -1,10 +1,10 @@
-# Swarmkit — Agent Teams setup for `/squad`
+# Swarmkit — Agent Teams setup for `/x-squad`
 
 **Official docs**: [Agent Teams on code.claude.com](https://code.claude.com/docs/en/agent-teams)
 
-> **Experimental**: The Agent Teams API is experimental; its API and behavior may change without notice.
+> **Experimental**: `/x-squad` is one of swarmkit's experimental skills (the `x-` prefix marks experimental commands across this plugin). Expect rougher edges than `/swarm`. The underlying Agent Teams API is itself experimental, so its surface and behavior may also change without notice.
 
-`/squad` is swarmkit's Agent Teams-based variant of `/swarm`. It requires the Agent Teams API to be enabled via the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` environment variable. This document is the canonical setup guide for turning it on.
+`/x-squad` is swarmkit's Agent Teams-based variant of `/swarm`. It requires the Agent Teams API to be enabled via the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` environment variable. This document is the canonical setup guide for turning it on.
 
 ## Enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 
@@ -42,14 +42,14 @@ Set the variable only for a single Claude Code invocation, leaving your global e
 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 claude
 ```
 
-Useful for one-off trials of `/squad` without committing to a persistent shell or settings change.
+Useful for one-off trials of `/x-squad` without committing to a persistent shell or settings change.
 
 ## Verify it's working
 
-With the variable set, run `/squad` inside Claude Code. Its preflight check reads the environment and lets the skill continue. For example:
+With the variable set, run `/x-squad` inside Claude Code. Its preflight check reads the environment and lets the skill continue. For example:
 
 ```
-/squad 12 15 18
+/x-squad 12 15 18
 ```
 
 If the variable is **unset or empty**, the preflight aborts immediately with this exact message:
