@@ -15,10 +15,14 @@ Bumps `plugin.json` version fields for plugins that have changed since their las
 
 | Plugin | plugin.json |
 |--------|-------------|
+| speckit | `plugins/speckit/.claude-plugin/plugin.json` |
 | swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` |
+| polishkit | `plugins/polishkit/.claude-plugin/plugin.json` |
 | flowkit | `plugins/flowkit/.claude-plugin/plugin.json` |
 | sessionkit | `plugins/sessionkit/.claude-plugin/plugin.json` |
-| speckit | `plugins/speckit/.claude-plugin/plugin.json` |
+| vaultkit | `plugins/vaultkit/.claude-plugin/plugin.json` |
+
+Same six plugins as the root README **Available Plugins** table (order matches there).
 
 ## Git tag format
 
