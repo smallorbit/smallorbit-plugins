@@ -13,12 +13,16 @@ Bumps `plugin.json` version fields for plugins that have changed since their las
 
 ## Plugin locations
 
+Every kit under `plugins/*` that ships a manifest at `.claude-plugin/plugin.json` participates in version bumps. The root [README `#available-plugins`](../../../README.md#available-plugins) is the canonical plugin catalog — keep this table in sync when adding or removing kits.
+
 | Plugin | plugin.json |
 |--------|-------------|
-| swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` |
 | flowkit | `plugins/flowkit/.claude-plugin/plugin.json` |
+| polishkit | `plugins/polishkit/.claude-plugin/plugin.json` |
 | sessionkit | `plugins/sessionkit/.claude-plugin/plugin.json` |
 | speckit | `plugins/speckit/.claude-plugin/plugin.json` |
+| swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` |
+| vaultkit | `plugins/vaultkit/.claude-plugin/plugin.json` |
 
 ## Git tag format
 
