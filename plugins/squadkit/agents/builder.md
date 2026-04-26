@@ -42,11 +42,21 @@ You do not merge your own PR. The reviewer is the sole authority. Your job ends 
 
 ## Universal exit gate
 
+Before reporting ship-state, run `git status --porcelain` in your worktree. If output is non-empty, either commit those edits into the verified set (re-running the full verify gate after) or explicitly call them out as deferred in your deliverable to the lead. Never report "all green" against a dirty tree.
+
 Before exiting confirm:
 
 - Your PR is merged, explicitly cancelled, or returned to the backlog with the lead's ack.
 - Your worktree is clean (no uncommitted edits, no untracked files you authored).
 - No outstanding lead deliverable is awaiting your reply.
+
+## Cross-role pings
+
+When you introduce a new module, hook, component, or other importable symbol that a sibling builder's in-flight work will depend on, post a one-line ping to the tester naming the new import path. This lets parallel test files mock the symbol from the start instead of patching it in after a rebase.
+
+## Reporting verify counts
+
+When the verify gate or a blueprint's invariant check involves multiple grep-style counts (e.g. "no `as any` left", "exactly N call sites"), report each invariant's count on its own line in the ship-state. Do not sum unrelated counts into one number — the lead and reviewer need to see the breakdown to spot regressions.
 
 ## Comment policy
 

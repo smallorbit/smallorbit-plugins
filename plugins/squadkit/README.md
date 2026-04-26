@@ -166,8 +166,9 @@ Run `/squadkit:init` once per repo. The wizard is fully interview-driven — the
 
 1. **Typecheck command** — e.g. `npm run typecheck`, `mypy .`, `cargo check`. Empty answer means "this repo has no typecheck step."
 2. **Test command** — e.g. `npm test`, `pytest`, `cargo test`. Empty answer means "no test step."
-3. **Install command** — e.g. `npm install`, `pip install -e .`, `cargo fetch`. Empty answer means "no install step."
-4. **Base branch** — defaults to `develop`. Most repos accept the default.
+3. **Lint command** — optional. e.g. `npm run lint`, `ruff check`, `cargo clippy`. Empty answer means "no lint step." The reviewer uses this to scope lint errors to PR-touched files.
+4. **Install command** — e.g. `npm install`, `pip install -e .`, `cargo fetch`. Empty answer means "no install step."
+5. **Base branch** — defaults to `develop`. Most repos accept the default.
 
 The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent) to the **main repo root** — never to a worktree, even when invoked from inside one. If the file already exists, the wizard surfaces its current contents and prompts before overwriting.
 
@@ -177,7 +178,8 @@ The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent
 {
   "verify": {
     "typecheck": "<command>",
-    "test": "<command>"
+    "test": "<command>",
+    "lint": "<command>"
   },
   "install": "<command>",
   "baseBranch": "<branch>"
@@ -188,6 +190,7 @@ The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent
 |-------|---------|
 | `verify.typecheck` | Command a role agent runs to validate types before opening a PR (e.g. `npm run typecheck`, `mypy .`, `cargo check`). Empty string if the project has no typecheck step. |
 | `verify.test` | Command a role agent runs to validate behavior before opening a PR (e.g. `npm test`, `pytest`, `cargo test`). Empty string if the project has no test step. |
+| `verify.lint` | Optional. Command the reviewer runs to scope lint errors to PR-touched files (e.g. `npm run lint`, `ruff check`, `cargo clippy`). Omit or set to empty string if the project has no lint step. |
 | `install` | Command a fresh worktree runs to install dependencies (e.g. `npm install`, `pip install -e .`, `cargo fetch`). Empty string if no install step is needed. |
 | `baseBranch` | Default base branch for PRs opened by squad members. Most repos use `develop` or `main`. |
 

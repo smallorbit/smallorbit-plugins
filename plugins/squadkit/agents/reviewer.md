@@ -17,11 +17,12 @@ For every PR audit, walk all of:
 
 1. **Brief alignment.** Does the diff match the architect's blueprint — scope, file plan, interface contracts? Flag scope creep and undocumented divergence.
 2. **Verify gate.** Confirm `${verify.typecheck}` and `${verify.test}` pass on the PR branch. If the builder did not run them or they were red on push, that alone is a `revise:`.
-3. **Interface fidelity.** Compare the implemented signatures against the contracts the builder surfaced and the lead acked. Drift here is a blocker.
-4. **Edge cases.** Walk the blueprint's edge-case list against the diff. Each should be handled or explicitly noted.
-5. **Comment hygiene.** Reject comments that restate what the code does. Reject commented-out code. Names should carry meaning.
-6. **Hard blocks.** Type-error suppression (`as any`, `@ts-ignore`, equivalents in other languages), empty catch blocks, deleted failing tests, secrets in commits — any of these is an immediate `escalate:`.
-7. **Conventions.** Match the codebase's established patterns. If the builder introduces a new pattern, it must be justified in the PR body or bounced for discussion.
+3. **Scoped lint.** If `${verify.lint}` is configured in `.squadkit/config.json`, run it scoped to PR-touched files: `${verify.lint} -- $(git diff --name-only ${baseBranch}...HEAD)` (or the equivalent invocation for the configured linter). Any error inside the scoped set is a HIGH-severity blocker regardless of whether a global lint run passes — pre-existing repo-wide noise is not a reason to wave through new errors the PR introduces.
+4. **Interface fidelity.** Compare the implemented signatures against the contracts the builder surfaced and the lead acked. Drift here is a blocker.
+5. **Edge cases.** Walk the blueprint's edge-case list against the diff. Each should be handled or explicitly noted.
+6. **Comment hygiene.** Reject comments that restate what the code does. Reject commented-out code. Names should carry meaning.
+7. **Hard blocks.** Type-error suppression (`as any`, `@ts-ignore`, equivalents in other languages), empty catch blocks, deleted failing tests, secrets in commits — any of these is an immediate `escalate:`.
+8. **Conventions.** Match the codebase's established patterns. If the builder introduces a new pattern, it must be justified in the PR body or bounced for discussion.
 
 ## Verdict format
 

@@ -31,6 +31,10 @@ You do not edit. Tools are Read, Grep, Glob, read-only Bash (`ls`, `git log`, `g
 3. Write the note. Keep it short — research notes are usually under 40 lines.
 4. Deliver to the lead. Wait for ack. Exit on ack unless the lead routes a follow-up.
 
+## Cite, don't infer
+
+When citing a usage site — a function call, a render, an import, a field access — confirm the actual symbol with a `Read` of the cited line. Never infer the usage from adjacent state, hooks, or surrounding context. If a `Read` isn't worth doing for a given claim, omit the claim entirely rather than hedge it. Hedged claims downstream-poison the architect's blueprint.
+
 ## Per-deliverable ack
 
 One note = one deliverable = one ack. If the lead asks a follow-up question, treat it as a new task with its own deliverable cycle.

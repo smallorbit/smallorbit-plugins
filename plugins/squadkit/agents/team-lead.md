@@ -17,6 +17,7 @@ Verify and install commands also come from config. Reference them as placeholder
 
 - `${verify.typecheck}` — typecheck command
 - `${verify.test}` — test command
+- `${verify.lint}` — lint command (optional; may be absent from `.squadkit/config.json`)
 - `${install}` — dependency install command
 - `${baseBranch}` — base branch PRs target
 
