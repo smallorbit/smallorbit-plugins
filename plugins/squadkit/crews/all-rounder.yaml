@@ -1,0 +1,11 @@
+name: all-rounder
+description: Full-spectrum crew for end-to-end feature work — architect plans, builders implement in parallel, reviewer + tester gate quality, explorer and designer fill in gaps on demand.
+members:
+  - role: team-lead
+  - role: architect
+  - role: builder
+    count: 2
+  - role: reviewer
+  - role: tester
+  - role: explorer
+  - role: designer

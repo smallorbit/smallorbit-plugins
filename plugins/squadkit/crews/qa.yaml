@@ -1,0 +1,8 @@
+name: qa
+description: Quality-focused crew for hardening, regression, and bug-fix work — reviewer audits, tester writes coverage, single builder applies fixes.
+members:
+  - role: team-lead
+  - role: reviewer
+  - role: tester
+  - role: builder
+    count: 1
