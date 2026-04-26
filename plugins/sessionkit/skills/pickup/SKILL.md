@@ -7,7 +7,7 @@ triggers:
   - "load handoff"
   - "resume from handoff"
   - "continue previous session"
-allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList
+allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList, Skill
 ---
 
 # Pickup
@@ -32,7 +32,7 @@ Then stop — do not proceed with the remaining steps.
 
 ### 2. Read and parse
 
-Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**.
+Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**. The optional **Team State** section is parsed in step 4b.
 
 ### 3. Present orientation summary
 
@@ -71,6 +71,31 @@ After all `TaskCreate` calls complete, iterate the same set of created tasks. Fo
 - Call `TaskUpdate` with `addBlockedBy` for the new task ID.
 
 Do not wire `blocks` — the inverse relationship is implicit and wiring both directions would double-write the graph.
+
+### 4b. Restore team state (if present)
+
+Parse the `## Team State` section from `.sessionkit/HANDOFF.md`:
+
+1. Locate the fenced ` ```json ` block immediately following the `## Team State` heading.
+2. If no `## Team State` section exists, or the JSON block is absent or unparseable, skip this step silently — back-compat with handoffs that pre-date team-state support.
+
+If a valid block is parsed, identify the **current role** by matching against the new session:
+
+- Resolve the current session ID via `sessionkit:get-session-id`.
+- A member matches if either its `cwd` equals `$PWD`, or the team's `leadSessionId` equals the current session ID and the member's `agentType` is the lead role (`lead` or `team-lead`).
+- If multiple members match, prefer the `cwd` match.
+
+When a member matches:
+
+- If `agentFile` is set and the file exists, Read it and fold the role's operating rules into the orientation summary (do not dump the file verbatim — surface the role's responsibilities concisely).
+- Emit exactly one orientation line:
+  > `Active team `<teamName>` detected (role: <agentType>). Loaded role context from <agentFile>.`
+- If `agentFile` is missing or unreadable, emit instead:
+  > `Active team `<teamName>` detected (role: <agentType>). No role file available.`
+
+When no member matches the current session, surface the team metadata as informational only:
+
+> `Team `<teamName>` referenced in handoff but no member matches this session.`
 
 ### 5. Restore git state (if needed)
 

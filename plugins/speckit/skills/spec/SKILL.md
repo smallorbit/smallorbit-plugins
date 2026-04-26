@@ -121,7 +121,8 @@ ambiguous prompt) — short-circuit the rest of this skill:
 4. On approval, hand the single task to `/catalog` with **no `--epic` flag**.
    Catalog files one standalone issue. Skip step 2.5, step 5 (no epic tracking
    issue), and the sub-issue / blocked-by wiring.
-5. Jump to step 6 to report the filed issue, then stop.
+5. Jump to step 7 to report the filed issue, then stop. Skip step 6 — the
+   team-readiness assessment is full-path only.
 
 **On Full interview** (clearly-full narration, or `Full interview` picked in
 the ambiguous prompt): fall through to step 2 (invoke `/speckit:interview`)
@@ -280,6 +281,8 @@ Pass the full task list from the plan to `/catalog` in a single call, prefixing 
 
 Do not instruct `/catalog` to embed `Depends on #N` lines (or any other `#<number>` task-reference) in issue bodies. GitHub auto-links `#N` tokens, so a body that says "Depends on task #3" will link to unrelated issue 3 in the repo. Task-to-task dependencies are wired in step 5 via the native GitHub blocked-by API — keep them out of the issue body.
 
+**After `/catalog` returns, do not pause and do not wait for user input. Proceed immediately to step 5.** The catalog sub-skill's final output is the results table; any trailing prose it may emit is noise and must be ignored. The orchestrator owns the transition and must advance autonomously.
+
 ### 5. Create the epic tracking issue
 
 Before creating, check for an existing epic: `gh issue list --search "epic: <title>" --state open`. Skip creation and report the existing issue number if found.
@@ -343,18 +346,113 @@ After creating the epic, wire up relationships:
    ```
    Use `-F` (not `-f`) to pass integers. Map task numbers to issue IDs from the created issues.
 
-### 6. Report
+### 6. Team-readiness assessment
+
+Only run this step on the full-path flow (epic with 2+ child issues). Skip
+entirely on the simple path — single-issue plans are never team-suitable.
+
+Assess whether the spec is well-suited for a parallel agent team. The default
+`/catalog` decomposition is written for human developers and is rarely shaped
+for agent-team execution; this step re-evaluates the work and, when warranted,
+re-decomposes the freshly filed issues so multiple builders can run in parallel.
+
+**Suitability signals** — score the spec against all four. The work is
+team-suitable only when **at least three** hold:
+
+1. **Multiple independent modules** — child issues touch ≥2 distinct
+   modules / skills / packages with no shared mutable state.
+2. **Clear interface boundaries** — at least one task can be expressed as a
+   contract (function signature, schema, protocol) that downstream tasks
+   consume.
+3. **Separable phases** — work naturally splits into a contract / interface
+   wave, an implementation wave, and an integration wave.
+4. **Non-trivial implementation surface** — total task count ≥3 after
+   consolidation, with at least two tasks expected to take more than a
+   trivial single-file edit.
+
+If fewer than three signals hold, print a single line and stop:
+
+```
+Team decomposition skipped — <one-line reason, e.g. "tightly sequential, single module">.
+```
+
+Then proceed to step 7 (Report).
+
+**If team-suitable**, re-decompose the filed issues:
+
+1. **Provision phase labels.** For each phase you intend to use (typically
+   `phase:1`, `phase:2`, `phase:3`), check existence and create if missing.
+   Match the catalog skill's label-provisioning pattern:
+   ```bash
+   gh label list --search "phase:" --json name --jq '.[].name'
+   gh label create "phase:<N>" \
+     --color fbca04 \
+     --description "Agent-team execution wave <N>"
+   ```
+   Use the shared color `#fbca04` (yellow family) so phase labels are visually
+   grouped in the GitHub UI.
+
+2. **Assign each child issue to a phase** using `gh issue edit <N>
+   --add-label "phase:<K>"`. Conventional waves:
+   - `phase:1` — interface contracts, schemas, scaffolding (parallel-safe,
+     unblocks downstream)
+   - `phase:2` — implementation tasks that depend on phase:1 contracts
+   - `phase:3` — integration, end-to-end tests, documentation
+
+3. **Extract interface contracts as their own issue** when an implementation
+   task implicitly bundles a contract. Use `/speckit:issue` (or `gh issue
+   create` directly) to file the new contract issue, then add it as a sub-issue
+   of the epic and wire the original implementation issue's blocked-by to
+   point at the contract issue. This lets the tester / consumer agents start
+   in parallel against the contract while the implementer is still working.
+
+4. **Identify the base-branch issue.** One phase:1 issue should be marked as
+   the epic's feature branch base — its branch becomes the integration target
+   for all sibling builders. Note this in the dispatch summary below. (See
+   #592 — flowkit's epic-branch work tracks the matching swarm/flowkit
+   support; this step is informational until that ships.)
+
+5. **Post the team dispatch summary as a comment on the epic issue.** Use
+   `gh issue comment <epic_number> --body` (a comment, NOT a separate issue)
+   with this shape:
+
+   ```markdown
+   ## Team dispatch summary
+
+   This epic has been assessed as suitable for parallel agent-team execution.
+
+   **Recommended spawn config**
+   - Builders: <N> (one per phase:1 issue + one per independent phase:2 stream)
+   - Model: <opus | sonnet — opus for novel design, sonnet for mechanical impl>
+   - Feature branch base: #<base_issue_number> (see #592)
+
+   **Dispatch order**
+   1. Phase 1 (parallel): #A, #B — interface contracts, base branch
+   2. Phase 2 (parallel after phase 1): #C, #D — implementation
+   3. Phase 3 (after phase 2): #E — integration, docs
+
+   **Notes**
+   - <any cross-cutting risks or coordination notes>
+   ```
+
+   Replace placeholders with the actual issue numbers from step 4. Reference
+   #592 verbatim so the link resolves.
+
+### 7. Report
 
 Output a summary table:
 
 ```
 Epic:  #N  epic: <title>
 
-| # | Issue | Category | Priority |
-|---|-------|----------|----------|
-| 1 | #N title | bug | high |
-| 2 | #N title | test | medium |
+| # | Issue | Category | Priority | Phase |
+|---|-------|----------|----------|-------|
+| 1 | #N title | bug | high | phase:1 |
+| 2 | #N title | test | medium | phase:2 |
 ```
+
+Include the `Phase` column only when step 6 ran the team decomposition. If the
+team-readiness assessment skipped, omit the column.
 
 ## Constraints
 

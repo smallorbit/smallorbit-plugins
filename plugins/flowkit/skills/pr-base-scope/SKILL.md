@@ -62,6 +62,7 @@ fi
 |--------|--------|
 | `/ship` | Sets `claude.flowkit.prBase develop` before opening PRs, then unsets after the flow completes |
 | `/swarm` loop mode | Sets `claude.flowkit.prBase` to the appropriate integration branch for the loop session |
+| `/cut-epic` | Sets `claude.flowkit.prBase` to the long-lived epic branch so sub-PRs target it; user runs **Unset** when the epic ships |
 | `/open-pr` | Reads the resolved base (new key → legacy key → `develop`) before creating the PR |
 
 ## Constraints
