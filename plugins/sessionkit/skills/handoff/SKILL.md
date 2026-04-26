@@ -7,7 +7,7 @@ triggers:
   - "create handoff"
   - "save handoff"
   - "context is running low"
-allowed-tools: Bash, Read, Write, TaskList, TaskGet
+allowed-tools: Bash, Read, Write, TaskList, TaskGet, Skill
 ---
 
 # Handoff
@@ -36,6 +36,27 @@ git diff --cached
 ```
 
 Also invoke `TaskList` to get all task IDs, then call `TaskGet` once per task ID to fetch full details. Collect every task that is **not** deleted (i.e. `status !== "deleted"`). This runs in parallel with the bash commands above.
+
+### 1b. Detect active team
+
+Check `~/.claude/teams/*/config.json` for a team config that matches the current session. A team matches if either:
+
+1. Its `leadSessionId` equals the current session ID (resolved via `sessionkit:get-session-id`), OR
+2. Any member's `cwd` equals `$PWD`.
+
+```bash
+CURRENT_SID="$(PROJECT_PATH=$(echo "$PWD" | sed 's|/|-|g'); ls -t ~/.claude/projects/${PROJECT_PATH}/*.jsonl 2>/dev/null | head -1 | xargs -r basename -s .jsonl)"
+ls ~/.claude/teams/*/config.json 2>/dev/null | while read CFG; do
+  jq -r --arg sid "$CURRENT_SID" --arg cwd "$PWD" '
+    if (.leadSessionId == $sid) or (any(.members[]?; .cwd == $cwd))
+    then "MATCH:" + input_filename
+    else empty
+    end
+  ' "$CFG"
+done
+```
+
+If a team matches, read its `config.json` and extract: `name`, `leadAgentId`, `leadSessionId`, and the `members` array. Drop runtime-only fields from each member (keep only `name`, `agentType`, `agentFile`, `cwd`). If `agentFile` is absent on a member, omit the field. If no team matches, skip the Team State section entirely in step 2.
 
 ### 2. Draft the document
 
@@ -78,6 +99,18 @@ Outstanding todos and next steps in priority order.
 ]
 ```
 
+## Team State
+```json
+{
+  "teamName": "<name>",
+  "leadAgentId": "<leadAgentId>",
+  "leadSessionId": "<leadSessionId>",
+  "members": [
+    {"name": "<name>", "agentType": "<type>", "agentFile": "<path>", "cwd": "<path>"}
+  ]
+}
+```
+
 ## Context
 Key decisions made, gotchas encountered, important notes the next agent must know.
 ```
@@ -87,6 +120,7 @@ Inference rules:
 - **Progress** — what's been completed, decided, or abandoned this session.
 - **Remaining Work** — pull from the todo file and from any unfinished threads in the conversation; order by priority.
 - **Task List** — serialize the tasks collected in step 1 as a single fenced `json` code block. The JSON is an array of task objects. Include only these fields: `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, `blocks`. Exclude `owner`, `metadata`, and any deleted tasks. If no tasks exist, write an empty array `[]`. The `id` field preserves the original task ID so `/pickup` can wire `blockedBy` relationships in a follow-up pass.
+- **Team State** — emit this section **only** when step 1b matched a team. Serialize the matched team as a single fenced `json` code block with these fields: `teamName`, `leadAgentId`, `leadSessionId`, and `members` (array of `{name, agentType, agentFile, cwd}` — `agentFile` optional). Omit the section entirely if no team matched.
 - **Context** — decisions, gotchas, dead ends, external references. Keep it to what the next agent genuinely needs.
 
 If `$ARGUMENTS` is provided, weave its guidance into the relevant sections (often Goal or Context).
@@ -128,6 +162,7 @@ Report the absolute path of the file written and suggest:
 - After presenting the draft, write it immediately — do not pause for approval
 - Keep the document concise — it's a recall aid, not full documentation
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
-- Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
-- Legacy HANDOFFs that lack a `## Task List` section remain valid inputs to `/pickup` — its absence is not an error
+- Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Team State (optional) → Context
+- Legacy HANDOFFs that lack a `## Task List` or `## Team State` section remain valid inputs to `/pickup` — their absence is not an error
+- The `## Team State` section is omitted when no team config in `~/.claude/teams/` matches the current session by `leadSessionId` or member `cwd`
 - Always Read `.sessionkit/HANDOFF.md` before overwriting it with Write — the Write tool refuses to overwrite paths it hasn't read in the current conversation
