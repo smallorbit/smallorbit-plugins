@@ -35,6 +35,22 @@ Squadkit's coordination model is intentionally small:
 
 Downstream skills will let you assemble crews from the role library and dispatch them against issues, epics, or freeform prompts.
 
+## Roles
+
+The role library ships seven contracts under `plugins/squadkit/agents/`. Each role has a fixed model assignment chosen to match its cognitive load — orchestration and review run on Opus; implementation, exploration, and craft work run on Sonnet.
+
+| Role | Model | Tools | Responsibility |
+|------|-------|-------|----------------|
+| **team-lead** | opus | Read, Grep, Glob, Bash, Edit, Write | Orchestrates the squad — dispatches work, gates exit conditions, owns no implementation. |
+| **architect** | opus | Read, Grep, Glob, Bash | Read-only blueprint author — produces the contract a builder implements against. |
+| **builder** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Implements the architect's blueprint in an isolated worktree and opens the PR. |
+| **reviewer** | opus | Read, Grep, Glob, Bash | Read-only PR auditor — sole authority that clears a PR for merge. |
+| **tester** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Authors and maintains the test suite that backs the squad's verify gate. |
+| **explorer** | sonnet | Read, Grep, Glob, Bash, WebFetch, WebSearch | Read-only research role for scoped investigative questions. |
+| **designer** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Owns UX flows, mockups, design tokens, and accessibility checks. |
+
+Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root — the `SessionStart` hook (see [Hooks](#hooks)) prefers the local override and falls back to the plugin-shipped contract.
+
 ## Skills
 
 | Skill | Invoke | What it does |
@@ -143,6 +159,17 @@ Squadkit ships a `SessionStart` hook (`hooks/pickup-team-context.sh`) that re-as
 ## Configuration
 
 Squadkit reads its per-repo configuration from `.squadkit/config.json` at the repo root. Generate it once with `/squadkit:init`; edit by hand thereafter.
+
+### Init walkthrough
+
+Run `/squadkit:init` once per repo. The wizard is fully interview-driven — there are no per-stack presets and no auto-detection. It asks four questions sequentially and surfaces the running config back to you after each answer:
+
+1. **Typecheck command** — e.g. `npm run typecheck`, `mypy .`, `cargo check`. Empty answer means "this repo has no typecheck step."
+2. **Test command** — e.g. `npm test`, `pytest`, `cargo test`. Empty answer means "no test step."
+3. **Install command** — e.g. `npm install`, `pip install -e .`, `cargo fetch`. Empty answer means "no install step."
+4. **Base branch** — defaults to `develop`. Most repos accept the default.
+
+The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent) to the **main repo root** — never to a worktree, even when invoked from inside one. If the file already exists, the wizard surfaces its current contents and prompts before overwriting.
 
 ### Schema
 

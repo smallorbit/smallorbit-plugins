@@ -31,6 +31,13 @@ Run it before staging and committing the release.
 
 The `x-` prefix is the convention for experimental skills in this plugin. See `plugins/swarmkit/README.md` for details.
 
+`squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
+
+**Base-branch convention.** Squads always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. The supporting flow primitives live in flowkit:
+
+- `flowkit:cut-epic` — cut the long-lived feature branch standalone (equivalent to the inline cut performed by `spawn-team --epic`).
+- `flowkit:preview-epic` — preview the combined epic-to-base diff before opening the final integration PR.
+
 ## Skill Authoring Conventions
 
 **Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
