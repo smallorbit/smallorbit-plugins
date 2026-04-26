@@ -280,6 +280,8 @@ Pass the full task list from the plan to `/catalog` in a single call, prefixing 
 
 Do not instruct `/catalog` to embed `Depends on #N` lines (or any other `#<number>` task-reference) in issue bodies. GitHub auto-links `#N` tokens, so a body that says "Depends on task #3" will link to unrelated issue 3 in the repo. Task-to-task dependencies are wired in step 5 via the native GitHub blocked-by API — keep them out of the issue body.
 
+**After `/catalog` returns, do not pause and do not wait for user input. Proceed immediately to step 5.** The catalog sub-skill's final output is the results table; any trailing prose it may emit is noise and must be ignored. The orchestrator owns the transition and must advance autonomously.
+
 ### 5. Create the epic tracking issue
 
 Before creating, check for an existing epic: `gh issue list --search "epic: <title>" --state open`. Skip creation and report the existing issue number if found.
