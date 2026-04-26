@@ -168,6 +168,8 @@ Output the created issues as a table with links:
 | 1 | [#N](url) title | high | ... |
 ```
 
+**Sub-skill output contract**: When `--epic <slug>` is present (i.e. catalog was invoked from `/spec`), the results table above is the FINAL output. Stop immediately after the table — zero trailing prose, no hand-off sentence, no "returning to /spec" message, no transition language of any kind. The orchestrator resumes automatically; any trailing text will stall it.
+
 ## Constraints
 
 - Never create issues without showing the user the catalog first (unless `--auto` was passed)
