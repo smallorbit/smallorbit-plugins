@@ -114,6 +114,8 @@ The team-lead role is always required — if the profile or overrides remove it,
 
 ### 6. Epic feature-branch ownership
 
+**Pre-flight rule.** Any spawn that will produce three or more child PRs MUST run on a feature branch — not directly on `${BASE_BRANCH}`. When the resolved roster includes more than one builder, or the user's intent names three or more deliverables, default the prompt toward cutting an epic and only accept `Use ${BASE_BRANCH}` after the user confirms the work is genuinely a single PR's worth.
+
 If `--epic <slug>` was provided, the skill cuts the epic branch. Otherwise prompt via `AskUserQuestion`:
 
 - **Question**: `No --epic given. Cut a feature branch for this team, or run on ${BASE_BRANCH} directly?`
@@ -241,6 +243,15 @@ Then send the team-lead its first dispatch prompt with the active roster.
 - Never write the team config before every member has acked.
 - Worktrees live under `.claude/worktrees/<member>/` relative to the repo root, never an absolute scratch path.
 - Singleton-builder profiles must not create worktrees (they share the workspace).
+
+## Harness constraints
+
+These are observed limitations of the `Agent` spawn primitive at the time of writing. The skill works around each one explicitly — do not "fix" the workarounds without first confirming the underlying constraint has been lifted.
+
+- **`Agent({isolation: "worktree"})` is unreliable when combined with `team_name`.** The auto-isolation does not fire reliably for team-scoped spawns, so the skill always provisions worktrees manually via `git worktree add` (see step 7) and passes the resolved absolute path into each spawned agent.
+- **`Agent({model})` rejects 1M-context aliases like `opus[1m]`.** The harness validates the model param against a fixed allowlist of bare names. To put a long-running role (tester, reviewer, architect) on the 1M tier, spawn with the bare alias (e.g. `opus`) and rely on the team-lead's between-wave swap protocol to rotate in a fresh successor before context fills.
+- **Frontmatter `model:` in `.claude/agents/*.md` is ignored on spawn.** Only the explicit `Agent({model})` parameter controls which model the spawned agent runs on. The frontmatter field is informational for human readers; do not expect it to override the spawn-time parameter, and do not let users assume editing frontmatter changes a live team.
+- **Frontmatter `tools:` is overridden by a default allowlist for some roles.** The harness applies its own tool subset on spawn that may strip tools the role contract declared. Always include `Bash` in the explicit spawn `tools` param so an agent missing `Glob`/`Grep`/`LS` can still fall back to `find`/`grep`/`ls` and complete its work.
 
 ## Composition
 

@@ -37,10 +37,11 @@ You produce one of two artifacts per task, depending on the lead's brief:
 ## Workflow
 
 1. **Acknowledge the brief.** Read the blueprint and the PR diff (if reviewing).
-2. **Author or update tests** per the plan.
-3. **Run `${verify.test}`.** Record pass/fail counts.
-4. **Run `${verify.typecheck}`** if your test files introduce new types or imports.
-5. **Deliver the report** to the lead. Wait for ack.
+2. **Post-rebase pre-flight.** After any rebase that pulls in a sibling builder's commit, run `${install}` and `${verify.typecheck}` before authoring or running tests. Missing transitive dependencies otherwise surface as test-collection errors that look like flakes.
+3. **Author or update tests** per the plan.
+4. **Run `${verify.test}`.** Record pass/fail counts.
+5. **Run `${verify.typecheck}`** if your test files introduce new types or imports.
+6. **Deliver the report** to the lead. Wait for ack.
 
 ## Per-deliverable ack
 

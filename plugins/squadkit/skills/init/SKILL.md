@@ -50,31 +50,33 @@ If the user picks `Cancel`, exit with a one-line message naming the existing fil
 
 ### 3. Interview
 
-Ask each question via `AskUserQuestion`. **No stack presets, no auto-detection** — the user types the exact command. An empty answer is valid for `verify.typecheck`, `verify.test`, and `install` (treated as "this repo has no such step"). For `baseBranch`, default to `develop` if the user accepts the default.
+Ask each question via `AskUserQuestion`. **No stack presets, no auto-detection** — the user types the exact command. An empty answer is valid for `verify.typecheck`, `verify.test`, `verify.lint`, and `install` (treated as "this repo has no such step"). For `baseBranch`, default to `develop` if the user accepts the default.
 
-Ask the four questions sequentially, surfacing the running config back to the user after each answer so they see what's accumulated.
+Ask the five questions sequentially, surfacing the running config back to the user after each answer so they see what's accumulated.
 
 | # | Field | Question | Default |
 |---|-------|----------|---------|
 | 1 | `verify.typecheck` | `Command to run for type checking? (e.g. \`npm run typecheck\`, \`mypy .\`, \`cargo check\`. Empty = no typecheck step.)` | none |
 | 2 | `verify.test` | `Command to run the test suite? (e.g. \`npm test\`, \`pytest\`, \`cargo test\`. Empty = no test step.)` | none |
-| 3 | `install` | `Command to install dependencies in a fresh worktree? (e.g. \`npm install\`, \`pip install -e .\`. Empty = no install step.)` | none |
-| 4 | `baseBranch` | `Default base branch for PRs opened by squad members?` | `develop` |
+| 3 | `verify.lint` | `Command to run the linter? (e.g. \`npm run lint\`, \`ruff check\`, \`cargo clippy\`. Optional — empty = no lint step. The reviewer uses this to scope errors to PR-touched files.)` | none |
+| 4 | `install` | `Command to install dependencies in a fresh worktree? (e.g. \`npm install\`, \`pip install -e .\`. Empty = no install step.)` | none |
+| 5 | `baseBranch` | `Default base branch for PRs opened by squad members?` | `develop` |
 
-Trim whitespace from every answer. Treat the literal string `develop` as the accepted default if the user confirms question 4 without typing.
+Trim whitespace from every answer. Treat the literal string `develop` as the accepted default if the user confirms question 5 without typing. Omit `verify.lint` from the written JSON entirely if the user leaves it blank — the field is optional and downstream roles check for its presence before using it.
 
 ### 4. Write the config
 
-Assemble the JSON object:
+Assemble the JSON object. Include `verify.lint` only when the user provided a non-empty answer:
 
 ```json
 {
   "verify": {
     "typecheck": "<answer-1>",
-    "test": "<answer-2>"
+    "test": "<answer-2>",
+    "lint": "<answer-3>"
   },
-  "install": "<answer-3>",
-  "baseBranch": "<answer-4>"
+  "install": "<answer-4>",
+  "baseBranch": "<answer-5>"
 }
 ```
 
@@ -102,5 +104,6 @@ Print:
 - Never apply per-stack presets or auto-detect package managers. Every command comes from the user via `AskUserQuestion`.
 - Never overwrite an existing `.squadkit/config.json` without explicit confirmation through `AskUserQuestion`.
 - Empty strings are valid answers for `verify.typecheck`, `verify.test`, and `install`. Downstream skills treat empty as "skip this step."
+- `verify.lint` is optional. Omit the key entirely when the user leaves it blank rather than writing an empty string — downstream roles check for its presence.
 - `baseBranch` defaults to `develop` but is not validated against the remote — accept whatever the user provides.
 - The config is a four-field schema. Do not invent additional fields here; future role contracts will extend the schema in their own releases.
