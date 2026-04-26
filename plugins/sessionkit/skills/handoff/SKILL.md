@@ -47,27 +47,6 @@ Build two short fingerprints used in step 1c to decide which sections to regener
 
 Compute both in shell (e.g. `git rev-parse HEAD`, `printf %s "$json" | shasum -a 1 | cut -d' ' -f1`).
 
-### 1b. Detect active team
-
-Check `~/.claude/teams/*/config.json` for a team config that matches the current session. A team matches if either:
-
-1. Its `leadSessionId` equals the current session ID (resolved via `sessionkit:get-session-id`), OR
-2. Any member's `cwd` equals `$PWD`.
-
-```bash
-CURRENT_SID="$(PROJECT_PATH=$(echo "$PWD" | sed 's|/|-|g'); ls -t ~/.claude/projects/${PROJECT_PATH}/*.jsonl 2>/dev/null | head -1 | xargs -r basename -s .jsonl)"
-ls ~/.claude/teams/*/config.json 2>/dev/null | while read CFG; do
-  jq -r --arg sid "$CURRENT_SID" --arg cwd "$PWD" '
-    if (.leadSessionId == $sid) or (any(.members[]?; .cwd == $cwd))
-    then "MATCH:" + input_filename
-    else empty
-    end
-  ' "$CFG"
-done
-```
-
-If a team matches, read its `config.json` and extract: `name`, `leadAgentId`, `leadSessionId`, and the `members` array. Drop runtime-only fields from each member (keep only `name`, `agentType`, `agentFile`, `cwd`). If `agentFile` is absent on a member, omit the field. If no team matches, skip the Team State section entirely in step 2.
-
 ### 1c. Skip-unchanged check
 
 If `.sessionkit/HANDOFF.md` already exists, Read it and look for an HTML comment header of the form:
@@ -78,7 +57,7 @@ If `.sessionkit/HANDOFF.md` already exists, Read it and look for an HTML comment
 
 Compare against the fingerprints from step 1a:
 
-- If **both** match: nothing material has changed. Reuse the existing file's `## Git State`, `## Progress`, `## Task List`, and `## Remaining Work` sections verbatim — only refresh the `**Date**` field, `## Goal` (if `$ARGUMENTS` was passed), `## Context`, and `## Team State`. Skip the sub-agent call entirely; rewrite the file in-line. Report `(skip-unchanged: reused N sections)` in the confirmation.
+- If **both** match: nothing material has changed. Reuse the existing file's `## Git State`, `## Progress`, `## Task List`, and `## Remaining Work` sections verbatim — only refresh the `**Date**` field, `## Goal` (if `$ARGUMENTS` was passed), and `## Context`. Skip the sub-agent call entirely; rewrite the file in-line. Report `(skip-unchanged: reused N sections)` in the confirmation.
 - If only `gitFingerprint` matches: reuse `## Git State` and `## Progress`. Regenerate the rest.
 - If only `taskFingerprint` matches: reuse `## Task List` and `## Remaining Work`. Regenerate the rest.
 - If neither matches, or no prior file exists, or the meta header is absent: regenerate all sections.
@@ -96,10 +75,9 @@ Invoke the `Agent` tool with:
   2. The conversation context summary (recent goal, decisions, gotchas — bullet form, no prose).
   3. The raw outputs from step 1 (git fingerprints, file lists, recent commits, todo file contents).
   4. The Task List JSON from step 1.
-  5. The Team State JSON from step 1b (or `null`).
-  6. Any sections from step 1c marked "reuse verbatim" with their existing content.
-  7. `$ARGUMENTS` if present.
-  8. Explicit instructions: "Emit ONLY the markdown document. No commentary, no fences around the whole thing. Use bullets, not paragraphs, for Progress / Remaining Work / Context. Preserve the JSON code blocks for Task List and Team State exactly as given."
+  5. Any sections from step 1c marked "reuse verbatim" with their existing content.
+  6. `$ARGUMENTS` if present.
+  7. Explicit instructions: "Emit ONLY the markdown document. No commentary, no fences around the whole thing. Use bullets, not paragraphs, for Progress / Remaining Work / Context. Preserve the JSON code block for Task List exactly as given."
 
 **Timeout / failure handling**: if the Agent call fails, returns empty output, or produces output that does not contain the required `## Task List` heading, fall back to in-line synthesis. Prepend a single comment line to the document:
 
@@ -155,18 +133,6 @@ The sub-agent (or in-line fallback) must emit exactly this structure. **Bullets 
 ]
 ```
 
-## Team State
-```json
-{
-  "teamName": "<name>",
-  "leadAgentId": "<leadAgentId>",
-  "leadSessionId": "<leadSessionId>",
-  "members": [
-    {"name": "<name>", "agentType": "<type>", "agentFile": "<path>", "cwd": "<path>"}
-  ]
-}
-```
-
 ## Context
 - <key decision>
 - <gotcha>
@@ -179,7 +145,6 @@ Inference rules (applied by the sub-agent):
 - **Progress** — bullets only: what's been completed, decided, or abandoned this session.
 - **Remaining Work** — bullets in priority order, drawn from the todo file and unfinished conversation threads.
 - **Task List** — serialize the tasks from step 1 as a single fenced `json` code block. Array of task objects. Include only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, `blocks`. Exclude `owner`, `metadata`, and deleted tasks. Empty array `[]` if none. Preserve original task `id` so `/pickup` can wire `blockedBy` relationships.
-- **Team State** — emit **only** when step 1b matched a team. Single fenced `json` block with `teamName`, `leadAgentId`, `leadSessionId`, `members` (`{name, agentType, agentFile, cwd}` — `agentFile` optional). Omit the section entirely otherwise.
 - **Context** — bullets only: decisions, gotchas, dead ends, external references. Keep to what the next agent genuinely needs.
 
 If `$ARGUMENTS` is provided, weave its guidance into Goal or Context.
@@ -218,8 +183,7 @@ Report the absolute path of the file written, the skip-unchanged status (e.g. `r
 - Bullets only in Progress, Remaining Work, and Context — no prose paragraphs
 - The `<!-- handoff-meta ... -->` header on line 1 is mandatory; step 1c reads it on the next run to decide what to skip
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
-- Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Team State (optional) → Context
-- Legacy HANDOFFs that lack a `## Task List`, `## Team State`, or meta header remain valid inputs to `/pickup` — their absence is not an error (the next run will simply regenerate everything)
-- The `## Team State` section is omitted when no team config in `~/.claude/teams/` matches the current session by `leadSessionId` or member `cwd`
+- Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
+- Legacy HANDOFFs that lack a `## Task List` or meta header remain valid inputs to `/pickup` — their absence is not an error (the next run will simply regenerate everything)
 - Always Read `.sessionkit/HANDOFF.md` before overwriting it with Write — the Write tool refuses to overwrite paths it hasn't read in the current conversation
 - If the Haiku sub-agent fails, fall back to in-line synthesis and prepend a `<!-- handoff-warning: ... -->` line so the user knows the slow path was taken

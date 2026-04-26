@@ -128,6 +128,18 @@ See the related flowkit skills:
 - **Idempotent** — re-running `spawn-team` against an existing `~/.claude/teams/<name>/config.json` never duplicates live members. The skill reports the existing roster and asks whether to reuse, add missing members, or cancel.
 - **Worktrees** — multi-builder configs (>1 builder) provision per-member worktrees under `.claude/worktrees/<member>/` via manual `git worktree add`. Singleton-builder profiles share the workspace; no worktree is created.
 
+## Hooks
+
+Squadkit ships a `SessionStart` hook (`hooks/pickup-team-context.sh`) that re-asserts role context whenever a session starts — both fresh sessions spawned by `spawn-team` and resumed sessions picked up via `sessionkit:pickup`.
+
+**When it fires**: every Claude Code `SessionStart` event. The hook scans `~/.claude/teams/*/config.json`, matches the current session by `leadSessionId` (preferred) or by member `cwd`, and stops at the first match. If no team matches, it exits silently with no output.
+
+**What it emits**: a single `systemMessage` reminder telling the lead (or matched member) to load its role contract from disk. The path resolution prefers a project-local override at `.claude/agents/<role>.md` and falls back to the plugin-shipped contract at `plugins/squadkit/agents/<role>.md`.
+
+**Why `SessionStart` only**: the same event fires for both startup paths the issue calls out — fresh `spawn-team` leads and `sessionkit:pickup`-resumed leads — so a single hook covers both without leaning on `PostToolUse` matchers. This keeps team-context restoration owned end-to-end by squadkit; sessionkit no longer needs to know about teams.
+
+**Override pattern**: drop a customized role file at `.claude/agents/<role>.md` in your repo (e.g. `.claude/agents/team-lead.md`) to override the shipped contract for that repo. The hook's reminder will point the agent at the override automatically.
+
 ## Configuration
 
 Squadkit reads its per-repo configuration from `.squadkit/config.json` at the repo root. Generate it once with `/squadkit:init`; edit by hand thereafter.
@@ -160,7 +172,7 @@ Squadkit complements the rest of the suite:
 
 - **[swarmkit](../swarmkit)** — `/swarm` spawns one agent per GitHub issue. Squadkit is the longer-running, role-aware sibling for crew workflows.
 - **[flowkit](../flowkit)** — squad members open PRs through flowkit-shaped commits and conventions.
-- **[sessionkit](../sessionkit)** — `/handoff` and `/pickup` already understand multi-agent team state, so squad members survive context limits.
+- **[sessionkit](../sessionkit)** — `/handoff` and `/pickup` capture and restore generic session state (goal, git, tasks, context). Squadkit's `SessionStart` hook layers team-role context on top, so members resumed via `/pickup` automatically reload their role contract.
 
 ## Roadmap
 
