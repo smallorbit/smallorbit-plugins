@@ -56,7 +56,6 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
 | **clean-remote-worktrees** | `/clean-remote-worktrees` | Sweeps orphaned remote `worktree-agent-*` branches from the remote. |
-| **x-squad** | `/x-squad` | Experimental Agent Teams variant of `/swarm` — runs a structured lead/builder/reviewer team. See [Experimental features](#experimental-features). |
 
 ### Sub-Skills (internal)
 
@@ -169,52 +168,3 @@ A parallel, experimental variant of `/swarm`. It accepts the same arguments and 
 
 No special setup is required beyond what `/swarm` needs. See [Prerequisites](#prerequisites) and [Permissions](#permissions).
 
-### `x-squad`
-
-An [Agent Teams](https://code.claude.com/docs/en/agent-teams)-based variant of `/swarm`. Instead of fully independent isolated agents, it runs a structured team: a lead (the main session) coordinates N builder teammates and 1 dedicated reviewer teammate. The reviewer runs continuously alongside the builders — providing feedback before any PR is pushed — and uses peer notifications to stay in sync.
-
-**Setup**: `/x-squad` requires the Agent Teams API to be enabled. See [SETUP.md](./SETUP.md) for the three ways to set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and how to verify it.
-
-Once enabled, invoke it the same way as `/swarm`:
-
-```
-/x-squad 12 15 18
-```
-
-**Known limits**:
-
-- **One team per session** — Agent Teams supports only a single active team per Claude Code session. Running multiple concurrent swarms in the same session is not supported.
-- **No session resumption** — if the Claude Code session dies, the entire team goes with it. There is no way to reconnect or hand off to a new session.
-- **Halt-only on teammate crash** — if a builder or reviewer crashes, the swarm halts. There is no automatic respawning in v1.
-- **Reviewer is pre-push only** — the reviewer teammate provides feedback before PRs are opened. It does not perform GitHub-side code review after the PR is created.
-- **In-process backend ignores `isolation: "worktree"`** — today's default Agent Teams backend silently drops the flag, leaving builders in the orchestrator's cwd. The x-squad builder contract includes a temporary manual-worktree fallback that creates the worktree itself when this happens. See [#362](https://github.com/smallorbit/smallorbit-plugins/issues/362) — the fallback will be removed once the backend honors the flag.
-- **Experimental** — API and behavior may change without notice as the Agent Teams feature evolves.
-
-### Preemptive handoff
-
-Builder teammates have a finite context window. Without intervention, a builder whose transcript grows too large will crash mid-task — producing a partial result and triggering Halt-and-Report for the whole team.
-
-Preemptive handoff is the mechanism that rotates a builder out before that happens.
-
-**The signal.** x-squad monitors each builder's transcript size. When the transcript crosses a configured threshold, the lead treats that builder as context-exhausted and initiates a handoff. The threshold was chosen empirically — see [#452](https://github.com/smallorbit/smallorbit-plugins/issues/452) for the probe that established it. There is no timer and no self-rotation: the signal is the transcript size, nothing else.
-
-**Successor naming.** When a builder is rotated, its successor takes the same base name with an `-hN` suffix counting up from 1:
-
-```
-builder-42          # original
-builder-42-h1       # first successor
-builder-42-h2       # second successor
-```
-
-The suffix is purely informational. If you see `builder-42-h2` in a log or worktree listing, the original builder completed two handoff cycles — it is not a sign of failure.
-
-**Worktree continuity.** Successors reuse the same isolated worktree as their predecessor. Partial work, staged files, and in-progress commits carry over. The successor picks up where the prior builder left off.
-
-**Teardown.** When a run completes, x-squad's teardown phase automatically removes stale teammate entries — including any `-hN` members that are no longer active. You do not need to clean them up manually.
-
-**What falls through to Halt-and-Report.** Preemptive handoff only covers the transcript-size signal. The following are out of scope and still halt the team:
-
-- A builder crashes for a reason unrelated to context size (process error, unhandled exception, etc.)
-- The lead itself exhausts its context — lead self-exhaustion has no rotation mechanism.
-
-Schema details and the full handoff protocol live in [`skills/x-squad/SKILL.md`](./skills/x-squad/SKILL.md).
