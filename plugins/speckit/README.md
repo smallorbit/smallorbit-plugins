@@ -87,6 +87,32 @@ When `/spec` runs the full interview path, the interview skill applies a silent 
 3. **Soft cap on epic size** — if the task count is still greater than 4 after signals 1 and 2, a second merge pass re-examines under looser interpretations of 1 and 2. The cap is a prompt to re-examine, not a hard limit — genuinely independent tasks are never forced together.
 4. **Docs-only tail merge** — if the auto-appended documentation task is the only non-implementation task remaining and the impl task(s) cover the same surface, docs fold into impl.
 
+### Team-readiness assessment
+
+After the epic and child issues are filed, `/spec` (full path only) assesses
+whether the work is well-suited for a parallel agent team. The signals it
+scores against:
+
+1. **Multiple independent modules** — work spans ≥2 modules / skills / packages.
+2. **Clear interface boundaries** — at least one task can be expressed as a contract.
+3. **Separable phases** — work splits into contract → implementation → integration waves.
+4. **Non-trivial implementation surface** — ≥3 tasks, with multiple non-trivial edits.
+
+If at least three signals hold, `/spec` re-decomposes the filed issues for
+agent execution: it provisions `phase:1`, `phase:2`, `phase:3` labels (creating
+them if missing, matching the catalog skill's label-provisioning pattern),
+assigns each child issue to a phase, extracts interface contracts as their own
+issue when bundled inside an implementation task, identifies the issue whose
+branch should become the epic's feature-branch base (see
+[#592](https://github.com/smallorbit/smallorbit-plugins/issues/592) for the
+matching flowkit work), and posts a team dispatch summary as a comment on the
+epic issue describing recommended spawn config (builder count, model, feature
+branch, initial dispatch order).
+
+If fewer than three signals hold, `/spec` prints
+`Team decomposition skipped — <reason>` and proceeds to the final report. The
+simple path always skips this step — single-issue plans are never team-suitable.
+
 ## How Catalog Works
 
 `/catalog` accepts findings from three sources (checked in order): explicit input in `$ARGUMENTS`, findings from earlier in the conversation, or a file path. It parses them into discrete issues, checks for existing duplicates and labels, shows a summary table for approval, then creates all issues in priority order (high first).
