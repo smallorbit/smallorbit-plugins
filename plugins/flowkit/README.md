@@ -33,6 +33,7 @@ claude --plugin-dir /path/to/flowkit
 |-------|--------|--------------|
 | **commit** | `/commit` | Stage and commit changes with conventional commit format. Infers logical groupings and writes `type(scope): description` messages. |
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
+| **cut-epic** | `/cut-epic` | Cut a long-lived `feature/<slug>-<issue>` branch from `develop`, push it, and pin `claude.flowkit.prBase` so subsequent PRs target it. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop` (skipping any labeled `on-hold`). |
@@ -81,6 +82,24 @@ These are called by the skills above — you don't invoke them directly.
 /hotfix fix login redirect       # branch off main, apply fix, ship, back-merge
 ```
 
+### Epic flow (long-lived feature branch)
+
+When a feature spans multiple PRs and needs to stay isolated from `develop` until ready to ship, cut an epic branch and let sub-PRs target it instead of `develop`.
+
+```
+/cut-epic 1264                   # creates feature/<slug>-1264 from develop, pins claude.flowkit.prBase
+# ... loop ...
+/pr add CSV exporter             # sub-PR opened against feature/<slug>-1264 (not develop)
+/pr wire exporter into UI        # next sub-PR, also targets the epic branch
+# When ready to ship:
+gh pr create --base develop --head feature/<slug>-1264
+git config --unset claude.flowkit.prBase
+```
+
+The epic branch composes with `swarmkit:swarm`: any agents spawned while `claude.flowkit.prBase` is set will open their PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
+
+> Do not run `/ship` while an epic is in flight unless you intend to ship the epic. `/ship` will rescope `claude.flowkit.prBase` to `develop` for its own flow.
+
 ### Feature flow
 
 ```
@@ -119,7 +138,7 @@ Flowkit reads one repo-local git config key:
 
 | Key | Purpose | Default |
 |-----|---------|---------|
-| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/ship` and `/swarm` loop mode; unset on teardown. | `develop` |
+| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/ship`, `/swarm` loop mode, and `/cut-epic`; unset on teardown. | `develop` |
 
 Inspect or set manually:
 
