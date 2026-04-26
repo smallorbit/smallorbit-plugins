@@ -21,7 +21,8 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | Plugin | Install | Description |
 |--------|---------|-------------|
 | **[speckit](./plugins/speckit/)** | `/plugin install speckit@smallorbit-plugins` | Define and capture work through interviews and issue filing |
-| **[swarmkit](./plugins/swarmkit/)** | `/plugin install swarmkit@smallorbit-plugins` | Resolve GitHub issues with parallel worktree agents. _Recommends elevated session permissions — see the plugin's [Permissions](./plugins/swarmkit/README.md#permissions) section._ See [METHODOLOGY.md](./plugins/swarmkit/METHODOLOGY.md) for the stacked agent/PR workflow in depth. For the experimental Agent Teams-based `/x-squad` variant, see [plugins/swarmkit/SETUP.md](./plugins/swarmkit/SETUP.md). |
+| **[swarmkit](./plugins/swarmkit/)** | `/plugin install swarmkit@smallorbit-plugins` | Resolve GitHub issues with parallel worktree agents. _Recommends elevated session permissions — see the plugin's [Permissions](./plugins/swarmkit/README.md#permissions) section._ See [METHODOLOGY.md](./plugins/swarmkit/METHODOLOGY.md) for the stacked agent/PR workflow in depth. |
+| **[squadkit](./plugins/squadkit/)** | `/plugin install squadkit@smallorbit-plugins` | Multi-agent team coordination with the `roles → squads → crews` vocabulary. Spawn role-aware crews (team-lead, architect, builder, reviewer, tester, explorer, designer) on a `feature/<slug>-<issue>` branch cut from `develop`. |
 | **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Critique code quality, sweep for cruft, and eliminate dead code |
 | **[flowkit](./plugins/flowkit/)** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
 | **[sessionkit](./plugins/sessionkit/)** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, and meta-learning |

@@ -154,6 +154,8 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 [Sessionkit](../sessionkit) complements swarmkit throughout: use `/handoff` to preserve state when context runs low mid-swarm, and `/skillit` after a swarm to capture reusable patterns that emerged.
 
+Swarmkit handles parallel-issue resolution — one fire-and-forget agent per GitHub issue, each on its own worktree. For interactive multi-role collaboration with a long-lived team-lead orchestrating architects, builders, reviewers, and testers, use [squadkit](../squadkit).
+
 ## Experimental features
 
 ### `x-swarm`

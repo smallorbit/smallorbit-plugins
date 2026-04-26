@@ -94,7 +94,7 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 
 Multi-agent team coordination is owned by [squadkit](../squadkit). Squadkit ships a `SessionStart` hook that reads `~/.claude/teams/*/config.json` directly and re-emits the active role contract whenever a session starts — including sessions resumed via `/pickup`. Sessionkit therefore stays orthogonal: it captures generic session state, and squadkit layers team-role context on top.
 
-Handoff files written by sessionkit ≤ 1.5.0 may contain a `## Team State` JSON block. `/pickup` ignores those sections silently — they're inert legacy artifacts, not parse errors.
+Handoff files written by sessionkit ≤ 1.5.0 may contain a legacy squad-coordination section. `/pickup` ignores it silently — it's an inert artifact, not a parse error. Role-context restoration now lives in [squadkit](../squadkit)'s `SessionStart` hook.
 
 ## Handoff Document Structure
 

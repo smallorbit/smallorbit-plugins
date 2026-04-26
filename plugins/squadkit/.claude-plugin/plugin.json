@@ -1,7 +1,7 @@
 {
   "name": "squadkit",
   "description": "Multi-agent team coordination for Claude Code. Roles, squads, and crews — interview-driven setup, no per-stack presets, reusable across any repo.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
