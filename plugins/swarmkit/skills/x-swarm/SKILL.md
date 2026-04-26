@@ -25,10 +25,18 @@ Parse `$ARGUMENTS` to determine the mode:
 
 ## Setup
 
+**Resolve the skill base directory first.** This skill ships with extracted scripts under `scripts/`. When swarmkit is installed via the plugin marketplace, those scripts live in the plugin cache directory — they are **not** at `plugins/swarmkit/skills/x-swarm/scripts/` relative to the consumer repo's CWD. Before invoking any script, capture the runtime-resolved absolute path that the harness emits in this skill's header (the line `Base directory for this skill: <absolute path>`) into a shell variable:
+
+```bash
+export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
+```
+
+Use `"$SKILL_DIR/scripts/..."` for every script invocation below. Do **not** hardcode `plugins/swarmkit/...` — that path only resolves in repos that vendor swarmkit directly.
+
 Run the preflight script once. It handles fetch, base-branch verification (creating it from `main` and pushing if missing), and `gh` auth check in a single call:
 
 ```bash
-plugins/swarmkit/skills/x-swarm/scripts/preflight.sh --base "$BASE"
+"$SKILL_DIR/scripts/preflight.sh" --base "$BASE"
 ```
 
 On success the script exits 0 and emits a single JSON object on stdout:
@@ -54,7 +62,7 @@ Used when issue numbers are provided. Dispatches agents for the given set of iss
 Run the gather script once with all requested issue numbers. It batches title, body, labels, state, sub-issues, and native dependency edges (`blockedBy`) into a single `gh api graphql` call, collapsing what was ~3N bash turns into one script invocation:
 
 ```bash
-plugins/swarmkit/skills/x-swarm/scripts/gather_issues.sh <number> [<number> ...]
+"$SKILL_DIR/scripts/gather_issues.sh" <number> [<number> ...]
 ```
 
 On success the script exits 0 and emits one JSON object on stdout:
@@ -241,7 +249,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
 After each agent completes, run the verify script once per agent:
 
 ```bash
-plugins/swarmkit/skills/x-swarm/scripts/verify_agent.sh <issue>
+"$SKILL_DIR/scripts/verify_agent.sh" <issue>
 ```
 
 On success the script exits 0 and emits a single JSON object on stdout:
@@ -295,7 +303,7 @@ Used when no issue numbers are given (no args or label filter). Continuously cle
 Run the preflight script with `--scope-pr-base` to also set `claude.flowkit.prBase` for this session:
 
 ```bash
-plugins/swarmkit/skills/x-swarm/scripts/preflight.sh --base "$BASE" --scope-pr-base
+"$SKILL_DIR/scripts/preflight.sh" --base "$BASE" --scope-pr-base
 ```
 
 Parse the JSON from stdout. Halt and surface stderr if the script exits non-zero or if `gh_authenticated` is `false`. Announce base creation if `base_created` is `true`.
