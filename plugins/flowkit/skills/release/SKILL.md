@@ -162,7 +162,9 @@ PLUGINS="flowkit
 speckit
 swarmkit
 sessionkit
-polishkit"
+polishkit
+squadkit
+vaultkit"
 
 GROUPED_CHANGES_FILE=$(mktemp)
 printf '%s\n' "$PLUGINS" | while read PLUGIN; do
