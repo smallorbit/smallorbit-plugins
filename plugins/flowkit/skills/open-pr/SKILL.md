@@ -120,6 +120,8 @@ The canonical spec is duplicated inline below until publish-time include expansi
 > | `Closes #N` | The child issue `#N` is fully resolved by this PR. GitHub will auto-close it on merge to the default branch. |
 > | `Refs #N` | The parent epic `#N`, or any issue this PR only partially advances. Does not auto-close. |
 >
+> > **Important:** GitHub only parses one closing keyword per line. `Closes #A #B #C` on a single line silently leaves `#B` and `#C` open — only `#A` is treated as a closing reference. Always emit one token per line (`Closes #A` / `Closes #B` / `Closes #C`).
+>
 > Rules:
 >
 > - Emit one `Closes #N` line per fully-resolved child issue.
@@ -129,7 +131,25 @@ The canonical spec is duplicated inline below until publish-time include expansi
 
 **Override rule for `open-pr`**: when tokens come from commit messages on the branch, emit them **verbatim** — do not rewrite `Fixes`/`Resolves` into `Closes`. The canonical guidance above applies to newly authored bodies; `open-pr` forwards what the author committed.
 
-### 7. Open the PR
+### 7. Lint the assembled body for broken closing-keyword footers
+
+GitHub only parses one closing keyword per line. A footer like `Closes #1 #2 #3` silently leaves `#2` and `#3` open. Reject the body before calling `gh pr create` if any line packs multiple issue refs onto a single closing keyword:
+
+```bash
+if printf '%s\n' "$PR_BODY" | grep -qiE '(Closes|Fixes|Resolves) #[0-9]+[[:space:]]+#[0-9]+'; then
+  echo "ERROR: PR body contains a space-separated closing-keyword footer (e.g. 'Closes #1 #2 #3')." >&2
+  echo "GitHub only parses one closing keyword per line; the trailing refs would silently stay open." >&2
+  echo "Rewrite the footer with one token per line:" >&2
+  echo "  Closes #1" >&2
+  echo "  Closes #2" >&2
+  echo "  Closes #3" >&2
+  exit 1
+fi
+```
+
+Fail loudly rather than auto-rewriting — the author should see and fix the footer themselves so the same mistake does not recur in the source commits.
+
+### 8. Open the PR
 
 ```bash
 gh pr create \
@@ -139,7 +159,7 @@ gh pr create \
   --body "<assembled body from step 6>"
 ```
 
-### 8. Report
+### 9. Report
 
 Output the PR URL returned by `gh pr create`.
 
