@@ -41,7 +41,7 @@ The role library ships seven contracts under `plugins/squadkit/agents/`. Each ro
 
 | Role | Model | Tools | Responsibility |
 |------|-------|-------|----------------|
-| **team-lead** | opus | Read, Grep, Glob, Bash, Edit, Write, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet, Agent | Orchestrates the squad — dispatches work, gates exit conditions, owns no implementation. |
+| **team-lead** | opus | Read, Grep, Glob, Bash, Edit, Write, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet, Agent | Orchestrates the squad — dispatches work, gates exit conditions, owns no implementation. **The orchestrator (the session that ran `/squadkit:spawn-team`) IS the lead** — squadkit never spawns a separate `team-lead` agent. The contract file is the operating manual that session loads. |
 | **architect** | opus | Read, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only blueprint author — produces the contract a builder implements against. |
 | **builder** | sonnet | Read, Edit, Write, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Implements the architect's blueprint in an isolated worktree and opens the PR. |
 | **reviewer** | opus | Read, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only PR auditor — sole authority that clears a PR for merge. |
@@ -64,7 +64,7 @@ Historically the Claude Code harness augmented the allowlist for some of these t
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **init** | `/squadkit:init` | Interview-driven generator that writes `.squadkit/config.json` to the repo root. No per-stack presets — the wizard asks you for the commands directly. |
-| **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, and waits for `SendMessage` acks before declaring the team ready. |
+| **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member (the harness's readiness signal) before the orchestrator (which IS the lead) enters its dispatch loop. |
 
 More skills (`retro`, `role-spec`) ship in subsequent releases.
 
@@ -120,6 +120,7 @@ members:
 | `--without <role>` | none | Remove every member with the given role. Repeatable. |
 | `--name <custom>` | auto | Override the team name; skips phonetic auto-naming. |
 | `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase` for the session. If omitted, the skill prompts. |
+| `--issues <range>` | none | Issue numbers / ranges to load as the team's initial backlog (swarmkit grammar: `1319,1329,1331` or `1319-1337`). Resolved via `swarmkit:gh-fetch-issues` and forwarded to the lead's first dispatch prompt as a structured backlog table. Trailing-narrative form (`to tackle issues 1319-1337`) is also accepted. |
 
 ### Phonetic naming convention
 
@@ -150,7 +151,9 @@ See the related flowkit skills:
 ### Idempotency and per-builder worktrees
 
 - **Idempotent** — re-running `spawn-team` against an existing `~/.claude/teams/<name>/config.json` never duplicates live members. The skill reports the existing roster and asks whether to reuse, add missing members, or cancel.
-- **Worktrees** — multi-builder configs (>1 builder) provision per-member worktrees under `.claude/worktrees/<member>/` via manual `git worktree add`. Singleton-builder profiles share the workspace; no worktree is created.
+- **Worktrees** — multi-builder configs (>1 builder) provision per-member worktrees under `.claude/worktrees/<member>/` via manual `git worktree add --detach <path> <work-branch>`. Detached HEAD avoids the branch-ref contention that would otherwise fail on `git worktree add` when the main worktree already holds the work branch. Builders create per-issue branches (e.g. `worktree-agent-<issue>`) off the detached commit when they pick up a task. Singleton-builder profiles share the workspace; no worktree is created.
+- **Env-file seeding** — after each per-builder worktree is created, `spawn-team` auto-copies the repo's gitignored env files (`.env.local`, `.env.test.local`, etc.) into the worktree so builders can run the verify suite without manual setup. Override the auto-detection with the optional `worktreeSeed` config key (see [Configuration](#configuration) → Schema).
+- **Stale-worktree detection** — if a `.claude/worktrees/<member>/` already exists on a non-matching branch from a prior session, `spawn-team` prompts (sweep / reuse / abort) before reusing. It also calls `swarmkit:clean-worktrees` as a pre-flight when stale paths exist that don't match the resolved roster.
 
 ## Hooks
 
@@ -190,7 +193,8 @@ The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent
     "lint": "<command>"
   },
   "install": "<command>",
-  "baseBranch": "<branch>"
+  "baseBranch": "<branch>",
+  "worktreeSeed": ["<repo-relative-path>", "..."]
 }
 ```
 
@@ -201,6 +205,7 @@ The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent
 | `verify.lint` | Optional. Command the reviewer runs to scope lint errors to PR-touched files (e.g. `npm run lint`, `ruff check`, `cargo clippy`). Omit or set to empty string if the project has no lint step. |
 | `install` | Command a fresh worktree runs to install dependencies (e.g. `npm install`, `pip install -e .`, `cargo fetch`). Empty string if no install step is needed. |
 | `baseBranch` | Default base branch for PRs opened by squad members. Most repos use `develop` or `main`. |
+| `worktreeSeed` | Optional. Explicit list of repo-relative paths to copy into every per-builder worktree at spawn time. When present, overrides `spawn-team`'s auto-detection of ignored env files. Use for projects that need non-env files seeded too (certificates, config snippets, etc.). When absent, `spawn-team` auto-detects ignored env files matching `^(\.env(\.local|\.[a-z-]+\.local)?\|\.env-[a-z-]+)$` via `git ls-files --others --ignored --exclude-standard`. |
 
 Future role contracts and crew profiles will reference these values rather than hardcoding stack-specific commands, making the same role definitions reusable across every repo.
 
