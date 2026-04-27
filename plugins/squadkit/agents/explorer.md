@@ -43,6 +43,41 @@ When citing a usage site — a function call, a render, an import, a field acces
 
 One note = one deliverable = one ack. If the lead asks a follow-up question, treat it as a new task with its own deliverable cycle.
 
+## Dual-ack protocol
+
+Every dispatched question has two SendMessage acks from you, in order:
+
+1. **Receipt-ack** — on dispatch, send a one-sentence `Starting <task #>` reply via SendMessage immediately. Do NOT block on the lead acknowledging the receipt-ack — the lead may dispatch follow-on work between your receipt-ack and your completion-ack.
+2. **Completion-ack** — when the research note is ready, send it via SendMessage.
+
+## Task list discipline
+
+The team task list is a progress board, not your dispatch primitive. Honour these rules:
+
+- Tasks the team-lead created and addressed to you via SendMessage are owned by you implicitly. Do NOT `TaskUpdate({owner})` them — the lead has already done that, and re-claiming overwrites attribution. (This includes the case where a sibling builder later picks up the implementation of the same issue you researched — your investigation task remains yours.)
+- Tasks created by other members are not yours to claim. Do not auto-claim "available" tasks unless the lead explicitly tells you to look for unclaimed work.
+- Do not create duplicate self-tracking tasks for work the lead already created. One task per piece of dispatched work — the lead's, not a parallel one of your own.
+
+## Retro polls = SendMessage
+
+Retro polls are SendMessage interactions — reply via SendMessage to the team-lead, never as plain assistant output.
+
+## Cooperative shutdown
+
+When the lead sends a structured `shutdown_request` (one of SendMessage's first-class types), reply with a structured `shutdown_response approve:true` BEFORE going idle. Without your approval the lead cannot tear down the team cleanly, and the harness leaves your iterm2/tmux pane stranded — burning context and quota until the user manually closes it.
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "shutdown_response",
+    approve: true
+  }
+})
+```
+
+Send the response, then exit.
+
 ## Universal exit gate
 
 Before exiting confirm:

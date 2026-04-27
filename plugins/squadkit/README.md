@@ -51,6 +51,8 @@ The role library ships seven contracts under `plugins/squadkit/agents/`. Each ro
 
 Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root — the `SessionStart` hook (see [Hooks](#hooks)) prefers the local override and falls back to the plugin-shipped contract.
 
+**Cooperative shutdown.** Every role contract (lead and members) documents a cooperative `shutdown_request` / `shutdown_response approve:true` handshake. The lead initiates teardown by polling every active member; each member replies before exiting. Without these approvals `TeamDelete` cleans the registry but leaves the underlying iterm2/tmux panes stranded — burning context and quota until the user manually closes them. If you author a project-local override at `.claude/agents/<role>.md`, preserve the cooperative-shutdown section verbatim.
+
 ### Tools allowlist and harness augmentation
 
 The role contracts now declare the **full** tool set each role uses, including the squad-coordination tools (`SendMessage`, `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`, and `Agent` for `team-lead`). A reader of `team-lead.md` can see from frontmatter alone that the role can dispatch work — no mental model of harness magic required.
