@@ -26,10 +26,10 @@ Locate the active team config under `~/.claude/teams/`. Each squad writes a `con
 ls ~/.claude/teams/*/config.json 2>/dev/null
 ```
 
-Resolve which team this retro targets:
+Resolve which team this retro targets. Note: the session running this retro is the **orchestrator**, which IS the team-lead under squadkit's orchestrator-is-lead model — it has no addressable `members[]` entry of its own. Match by member `cwd` (the orchestrator's `$PWD` matches the repo root recorded in `squadkit.json` for one and only one team) or by current session id appearing in any historical handoff record.
 
 1. **Single config present** — use it.
-2. **Multiple configs present** — prefer the one whose `leadSessionId` matches the current session ID, or whose any-member `cwd` equals `$PWD`. If still ambiguous, present the candidates via `AskUserQuestion` and let the user pick.
+2. **Multiple configs present** — prefer the one whose sibling `squadkit.json` records a `repo_root` equal to the orchestrator's main-repo root, or whose any-member `cwd` equals `$PWD`. If still ambiguous, present the candidates via `AskUserQuestion` and let the user pick.
 3. **No configs present** — graceful no-op:
 
    > No active squad — skipping retro. Spawn a team first (`/spawn-team`) to run a retro against it.

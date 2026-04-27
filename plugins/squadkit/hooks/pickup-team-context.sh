@@ -28,13 +28,31 @@ matched_team=""
 for cfg in "${configs[@]}"; do
   [ -r "$cfg" ] || continue
 
-  role=$(jq -r --arg sid "$SID" --arg cwd "$PWD" '
-    if ($sid != "" and .leadSessionId == $sid) then
-      ((.members[]? | select(.agentType == "team-lead" or .agentType == "lead") | .agentType) // "team-lead")
-    else
-      ((.members[]? | select(.cwd == $cwd) | .agentType) // empty)
-    end
-  ' "$cfg" 2>/dev/null | head -1)
+  team_dir=$(dirname "$cfg")
+  squadkit_meta="${team_dir}/squadkit.json"
+
+  role=""
+
+  # Orchestrator-is-lead path: the sibling squadkit.json records the orchestrator's
+  # main-repo root. If it equals $PWD, this session IS the team-lead — even though
+  # it has no entry in the harness-managed members[].
+  if [ -r "$squadkit_meta" ]; then
+    repo_root=$(jq -r '.repo_root // empty' "$squadkit_meta" 2>/dev/null)
+    if [ -n "$repo_root" ] && [ "$repo_root" = "$PWD" ]; then
+      role="team-lead"
+    fi
+  fi
+
+  # Legacy path: leadSessionId match (for any team config still using it).
+  if [ -z "$role" ]; then
+    role=$(jq -r --arg sid "$SID" --arg cwd "$PWD" '
+      if ($sid != "" and .leadSessionId == $sid) then
+        ((.members[]? | select(.agentType == "team-lead" or .agentType == "lead") | .agentType) // "team-lead")
+      else
+        ((.members[]? | select(.cwd == $cwd) | .agentType) // empty)
+      end
+    ' "$cfg" 2>/dev/null | head -1)
+  fi
 
   if [ -n "$role" ] && [ "$role" != "null" ]; then
     matched_role="$role"
