@@ -41,15 +41,23 @@ The role library ships seven contracts under `plugins/squadkit/agents/`. Each ro
 
 | Role | Model | Tools | Responsibility |
 |------|-------|-------|----------------|
-| **team-lead** | opus | Read, Grep, Glob, Bash, Edit, Write | Orchestrates the squad — dispatches work, gates exit conditions, owns no implementation. |
-| **architect** | opus | Read, Grep, Glob, Bash | Read-only blueprint author — produces the contract a builder implements against. |
-| **builder** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Implements the architect's blueprint in an isolated worktree and opens the PR. |
-| **reviewer** | opus | Read, Grep, Glob, Bash | Read-only PR auditor — sole authority that clears a PR for merge. |
-| **tester** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Authors and maintains the test suite that backs the squad's verify gate. |
-| **explorer** | sonnet | Read, Grep, Glob, Bash, WebFetch, WebSearch | Read-only research role for scoped investigative questions. |
-| **designer** | sonnet | Read, Edit, Write, Grep, Glob, Bash | Owns UX flows, mockups, design tokens, and accessibility checks. |
+| **team-lead** | opus | Read, Grep, Glob, Bash, Edit, Write, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet, Agent | Orchestrates the squad — dispatches work, gates exit conditions, owns no implementation. |
+| **architect** | opus | Read, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only blueprint author — produces the contract a builder implements against. |
+| **builder** | sonnet | Read, Edit, Write, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Implements the architect's blueprint in an isolated worktree and opens the PR. |
+| **reviewer** | opus | Read, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only PR auditor — sole authority that clears a PR for merge. |
+| **tester** | sonnet | Read, Edit, Write, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Authors and maintains the test suite that backs the squad's verify gate. |
+| **explorer** | sonnet | Read, Grep, Glob, Bash, WebFetch, WebSearch, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only research role for scoped investigative questions. |
+| **designer** | sonnet | Read, Edit, Write, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Owns UX flows, mockups, design tokens, and accessibility checks. |
 
 Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root — the `SessionStart` hook (see [Hooks](#hooks)) prefers the local override and falls back to the plugin-shipped contract.
+
+### Tools allowlist and harness augmentation
+
+The role contracts now declare the **full** tool set each role uses, including the squad-coordination tools (`SendMessage`, `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`, and `Agent` for `team-lead`). A reader of `team-lead.md` can see from frontmatter alone that the role can dispatch work — no mental model of harness magic required.
+
+Historically the Claude Code harness augmented the allowlist for some of these tools at spawn time (a spawned `team-lead` could call `SendMessage` even when its frontmatter omitted it). That augmentation still happens, but explicit declaration is preferred for documentation correctness and to keep the contracts honest about what each role actually does.
+
+**Override caveat.** If you author a project-local overlay at `.claude/agents/<role>.md`, preserve the coordination tools in the `tools:` line. Stripping them risks breaking dispatch — depending on overlay merge semantics, a restricted overlay may shadow harness augmentation and leave the role unable to message teammates or maintain the dispatch queue. When in doubt, copy the shipped contract's `tools:` line verbatim and add to it rather than replace it.
 
 ## Skills
 
