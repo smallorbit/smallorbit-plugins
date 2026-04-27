@@ -231,6 +231,17 @@ $ARGUMENTS"
 
 $ISSUE_REFS"
 
+# Lint: GitHub only parses one closing keyword per line. A footer like
+# `Closes #1 #2 #3` silently leaves `#2` and `#3` open. Aggregation produces
+# one token per line, but $ARGUMENTS or upstream PR bodies could smuggle the
+# broken form into $PR_BODY — abort before opening the release PR.
+if printf '%s\n' "$PR_BODY" | grep -qiE '(Closes|Fixes|Resolves) #[0-9]+[[:space:]]+#[0-9]+'; then
+  echo "ERROR: Release PR body contains a space-separated closing-keyword footer (e.g. 'Closes #1 #2 #3')." >&2
+  echo "GitHub only parses one closing keyword per line; the trailing refs would silently stay open." >&2
+  echo "Rewrite the offending lines with one token per line (Closes #1 / Closes #2 / Closes #3) and re-run." >&2
+  exit 1
+fi
+
 gh pr create \
   --base main \
   --head "$SOURCE" \
