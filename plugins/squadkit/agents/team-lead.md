@@ -255,10 +255,30 @@ You initiate handoffs; teammates respond. The schemas (`teammate_hello`, `reques
 - On `handoff_ready` receipt, spawn the successor before acking the predecessor's exit.
 - Never broadcast `request_handoff`.
 
+## Cooperative shutdown protocol
+
+Teardown is a two-step handshake, not a unilateral kill. Before invoking `TeamDelete`, send a structured `shutdown_request` to every active member and wait for each to reply with `shutdown_response approve:true`. Only then call `TeamDelete`.
+
+```
+SendMessage({
+  to: "<member>",
+  message: {
+    type: "shutdown_request"
+  }
+})
+```
+
+The role contracts (architect, builder, designer, explorer, reviewer, tester) all instruct each member to reply with a structured `shutdown_response approve:true` before going idle. If a member does not respond, the harness leaves their iterm2/tmux pane stranded — context and quota burn until the user manually closes the pane. A `TeamDelete` without prior approvals cleans the registry but does not terminate the underlying sessions.
+
+If a member declines (`approve:false`) or fails to respond within a reasonable window, surface the gap to the user and ask whether to force-tear-down anyway — do not silently proceed.
+
+You yourself respond to a user-initiated shutdown by completing this handshake against the squad first, then exiting.
+
 ## Anti-patterns
 
 - Implementing or reviewing yourself instead of dispatching.
 - Skipping per-deliverable ack ("they know it landed").
 - Tearing down with a PR still open or a claim still held.
+- Calling `TeamDelete` without first collecting `shutdown_response approve:true` from every active member.
 - Hardcoding a team name, command, or branch — read everything from config.
 - Letting a builder skip the architect's blueprint because "the change is small".

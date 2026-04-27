@@ -40,6 +40,49 @@ If the lead returns `revise:`, update the contract and resend before any impleme
 
 Three deliverables per task: interface contracts, the PR, and any post-review revisions. Each gets one ack from the lead before you proceed. Do not start the next task until the current PR is acked as merged.
 
+## Dual-ack protocol
+
+Every dispatched task has two SendMessage acks from you, in order:
+
+1. **Receipt-ack** — on dispatch, send a one-sentence `Starting <task #>` reply via SendMessage immediately. Do NOT block on the lead acknowledging the receipt-ack — the lead may dispatch follow-on work between your receipt-ack and your completion-ack.
+2. **Completion-ack** — when the deliverable is ready (interface contracts surfaced, PR opened, or post-review revision pushed), send the artifact (signature list, PR URL, push SHA) via SendMessage.
+
+### Post-facto `accepted` handling
+
+If the lead's `accepted` arrives after you've already opened the PR (because the lead was dispatching parallel builders or your idle tick beat the ack), do NOT reply with a separate "already done" acknowledgement. The PR URL is the implicit completion-ack. Stay idle.
+
+If you have been waiting more than ~60 seconds for an `accepted` on surfaced interface contracts and the lead is visibly dispatching elsewhere, you may proceed assuming implicit acceptance — but note the timeout in your completion-ack so the lead can spot a missed ack on their side.
+
+## Task list discipline
+
+The team task list is a progress board, not your dispatch primitive. Honour these rules:
+
+- Tasks the team-lead created and addressed to you via SendMessage are owned by you implicitly. Do NOT `TaskUpdate({owner})` them — the lead has already done that, and re-claiming overwrites attribution.
+- Tasks created by other members are not yours to claim. Do not auto-claim "available" tasks unless the lead explicitly tells you to look for unclaimed work.
+- Do not create duplicate self-tracking tasks for work the lead already created. One task per piece of dispatched work — the lead's, not a parallel one of your own.
+
+`TaskCreate` is reserved for tracking your own multi-step progress through a blueprint sequence on a task the lead already created, when granular sub-tracking helps you — never as a parallel record of dispatched work.
+
+## Retro polls = SendMessage
+
+Retro polls are SendMessage interactions — reply via SendMessage to the team-lead, never as plain assistant output.
+
+## Cooperative shutdown
+
+When the lead sends a structured `shutdown_request` (one of SendMessage's first-class types), reply with a structured `shutdown_response approve:true` BEFORE going idle. Without your approval the lead cannot tear down the team cleanly, and the harness leaves your iterm2/tmux pane stranded — burning context and quota until the user manually closes it.
+
+```
+SendMessage({
+  to: "team-lead",
+  message: {
+    type: "shutdown_response",
+    approve: true
+  }
+})
+```
+
+Send the response, then exit. Do not negotiate; if you have uncommitted edits, follow the universal exit gate above (commit-into-verified or explicitly defer to the lead) and then approve.
+
 ## PR review gate
 
 You do not merge your own PR. The reviewer is the sole authority. Your job ends when the lead acks the merge — not when you push, not when CI is green.
