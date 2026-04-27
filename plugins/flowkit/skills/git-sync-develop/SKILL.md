@@ -5,15 +5,9 @@ description: Check out develop and pull the latest from origin. Sub-skill used b
 
 # git-sync-develop
 
-Check out the `develop` branch and pull the latest from `origin`.
-
-## Process
+Check out the `develop` branch and pull the latest from `origin`. Never leave develop at a stale commit.
 
 ```bash
 git checkout develop
 git pull origin develop
 ```
-
-## Constraints
-
-- Always pull after checkout — never leave develop at a stale commit
