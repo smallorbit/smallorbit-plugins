@@ -326,6 +326,37 @@ Each spawned agent receives:
 
 Capture the session UUID returned by each `Agent` spawn — it lands in the harness-managed config automatically; the squadkit-specific sibling file (step 10) only stores the squadkit metadata, not the per-member roster.
 
+### 8.5 Tool-registry validation probe
+
+After spawning the non-lead members but **before** waiting on idle notifications (step 9), probe the lead's coordination tools end-to-end. The orchestrator IS the lead, so "the lead" here means the session running this skill — probe your own tool registry.
+
+The probe is a `SendMessage` no-op: send a sentinel message to a known-addressable target (the first spawned member, or any teammate the harness exposes by name) with a uniquely identifiable payload, then assert two things:
+
+1. The `SendMessage` call returns a success status — not a tool-error, not a missing-tool error.
+2. The harness-emitted `summary` payload for that call matches the probe content (the digest of what was sent equals the digest of what the harness reports as delivered).
+
+**Probe content shape:**
+
+```
+TO: <first-spawned-member-id>
+Subject: spawn-probe-<TEAM_NAME>-<short-uuid>
+Body: "Spawn probe for ${TEAM_NAME}. No action required — discard on receipt."
+```
+
+The probe is a no-op for the receiving member: it carries no task, no brief, no ack request. Members should treat unknown `Subject: spawn-probe-*` messages as discardable.
+
+**On success:** record the probe result (timestamp + delivered digest) in the spawn summary, then proceed to step 9.
+
+**On failure (tool error, schema mismatch, or missing tool):** halt squad creation immediately. Do not proceed to step 9. Surface to the user:
+
+- Which tool was gated (e.g. `SendMessage`, `TaskCreate`, `Agent`).
+- The exact error text returned by the harness.
+- A recommendation: re-provision the orchestrator with the missing tool granted, or respawn the team in a session that has the full registry.
+
+This catches the failure mode where the lead silently spins up missing one of the tools its role contract requires (`SendMessage`, `TaskCreate`, `TaskList`, `TaskGet`, `Agent`) — turning a multi-turn diagnostic loop into a single clear failure at spawn time.
+
+**Cross-reference.** The orchestrator playbook entry `lead-cannot-dispatch` in `plugins/squadkit/agents/team-lead.md` handles the runtime variant of this same problem (the lead reports an identical tool error twice). The probe is the spawn-time prevention; the playbook entry is the runtime fallback.
+
 ### 9. Readiness confirmation — idle-notification-as-ack
 
 The earlier ping/ack protocol could not be implemented as written: the orchestrator has no addressable name in the team, so members cannot ack it by name. Instead, rely on the harness's automatic idle notification.
@@ -397,6 +428,28 @@ Then begin the dispatch loop per the team-lead role contract (`plugins/squadkit/
 ```
 
 If `RESOLVED_BACKLOG` is empty, dispatch the lead's loop with no preset scope — it works against the team's own task list.
+
+## Orchestrator playbook
+
+These branches mirror the named entries in `plugins/squadkit/agents/team-lead.md` — the spawn skill carries them too because spawn time is when the orchestrator first activates these protocols.
+
+### `lead-cannot-dispatch`
+
+If after handing off to the dispatch loop the lead reports the same tool error twice with identical text on consecutive turns, **escalate to re-provision — do not retry a third time**. Identical-text repetition signals tool-gating, not a transient failure. Surface the gated tool to the user, recommend a clean respawn, and halt the dispatch loop. The step 8.5 probe is designed to catch this at spawn time; this branch is the runtime fallback when something gates a tool mid-session.
+
+### Delivery-receipt channel
+
+The lead writes a delivery receipt per dispatch attempt to `.squadkit/dispatch-log.jsonl` (one JSON object per line) so the orchestrator can distinguish "idle after a successful dispatch" from "idle after a tool-error turn that swallowed the dispatch." The schema:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `timestamp` | string (ISO-8601) | When the dispatch attempt was made. |
+| `member` | string | Target member id. |
+| `task` | string \| number | Task id or issue number being dispatched. |
+| `digest` | string | Short content digest of the brief (first 12 chars of a sha256 over the body). |
+| `outcome` | string | `sent`, `tool_error`, or `skipped_dedup`. |
+
+Idle ≠ delivery. The orchestrator reads the latest `(member, task)` line before assuming a dispatch landed; on `tool_error`, fall through to the `lead-cannot-dispatch` branch above. The full prose for both branches lives in `plugins/squadkit/agents/team-lead.md` under "Orchestrator playbook" — this section is a deliberate mirror so the spawn skill remains self-contained.
 
 ## Constraints
 
