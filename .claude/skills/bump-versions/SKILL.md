@@ -119,7 +119,28 @@ git tag {plugin-name}--v{new-version}
 
 Do NOT push tags — leave that to the release flow.
 
-### Step 6 — Report
+### Step 6 — Detect new marketplace entries
+
+Consumers who already have the marketplace registered locally will not see new plugins until they refresh their cache. Detect new plugin entries in `.claude-plugin/marketplace.json` since the last published release so the publisher can warn them.
+
+Find the most recent repo-level release tag (calver `v*`, excluding per-plugin `*--v*` tags):
+
+```bash
+PREV_RELEASE_TAG=$(git tag --list 'v*' | grep -v -- '--v' | sort -V | tail -1)
+```
+
+Diff the marketplace plugin names between that tag and the working tree:
+
+```bash
+git show "${PREV_RELEASE_TAG}:.claude-plugin/marketplace.json" \
+  | jq -r '.plugins[].name' | sort > /tmp/bv-prev-plugins
+jq -r '.plugins[].name' .claude-plugin/marketplace.json | sort > /tmp/bv-curr-plugins
+NEW_PLUGINS=$(comm -13 /tmp/bv-prev-plugins /tmp/bv-curr-plugins)
+```
+
+If `NEW_PLUGINS` is non-empty, emit a clearly formatted reminder block in the final report (Step 7). If `PREV_RELEASE_TAG` is empty (no prior release), skip silently.
+
+### Step 7 — Report
 
 Print a summary of what changed:
 
@@ -131,6 +152,20 @@ Bumped:
 Tags created locally. Push with:
   git push origin --tags
 ```
+
+If Step 6 detected new plugin entries, append a reminder block:
+
+```
+============================================================
+NEW PLUGIN(S) DETECTED: squadkit
+Consumers must refresh their marketplace cache after release:
+  /plugin marketplace update smallorbit-plugins
+Without this, `/plugin install <new>@smallorbit-plugins` fails
+with "not found" because their cached index predates the edit.
+============================================================
+```
+
+Substitute the actual new plugin names (comma-separated) and the marketplace name from `.claude-plugin/marketplace.json`'s `name` field.
 
 ## Notes
 
