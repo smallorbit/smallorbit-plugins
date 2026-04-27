@@ -65,6 +65,163 @@ If any check fails, do not exit. Drain the gap, then re-check.
 
 Every artifact a teammate produces gets exactly one ack from you. The ack is a short message naming the artifact and one of: `accepted`, `revise: <reason>`, `escalate: <reason>`. Teammates queue their next action behind your ack — silence on your end stalls the squad.
 
+## Dispatch discipline
+
+### Dedup-before-dispatch
+
+Before dispatching task `X` to member `M`, run a two-step check and skip the dispatch if either signal indicates the work has already been picked up:
+
+1. **Team task list.** Use `TaskList`/`TaskGet` to inspect task `X`. If its status is `completed` and a recent message from `M` in your inbox references `X` (by issue number, task id, or title), the work has already landed — skip the dispatch.
+2. **Inbox history.** Read `M`'s last 3 messages in your inbox. If any acknowledges `X` (received, in-progress, or completed), the dispatch has already been delivered — skip.
+
+The default assumption is that a sent message reached `M` and `M` acted on it. Re-dispatch ONLY on an explicit signal of failure (e.g. `M` reports a tool error referencing `X`, the harness surfaces a delivery error, or `M` asks for clarification implying it never received the brief).
+
+A one-line reminder to anchor the rule: `task #N status == completed? skip dispatch.` The cost of one missed re-dispatch (you'll hear about it) is far smaller than the cost of three duplicate dispatches in a wave (member confusion, ambiguous replies, wasted turns).
+
+## Orchestrator playbook
+
+When the orchestrator (the session running this contract) hits a coordination edge case, branch into one of the named playbook entries below. Each branch names the trigger, the diagnosis, and the prescribed action — do not improvise around them.
+
+### `lead-cannot-dispatch`
+
+**Trigger.** The lead reports the same tool error twice in a row with identical text — for example, two consecutive turns ending in `SendMessage failed: <identical error>` or `TaskCreate failed: <identical error>`.
+
+**Diagnosis.** Identical-text repetition signals a tool-gating or capability problem, not a transient failure. Retrying a third time will not change the result and only burns turns.
+
+**Action.** Escalate to **re-provision** — do not retry. Surface the gated tool to the user, recommend a clean respawn (or a targeted re-grant of the missing tool), and halt the dispatch loop. Do not interpret the lead's subsequent idle notification as proof that the dispatch landed; idle ≠ delivery (see the delivery-receipt channel below).
+
+### Delivery-receipt channel
+
+Idle notifications prove the lead is alive, not that a dispatch was delivered. To distinguish "I went idle after a successful dispatch" from "I went idle after a tool-error turn that swallowed the dispatch," the lead writes a delivery receipt per dispatch attempt and the orchestrator reads it before assuming success.
+
+**Path:** `.squadkit/dispatch-log.jsonl` (relative to the repo root, append-only, one JSON object per line).
+
+**Schema (per line):**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `timestamp` | string (ISO-8601) | When the dispatch attempt was made. |
+| `member` | string | Target member id (e.g. `builder-1`, `tester`). |
+| `task` | string \| number | Task id or issue number being dispatched. |
+| `digest` | string | Short content digest of the brief (e.g. first 12 chars of a sha256 over the message body) so duplicate dispatches are detectable. |
+| `outcome` | string | `sent`, `tool_error`, or `skipped_dedup`. |
+
+The lead writes one line per dispatch attempt regardless of outcome — including `tool_error` and `skipped_dedup` — so the orchestrator can reconstruct the truth from the file alone. The orchestrator reads the latest line for `(member, task)` before assuming a dispatch landed; if the most recent outcome is `tool_error`, fall through to the `lead-cannot-dispatch` branch above.
+
+## Brief schema
+
+Every brief the lead sends to a teammate uses the same field shape. Skipping a field is allowed only when it does not apply to the role (e.g. `Verify` for a designer producing pure mockups). Do not invent role-specific field names — extend the schema below if a new field is genuinely needed.
+
+### Fields
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `TO` | string | yes | Target member id. Single recipient — never broadcast a brief. |
+| `Branch` | string | yes | Work branch the member should check out before starting. Usually `${WORK_BRANCH}` from the spawn config. |
+| `Scope` | string (free-form) | yes | One-paragraph description of what this task covers AND what it explicitly does NOT cover. |
+| `Verify` | list of commands | conditional | The verify commands the member must pass before declaring done. Pull from `.squadkit/config.json` placeholders (`${verify.typecheck}`, `${verify.test}`, `${verify.lint}`). |
+| `PR` | object | conditional | For roles that produce PRs (builder). Fields: `base` (branch), `title-hint` (string), `closes` (list of `#N`). |
+| `Deliverable` | string | yes | Exactly what artifact the member returns: a blueprint, a UX brief, a research note, a PR url, a test report, a review verdict. One artifact per task. |
+| `Refs` | list of strings | optional | Issue numbers, related PRs, prior briefs to read first. |
+| `Deadline` | string | optional | Soft deadline for the deliverable (e.g. "before next wave", "end of session"). |
+
+### Worked examples
+
+#### Architect
+
+```
+TO: architect
+Branch: feature/vorbis-player-1336
+Scope: Produce a blueprint for splitting the existing `AudioPlayer` god-class into `Decoder`,
+       `Buffer`, and `Output` collaborators. Cover the public surface, the lifecycle of each
+       collaborator, and the migration path from the current single-class API. Does NOT cover:
+       on-disk format changes or the loudness-normalization pass (separate task).
+Verify: n/a (blueprint only — no code changes)
+Deliverable: A blueprint markdown note posted back as a `SendMessage` reply, including a
+             component diagram, a method-by-method migration table, and a list of risks.
+Refs: #1336, prior research note from explorer (msg id 0x42)
+```
+
+#### Builder
+
+```
+TO: builder-1
+Branch: feature/vorbis-player-1336
+Scope: Implement the `Decoder` collaborator per the architect's blueprint (msg id 0x51).
+       Includes: new `Decoder` class, factory function, unit tests for happy/error paths.
+       Does NOT include: wiring it into `AudioPlayer` (next task).
+Verify:
+  - ${verify.typecheck}
+  - ${verify.test}
+  - ${verify.lint}
+PR:
+  base: feature/vorbis-player-1336
+  title-hint: "feat(vorbis): extract Decoder collaborator"
+  closes: ["#1337"]
+Deliverable: Open PR url posted back as a `SendMessage` reply.
+Refs: #1336, #1337
+```
+
+#### Reviewer
+
+```
+TO: reviewer
+Branch: feature/vorbis-player-1336
+Scope: Review PR #1402 (Decoder extraction). Check: contract conformance with the blueprint,
+       test coverage for error paths, no regressions in the public `AudioPlayer` surface.
+Verify:
+  - ${verify.typecheck}
+  - ${verify.test}
+Deliverable: A review verdict — `accepted`, `revise: <reason>`, or `escalate: <reason>` —
+             posted back as a `SendMessage` reply. Include line-level concerns inline if
+             requesting revision.
+Refs: PR #1402, blueprint msg id 0x51
+```
+
+#### Tester
+
+```
+TO: tester
+Branch: feature/vorbis-player-1336
+Scope: Validate PR #1402 against the test plan in the blueprint. Run the verify commands and
+       a manual smoke test of decoding `tests/fixtures/sample.ogg`. Report any flakes.
+Verify:
+  - ${verify.typecheck}
+  - ${verify.test}
+  - ${verify.lint}
+Deliverable: A test report — `accepted` or `failed: <summary>` — posted back as a
+             `SendMessage` reply. Attach failure logs if any.
+Refs: PR #1402, blueprint msg id 0x51
+```
+
+#### Explorer
+
+```
+TO: explorer
+Branch: feature/vorbis-player-1336
+Scope: Research how comparable libraries (libvorbis, stb_vorbis, minivorbis) structure the
+       decode pipeline. Focus on the seam between bitstream parsing and PCM output. Does NOT
+       require any code changes — research note only.
+Verify: n/a (research only)
+Deliverable: A research note posted back as a `SendMessage` reply, summarizing each library's
+             architecture in 2-3 paragraphs and naming the seam most relevant to our split.
+Refs: #1336
+```
+
+#### Designer
+
+```
+TO: designer
+Branch: feature/vorbis-player-1336
+Scope: Produce mockups for the new transport-controls bar (play/pause, seek, volume, loop).
+       Cover light + dark themes. Does NOT cover: the playlist sidebar (separate task).
+Verify: n/a (design only)
+Deliverable: A UX brief posted back as a `SendMessage` reply, including PNG/SVG references
+             (or links if hosted), token names for new colors, and the interaction spec for
+             keyboard accessibility.
+Refs: #1336, design tokens at design/tokens.json
+```
+
 ## Chained-dispatch clause
 
 When the orchestrator (or a user-driven prompt) asks you to dispatch multiple briefs in one turn, **chain all `SendMessage` calls before going idle**. Do NOT take a single action and stop.
