@@ -25,6 +25,11 @@
       "description": "Define and capture work as GitHub issues. Interview a feature into existence with /spec, bulk-convert findings with /catalog, or quickly file a single issue with /issue."
     },
     {
+      "name": "squadkit",
+      "source": "./plugins/squadkit",
+      "description": "Multi-agent team coordination with the roles → squads → crews vocabulary. Spawn role-aware crews (team-lead, architect, builder, reviewer, tester, explorer, designer) on a feature/<slug>-<issue> branch cut from develop."
+    },
+    {
       "name": "polishkit",
       "source": "./plugins/polishkit",
       "description": "Codebase quality toolkit. Assess code craft with /critique, sweep for cruft with /tidy-codebase, and eliminate unused code with /dead-code."

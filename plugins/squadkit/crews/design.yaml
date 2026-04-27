@@ -1,0 +1,7 @@
+name: design
+description: Discovery and design crew for early-stage exploration — architect frames the system, designer shapes the surface, explorer investigates prior art and constraints. No builders.
+members:
+  - role: team-lead
+  - role: architect
+  - role: designer
+  - role: explorer

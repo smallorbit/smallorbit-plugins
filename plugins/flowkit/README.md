@@ -34,6 +34,7 @@ claude --plugin-dir /path/to/flowkit
 | **commit** | `/commit` | Stage and commit changes with conventional commit format. Infers logical groupings and writes `type(scope): description` messages. |
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
 | **cut-epic** | `/cut-epic` | Cut a long-lived `feature/<slug>-<issue>` branch from `develop`, push it, and pin `claude.flowkit.prBase` so subsequent PRs target it. |
+| **preview-epic** | `/preview-epic` | Build a local preview branch combining every open PR in an epic stack via octopus merge (sequential fallback), then run configurable verify commands to validate the epic end-to-end. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop` (skipping any labeled `on-hold`). |
@@ -98,7 +99,30 @@ git config --unset claude.flowkit.prBase
 
 The epic branch composes with `swarmkit:swarm`: any agents spawned while `claude.flowkit.prBase` is set will open their PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
 
+Before running `swarmkit:merge-stack`, validate the combined tree with `/preview-epic`. It builds a throwaway local branch combining every open PR in the stack (octopus merge with sequential fallback) and runs the project's verify commands against it — catching integration breakage that single-PR CI cannot.
+
 > Do not run `/ship` while an epic is in flight unless you intend to ship the epic. `/ship` will rescope `claude.flowkit.prBase` to `develop` for its own flow.
+
+### Preview an epic before merging
+
+`/preview-epic` validates the combined tree of every open PR in an epic stack before any of them merge. Each PR's CI is green against its own base, but the union may not compile or pass tests — `/preview-epic` catches that integration breakage locally.
+
+```
+/preview-epic                    # discover the stack from the current branch's PR
+/preview-epic 1265               # or pass any PR number in the stack as the entry point
+```
+
+The skill:
+
+1. Resolves the base branch from `.squadkit/config.json` (falls back to `develop`).
+2. Discovers every open PR in the stack rooted at the current branch (or the supplied PR number).
+3. Builds a throwaway local preview branch by octopus-merging all PRs together; on conflict, falls back to sequential merges and reports the offender.
+4. Runs the project's verify commands (`verify.typecheck` and `verify.test` from `.squadkit/config.json`) against the combined tree.
+5. Reports pass/fail per command and leaves the preview branch in place for inspection.
+
+The preview branch is local-only — nothing is pushed. Delete it after inspection and proceed with [`swarmkit:merge-stack`](../swarmkit/README.md#skills) (or address conflicts in the offending PR first).
+
+Use `/preview-epic` immediately before `swarmkit:merge-stack` on any stacked-PR epic. It pairs naturally with `squadkit:spawn-team --epic`, which produces the same epic-branch shape that `/preview-epic` validates.
 
 ### Feature flow
 

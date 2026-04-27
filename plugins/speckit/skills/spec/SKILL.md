@@ -275,15 +275,52 @@ Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If t
 
 The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
+**On approval (full path only)**: immediately after the user approves the plan, and before invoking `/catalog`, call `TaskCreate` to register the five remaining post-approval phases as a single batch of todos. The orchestrator will use this list as the mechanical contract for what remains to do; subsequent steps open with `TaskUpdate` to `in_progress` and close with `TaskUpdate` to `completed`, and the **Pre-end self-check** below uses this list as its turn-end gate.
+
+```
+TaskCreate([
+  { subject: "file-children",                description: "Step 4 — hand the task list to /catalog with --epic <slug>",          activeForm: "Filing child issues via /catalog" },
+  { subject: "create-epic-tracking-issue",   description: "Step 5 — create the parent epic tracking issue with epic:<slug> label", activeForm: "Creating the epic tracking issue" },
+  { subject: "wire-sub-issues",              description: "Step 5 — attach each child as a GitHub sub-issue of the epic",          activeForm: "Wiring sub-issue relationships" },
+  { subject: "wire-blocked-by-edges",        description: "Step 5 — set GitHub blocked-by edges for each task with Depends On",    activeForm: "Wiring blocked-by relationships" },
+  { subject: "final-report",                 description: "Step 7 — print the summary table (and step 6 if team-suitable)",         activeForm: "Reporting filed issues" }
+])
+```
+
+Skip this `TaskCreate` block on the simple path — single-issue plans short-circuit through `/catalog` and step 7 only, and do not need phase tracking.
+
 ### 4. File child issues
+
+Open this step with `TaskUpdate(file-children, status: "in_progress")`.
 
 Pass the full task list from the plan to `/catalog` in a single call, prefixing the arguments with `--epic <slug>` so catalog associates the filed issues with the approved epic. Use the public `--epic <slug>` token that catalog documents in its input contract — do not use a private side channel. `/catalog` handles duplicate detection, label creation, and issue body format.
 
 Do not instruct `/catalog` to embed `Depends on #N` lines (or any other `#<number>` task-reference) in issue bodies. GitHub auto-links `#N` tokens, so a body that says "Depends on task #3" will link to unrelated issue 3 in the repo. Task-to-task dependencies are wired in step 5 via the native GitHub blocked-by API — keep them out of the issue body.
 
-**After `/catalog` returns, do not pause and do not wait for user input. Proceed immediately to step 5.** The catalog sub-skill's final output is the results table; any trailing prose it may emit is noise and must be ignored. The orchestrator owns the transition and must advance autonomously.
+See **Continuation Gate (after /catalog returns)** below — the orchestrator MUST advance autonomously after `/catalog` returns; the rule is hoisted into its own section because this sub-skill boundary is the empirically-observed point at which the orchestrator silently stalls.
+
+Close this step with `TaskUpdate(file-children, status: "completed")` immediately after `/catalog` returns and before reading the next task.
+
+### Continuation Gate (after /catalog returns)
+
+`/catalog` is a sub-skill. When it returns, the catalog sub-skill's job is done; the orchestrator's job is not. **After `/catalog` returns, do not pause and do not wait for user input. Proceed immediately to step 5.** The catalog sub-skill's final output is the results table; any trailing prose it may emit is noise and must be ignored. The orchestrator owns the transition and must advance autonomously.
+
+**Worked failure-mode example.** If your last turn ended with the catalog issue table and the epic tracking issue does not exist yet, that is a defect. Resume from step 5 immediately. (Real session: 9 children were filed via `/catalog`, the agent ended the turn, and the user had to ask "are you waiting on me for something?" to trigger creation of the epic tracking issue and the dependency wiring.)
+
+**Legitimate vs illegitimate ways to end the turn at this boundary**:
+
+| Legitimate                                                                              | Illegitimate                                                                              |
+|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| The user has explicitly halted the run.                                                 | Silent wait for user input after the catalog table prints.                                |
+| The user has explicitly asked to inspect the children before continuing.                | Prose offer to continue ("would you like me to proceed?") in place of running step 5.    |
+|                                                                                         | A status update with no tool call.                                                        |
+|                                                                                         | Ending the turn after the catalog table prints with no further action.                    |
 
 ### 5. Create the epic tracking issue
+
+Open this step with `TaskUpdate(create-epic-tracking-issue, status: "in_progress")`.
+
+
 
 Before creating, check for an existing epic: `gh issue list --search "epic: <title>" --state open`. Skip creation and report the existing issue number if found.
 
@@ -330,21 +367,23 @@ gh issue create \
   --body "<epic body>"
 ```
 
+Close the tracking-issue task with `TaskUpdate(create-epic-tracking-issue, status: "completed")` once `gh issue create` returns the new epic number.
+
 After creating the epic, wire up relationships:
 
-1. **Add sub-issues**: For each child issue, add it as a sub-issue of the epic:
+1. **Add sub-issues**: Open with `TaskUpdate(wire-sub-issues, status: "in_progress")`. For each child issue, add it as a sub-issue of the epic:
    ```bash
    gh api repos/{owner}/{repo}/issues/{epic_number}/sub_issues \
      -X POST -F sub_issue_id={child_issue_id}
    ```
-   Use the numeric `id` (not the issue number) — fetch it from `gh issue view {number} --json id`.
+   Use the numeric `id` (not the issue number) — fetch it from `gh issue view {number} --json id`. Close with `TaskUpdate(wire-sub-issues, status: "completed")` once every child has been attached.
 
-2. **Wire blocked-by relationships**: For each task with a `Depends On` value in the plan, set the GitHub blocked-by relationship:
+2. **Wire blocked-by relationships**: Open with `TaskUpdate(wire-blocked-by-edges, status: "in_progress")`. For each task with a `Depends On` value in the plan, set the GitHub blocked-by relationship:
    ```bash
    gh api repos/{owner}/{repo}/issues/{blocked_number}/dependencies/blocked_by \
      -X POST -F issue_id={blocking_issue_id}
    ```
-   Use `-F` (not `-f`) to pass integers. Map task numbers to issue IDs from the created issues.
+   Use `-F` (not `-f`) to pass integers. Map task numbers to issue IDs from the created issues. Close with `TaskUpdate(wire-blocked-by-edges, status: "completed")` once every edge is set (or immediately, if the plan declares no `Depends On` edges).
 
 ### 6. Team-readiness assessment
 
@@ -440,6 +479,8 @@ Then proceed to step 7 (Report).
 
 ### 7. Report
 
+Open this step with `TaskUpdate(final-report, status: "in_progress")`.
+
 Output a summary table:
 
 ```
@@ -453,6 +494,16 @@ Epic:  #N  epic: <title>
 
 Include the `Phase` column only when step 6 ran the team decomposition. If the
 team-readiness assessment skipped, omit the column.
+
+Close this step with `TaskUpdate(final-report, status: "completed")` once the table is printed.
+
+## Pre-end self-check
+
+> Before ending any turn while `/speckit:spec` is the active orchestrator, run `TaskList`. If any spec task is `pending` or `in_progress`, do not end the turn — execute the next task. The only legitimate way to end a turn with pending spec tasks is if the user has explicitly halted the run.
+
+`TaskList` is the orchestrator's first action whenever it considers ending a turn while `/speckit:spec` is active. Treat it as the mechanical gate on top of all the prose-level continuation rules elsewhere in this skill (in particular the **Continuation Gate (after /catalog returns)** above, which is the empirically-observed stall point). The two rules are intentionally separate: this section is the orchestrator-wide turn-end gate, while the Continuation Gate is a sub-skill-boundary rule for `/catalog` specifically.
+
+**Worked failure-mode example.** 9 children were filed via `/catalog`, the agent ended the turn, and the user had to ask "are you waiting on me for something?" to trigger creation of the epic tracking issue and the dependency wiring. With this section's `TaskList` gate, the orchestrator would have seen `create-epic-tracking-issue` as pending and continued.
 
 ## Constraints
 

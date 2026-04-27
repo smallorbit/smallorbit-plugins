@@ -25,12 +25,18 @@ Run it before staging and committing the release.
 
 ## Plugins
 
-`swarmkit` includes experimental skills marked with an `x-` prefix:
+`swarmkit` includes an experimental skill marked with the `x-` prefix:
 
 - `x-swarm` — variant of `/swarm` that collapses preflight, gather, verify, and teardown into shell scripts to reduce model round-trips.
-- `x-squad` — Agent Teams-based variant of `/swarm`, gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. Supports preemptive handoff: builders near their context limit are rotated to a `-hN` successor before crashing.
 
 The `x-` prefix is the convention for experimental skills in this plugin. See `plugins/swarmkit/README.md` for details.
+
+`squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
+
+**Base-branch convention.** Squads always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. The supporting flow primitives live in flowkit:
+
+- `flowkit:cut-epic` — cut the long-lived feature branch standalone (equivalent to the inline cut performed by `spawn-team --epic`).
+- `flowkit:preview-epic` — preview the combined epic-to-base diff before opening the final integration PR.
 
 ## Skill Authoring Conventions
 

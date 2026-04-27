@@ -168,7 +168,41 @@ Output the created issues as a table with links:
 | 1 | [#N](url) title | high | ... |
 ```
 
-**Sub-skill output contract**: When `--epic <slug>` is present (i.e. catalog was invoked from `/spec`), the results table above is the FINAL output. Stop immediately after the table — zero trailing prose, no hand-off sentence, no "returning to /spec" message, no transition language of any kind. The orchestrator resumes automatically; any trailing text will stall it.
+**Sub-skill output contract**: When `--epic <slug>` is present (i.e. catalog was invoked from `/spec`), emit the handoff block (see [Handoff Contract](#handoff-contract)) immediately after the results table, then stop. The handoff block is the FINAL output — zero trailing prose after the closing fence, no hand-off sentence, no "returning to /spec" message, no transition language of any kind. The orchestrator resumes automatically; any trailing text will stall it. When `--epic` is NOT set, the results table remains the final output with no handoff block.
+
+## Handoff Contract
+
+When `/catalog` is invoked with `--epic <slug>`, it appends a final fenced block to its output immediately after the issue table in Step 5. The block uses the custom info string `spec-handoff` so orchestrators can locate it unambiguously:
+
+````
+```spec-handoff
+{
+  "filed": [602, 603, 604],
+  "epic_slug": "squadkit-team-plugin",
+  "next_phase": "create-epic-tracking-issue"
+}
+```
+````
+
+### Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filed` | integer array | Issue numbers in the order they were created (sequential, matching the issue table). |
+| `epic_slug` | string | The `--epic` slug passed by the orchestrator — verbatim, no transformation. |
+| `next_phase` | string | Always the literal `"create-epic-tracking-issue"`. |
+
+### Placement rule
+
+The block is the final element of the catalog's output, AFTER the issue table. Nothing follows the closing ` ``` ` fence.
+
+### Conditional emission
+
+When `--epic <slug>` is NOT passed, this block is omitted entirely. The handoff contract applies only to orchestrator-invoked catalog runs.
+
+### Consumer contract
+
+Orchestrators (e.g. `/speckit:spec`) parse the JSON inside this block to populate their task list and confirm filed children. The contract is stable across speckit minor versions.
 
 ## Constraints
 

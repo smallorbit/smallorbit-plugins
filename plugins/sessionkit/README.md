@@ -27,8 +27,8 @@ claude --plugin-dir /path/to/sessionkit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **handoff** | `/handoff` | Captures session goal, progress, git state, remaining work, active tasks, and (when present) multi-agent team state into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
-| **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, hydrates pending/in-progress tasks back into the task system, and auto-restores team role context when a `## Team State` block is present. |
+| **handoff** | `/handoff` | Captures session goal, progress, git state, remaining work, and active tasks into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
+| **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
 
@@ -90,26 +90,11 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 
 **Back-compat**: legacy `HANDOFF.md` files that were written before task-list support was added (i.e. no `## Task List` section) are fully valid. `/pickup` emits one warning line — `No task list snapshot — skipping hydration` — and continues with the orientation summary.
 
-### Team State Round-Trip
+### Team Coordination
 
-When the current session is part of a multi-agent team — i.e. a config file under `~/.claude/teams/<team>/config.json` matches by `leadSessionId` or member `cwd` — `/handoff` emits a `## Team State` fenced JSON block capturing the team identity and member roster:
+Multi-agent team coordination is owned by [squadkit](../squadkit). Squadkit ships a `SessionStart` hook that reads `~/.claude/teams/*/config.json` directly and re-emits the active role contract whenever a session starts — including sessions resumed via `/pickup`. Sessionkit therefore stays orthogonal: it captures generic session state, and squadkit layers team-role context on top.
 
-```json
-{
-  "teamName": "...",
-  "leadAgentId": "...",
-  "leadSessionId": "...",
-  "members": [
-    {"name": "team-lead", "agentType": "lead", "agentFile": "...", "cwd": "..."}
-  ]
-}
-```
-
-`/pickup` parses the block, identifies which member corresponds to the resuming session (by `cwd` match, or by lead-session-id match for the lead role), reads the member's `agentFile` if present, and surfaces one orientation line:
-
-> Active team `<name>` detected (role: <agentType>). Loaded role context from `<agentFile>`.
-
-When no team is active, the section is omitted entirely. Handoffs without a `## Team State` section are valid — `/pickup` simply skips the team-restore step.
+Handoff files written by sessionkit ≤ 1.5.0 may contain a legacy squad-coordination section. `/pickup` ignores it silently — it's an inert artifact, not a parse error. Role-context restoration now lives in [squadkit](../squadkit)'s `SessionStart` hook.
 
 ## Handoff Document Structure
 
@@ -122,7 +107,6 @@ When no team is active, the section is omitted entirely. Handoffs without a `## 
 | **Git State** | Current branch, staged/unstaged files, recent commits |
 | **Remaining Work** | Prioritized list of what still needs to be done |
 | **Task List** | Fenced JSON array of task objects (see Task Round-Trip above) |
-| **Team State** | *(optional)* Fenced JSON object capturing active team identity and members (see Team State Round-Trip above). Omitted when no team is active. |
 | **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
 
 You can manually edit `.sessionkit/HANDOFF.md` between sessions — `/pickup` reads whatever is there.

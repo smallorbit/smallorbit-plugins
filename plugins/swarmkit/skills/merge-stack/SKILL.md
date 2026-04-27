@@ -79,9 +79,24 @@ For each chain, work from the root up to the leaf. For each PR in order:
 gh pr view <N> --json mergeable,mergeStateStatus,baseRefName
 ```
 
-If `mergeStateStatus` is `BEHIND` (or `UNKNOWN` — retry after a short sleep): run the local rebase step from 5d against this branch, then re-check.
+If `mergeStateStatus` is `BEHIND` (or `UNKNOWN` — retry after a short sleep): run the local rebase step from 5e against this branch, then re-check.
 
-#### 5b. Merge
+#### 5b. Warn on broken closing-keyword footers
+
+Each PR's own body closes its own issues natively on merge, so a malformed footer is silently lossy — the merge succeeds and the trailing refs stay open. Before merging, scan the body for the space-separated form and warn:
+
+```bash
+BODY=$(gh pr view <N> --json body --jq '.body')
+if printf '%s\n' "$BODY" | grep -qiE '(Closes|Fixes|Resolves) #[0-9]+[[:space:]]+#[0-9]+'; then
+  echo "WARNING: PR #<N> body contains a space-separated closing-keyword footer (e.g. 'Closes #A #B #C')." >&2
+  echo "GitHub will only auto-close the first ref; the rest will stay open after merge." >&2
+  echo "Consider editing the PR body (one 'Closes #N' per line) before merging." >&2
+fi
+```
+
+Warn-only — do not block. Merge-stack runs after review and the operator may choose to fix the trailing issues by hand.
+
+#### 5c. Merge
 
 Every PR uses the same strategy — uniform squash with branch deletion:
 
@@ -91,16 +106,16 @@ gh pr merge <N> --squash --delete-branch
 
 Each PR's own body closes its own issues natively on merge. No ref injection, no body rewriting.
 
-#### 5c. Conflict handling
+#### 5d. Conflict handling
 
-If a merge fails with `CONFLICTING`, or if the rebase in 5d fails with a genuine content conflict (not a patch-id-matchable duplicate):
+If a merge fails with `CONFLICTING`, or if the rebase in 5e fails with a genuine content conflict (not a patch-id-matchable duplicate):
 - Stop the chain at this PR
 - Report the conflict with the PR number and branch names
 - Mark all PRs above it in the same chain as blocked
 - Continue with any independent PRs or unrelated chains
 - At the end, list all stopped and blocked PRs so the user can resolve and re-run
 
-#### 5d. Rebase downstream PRs before merging the next one
+#### 5e. Rebase downstream PRs before merging the next one
 
 After merging a non-leaf PR in a chain, every still-open downstream PR in that chain has its predecessor's commits in its history under the old (pre-squash) SHAs. `$BASE` now carries the same content under a new squash SHA, so GitHub will flag the next PR as `DIRTY`/`CONFLICTING` even though the content overlap is benign. `gh pr update-branch` cannot resolve this — it fails with `Cannot update PR branch due to conflicts`. A local rebase is required because only `git rebase`'s patch-id matching drops the already-applied commits.
 
@@ -112,7 +127,7 @@ git checkout <head-branch>
 if ! git rebase origin/$BASE; then
   git rebase --abort
   # Real content conflict (e.g. add/add on a file two chains both created).
-  # Fall through to 5c: stop this chain, block its dependents, continue with
+  # Fall through to 5d: stop this chain, block its dependents, continue with
   # other chains/independents. Do NOT force-push; leave the PR untouched so
   # the user can resolve by hand.
   continue  # or equivalent control flow in the skill's execution loop
@@ -120,13 +135,13 @@ fi
 git push --force-with-lease origin <head-branch>
 ```
 
-`git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. A non-zero exit from `git rebase` means a real merge conflict git could not auto-resolve; handle it per 5c. Always `git rebase --abort` before falling through so the branch returns to its pre-rebase state and no partial work is pushed.
+`git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. A non-zero exit from `git rebase` means a real merge conflict git could not auto-resolve; handle it per 5d. Always `git rebase --abort` before falling through so the branch returns to its pre-rebase state and no partial work is pushed.
 
-After the rebases, re-query `mergeStateStatus` for the next PR to merge and proceed to 5b. GitHub may report `UNKNOWN` briefly after a force-push; poll with `sleep 3` until it resolves to `CLEAN`, `BEHIND`, or `DIRTY`.
+After the rebases, re-query `mergeStateStatus` for the next PR to merge and proceed to 5c. GitHub may report `UNKNOWN` briefly after a force-push; poll with `sleep 3` until it resolves to `CLEAN`, `BEHIND`, or `DIRTY`.
 
 For independent PRs (no chain), skip this step — they target `$BASE` directly and have no predecessor commits to drop.
 
-#### 5e. Pause between merges
+#### 5f. Pause between merges
 
 ```bash
 sleep 3

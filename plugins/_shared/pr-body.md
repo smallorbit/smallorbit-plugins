@@ -27,6 +27,8 @@ After the three sections, emit a blank line, then one token per line using GitHu
 | `Closes #N` | The child issue `#N` is fully resolved by this PR. GitHub will auto-close it on merge to the default branch. |
 | `Refs #N` | The parent epic `#N`, or any issue this PR only partially advances. Does not auto-close. |
 
+> **Important:** GitHub only parses one closing keyword per line. `Closes #A #B #C` on a single line silently leaves `#B` and `#C` open — only `#A` is treated as a closing reference. Always emit one token per line (`Closes #A` / `Closes #B` / `Closes #C`).
+
 Rules:
 
 - Emit one `Closes #N` line per fully-resolved child issue.
