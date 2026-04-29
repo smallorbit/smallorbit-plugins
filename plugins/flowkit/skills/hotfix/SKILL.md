@@ -88,11 +88,9 @@ git push origin "$COMPANION"
 
 The annotation message preserves the "hotfix" signal for `git tag -n` queries; the companion tag keeps the canonical version tag clean while still flagging the commit as an emergency fix.
 
-### 11. Close referenced issues
+Referenced issues auto-close at merge time: `/open-pr` discovers `Closes #N` tokens from branch commits and emits them in the PR body footer (open-pr step 5). When the hotfix PR merges into `main` (the default branch), GitHub closes those references automatically — no explicit close step is needed.
 
-Follow the `gh-close-referenced-issues` sub-skill, passing the merged PR number.
-
-### 12. Back-merge main into develop
+### 11. Back-merge main into develop
 
 Keep `develop` in sync with the hotfix:
 
@@ -104,11 +102,11 @@ git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
 git push origin develop
 ```
 
-### 13. Sync develop
+### 12. Sync develop
 
 Follow the `git-sync-develop` sub-skill to confirm a clean local develop state.
 
-### 14. Report
+### 13. Report
 
 Summarize:
 - Hotfix PR merged into main
