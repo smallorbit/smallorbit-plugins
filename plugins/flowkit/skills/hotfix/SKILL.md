@@ -52,11 +52,11 @@ git ls-remote --exit-code origin staging &>/dev/null && STAGING_EXISTS=true || S
 
 ### 6. Scope the PR base to main
 
-Follow the `pr-base-scope` sub-skill to set `claude.prBase = main`.
+Follow the `pr-base-scope` sub-skill to set `claude.flowkit.prBase = main`.
 
 ### 7. Open a PR targeting main
 
-Follow `/open-pr`. Because `claude.prBase = main`, the PR targets `main`.
+Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`.
 
 ### 8. Merge the PR into main
 
@@ -64,7 +64,7 @@ Follow `/merge-pr` to squash-merge the hotfix PR into `main`.
 
 ### 9. Unset the PR base scope
 
-Follow the `pr-base-scope` sub-skill to unset `claude.prBase`.
+Follow the `pr-base-scope` sub-skill to unset `claude.flowkit.prBase`.
 
 ### 10. Tag the hotfix on main
 
@@ -121,5 +121,4 @@ Summarize:
 - Always wait for user confirmation between branch creation (step 2) and committing (step 4)
 - Always back-merge main into develop after the hotfix merges
 - Tag directly on main — do not run a full RC cycle for hotfixes
-- No simplify pass — hotfix is an emergency flow
 - If any step fails, stop and report clearly — do not continue

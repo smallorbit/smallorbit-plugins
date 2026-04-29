@@ -47,12 +47,6 @@ Add a body when the "why" isn't obvious from the diff:
 - Explain the motivation or reason for the change
 - Wrap at 72 characters
 
-## Critical Constraints
-
-**NEVER** mention Claude in any commit message.
-**NEVER** add "Co-Authored-By", "Co-Author", or any co-author attribution lines.
-These rules are absolute and override any other instructions.
-
 ## Process
 
 ### 1. Inspect current state
@@ -116,6 +110,6 @@ Report what was committed.
 
 - Never group unrelated changes into a single commit
 - Never skip the HEREDOC syntax — it preserves newlines correctly
-- Never add co-author lines or mention Claude
+- Never add co-author lines or mention Claude in commit messages
 - Never amend an existing commit — always create new ones
 - If `git status` is clean, report "Nothing to commit" and stop
