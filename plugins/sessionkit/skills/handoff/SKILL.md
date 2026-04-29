@@ -14,7 +14,7 @@ allowed-tools: Bash, Read, Write, TaskList, TaskGet, Skill, Agent
 
 Capture the current session's goal, progress, git state, remaining work, and key context into `<working-dir>/.sessionkit/HANDOFF.md` so another agent can pick up without losing momentum.
 
-This skill is optimized for **frequent invocation**. Run it after every meaningful state change — a PR opens, a task flips to `completed`, a key decision lands — not only when context is running low. The synthesis step is delegated to a Haiku sub-agent and skips sections whose inputs haven't changed since the last run, so the cost is small.
+Synthesis is delegated to a Haiku sub-agent and skips sections whose inputs haven't changed since the last run, so frequent invocation is cheap.
 
 ## Input
 
@@ -179,11 +179,6 @@ Report the absolute path of the file written, the skip-unchanged status (e.g. `r
 
 ## Constraints
 
-- Run as soon as a meaningful state change happens — frequent handoffs are cheap by design (skip-unchanged + Haiku sub-agent)
-- Bullets only in Progress, Remaining Work, and Context — no prose paragraphs
-- The `<!-- handoff-meta ... -->` header on line 1 is mandatory; step 1b reads it on the next run to decide what to skip
-- `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
 - Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
+- `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
 - Legacy HANDOFFs that lack a `## Task List` or meta header remain valid inputs to `/pickup` — their absence is not an error (the next run will simply regenerate everything)
-- Always Read `.sessionkit/HANDOFF.md` before overwriting it with Write — the Write tool refuses to overwrite paths it hasn't read in the current conversation
-- If the Haiku sub-agent fails, fall back to in-line synthesis and prepend a `<!-- handoff-warning: ... -->` line so the user knows the slow path was taken
