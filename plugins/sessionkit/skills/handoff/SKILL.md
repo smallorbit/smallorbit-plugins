@@ -40,14 +40,14 @@ Also invoke `TaskList` to get all task IDs, then call `TaskGet` once per task ID
 
 ### 1a. Compute change fingerprints
 
-Build two short fingerprints used in step 1c to decide which sections to regenerate:
+Build two short fingerprints used in step 1b to decide which sections to regenerate:
 
 - `gitFingerprint` — `<HEAD-sha>:<sorted-staged-files-hash>:<sorted-unstaged-files-hash>`. A change in HEAD or in the working-tree file lists invalidates the Git State + Progress sections.
 - `taskFingerprint` — SHA-1 of the canonicalized (sorted by `id`, fields stripped to `id,subject,status,blockedBy`) Task List JSON. Any change invalidates the Task List + Remaining Work sections.
 
 Compute both in shell (e.g. `git rev-parse HEAD`, `printf %s "$json" | shasum -a 1 | cut -d' ' -f1`).
 
-### 1c. Skip-unchanged check
+### 1b. Skip-unchanged check
 
 If `.sessionkit/HANDOFF.md` already exists, Read it and look for an HTML comment header of the form:
 
@@ -75,7 +75,7 @@ Invoke the `Agent` tool with:
   2. The conversation context summary (recent goal, decisions, gotchas — bullet form, no prose).
   3. The raw outputs from step 1 (git fingerprints, file lists, recent commits, todo file contents).
   4. The Task List JSON from step 1.
-  5. Any sections from step 1c marked "reuse verbatim" with their existing content.
+  5. Any sections from step 1b marked "reuse verbatim" with their existing content.
   6. `$ARGUMENTS` if present.
   7. Explicit instructions: "Emit ONLY the markdown document. No commentary, no fences around the whole thing. Use bullets, not paragraphs, for Progress / Remaining Work / Context. Preserve the JSON code block for Task List exactly as given."
 
@@ -89,7 +89,7 @@ Invoke the `Agent` tool with:
 
 ### 2a. Strict template
 
-The sub-agent (or in-line fallback) must emit exactly this structure. **Bullets only** in Progress / Remaining Work / Context — no narrative paragraphs. The meta header on line 1 is mandatory and is what step 1c reads on the next run.
+The sub-agent (or in-line fallback) must emit exactly this structure. **Bullets only** in Progress / Remaining Work / Context — no narrative paragraphs. The meta header on line 1 is mandatory and is what step 1b reads on the next run.
 
 ```markdown
 <!-- handoff-meta gitFingerprint=<sha> taskFingerprint=<sha> -->
@@ -161,7 +161,7 @@ test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" |
 - **`.gitignore` present but not covered**: ask "`.gitignore` doesn't cover `.sessionkit/`. Append it? (yes/no)". On yes, append `.sessionkit/` to `.gitignore`. On no, proceed.
 - **Already covered**: proceed silently.
 
-If `.sessionkit/HANDOFF.md` already exists, Read it first (the Write tool requires a prior Read of the target path). Step 1c already did this when a prior file exists.
+If `.sessionkit/HANDOFF.md` already exists, Read it first (the Write tool requires a prior Read of the target path). Step 1b already did this when a prior file exists.
 
 Then create the directory and write the file:
 
@@ -181,7 +181,7 @@ Report the absolute path of the file written, the skip-unchanged status (e.g. `r
 
 - Run as soon as a meaningful state change happens — frequent handoffs are cheap by design (skip-unchanged + Haiku sub-agent)
 - Bullets only in Progress, Remaining Work, and Context — no prose paragraphs
-- The `<!-- handoff-meta ... -->` header on line 1 is mandatory; step 1c reads it on the next run to decide what to skip
+- The `<!-- handoff-meta ... -->` header on line 1 is mandatory; step 1b reads it on the next run to decide what to skip
 - `.sessionkit/HANDOFF.md` in the working directory is the canonical location — never write elsewhere
 - Section order in HANDOFF.md is fixed: Goal → Progress → Git State → Remaining Work → Task List → Context
 - Legacy HANDOFFs that lack a `## Task List` or meta header remain valid inputs to `/pickup` — their absence is not an error (the next run will simply regenerate everything)
