@@ -62,6 +62,4 @@ Report the branch name that was created, e.g.:
 ## Constraints
 
 - Always branch from `origin/develop`, never from a local `develop` (which may be behind)
-- Never create branches named `main`, `master`, `develop`, or `staging`
-- Branch names must be kebab-case and 50 characters or fewer
 - If unable to infer a branch name and `$ARGUMENTS` is empty, ask the user what the branch is for

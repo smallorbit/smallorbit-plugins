@@ -87,49 +87,11 @@ Emit the canonical three-section body (see template below), followed by a blank 
 
 #### Body template
 
+The body shape, footer grammar, and worked example live in [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md) — that is the single source of truth.
+
 <!-- include: plugins/_shared/pr-body.md -->
 
-The canonical spec is duplicated inline below until publish-time include expansion lands. When that infrastructure ships, only the include marker above remains and this block is removed.
-
-> # Canonical PR Body Specification
->
-> Every PR opened by plugins in this repo uses the shape defined here. This is the single source of truth — skills that emit PR bodies reference this document rather than carrying their own copy.
->
-> ## Body shape
->
-> A PR body has three sections in this order, followed by a footer of issue-reference tokens.
->
-> ### `## Summary`
->
-> 1–3 sentences derived from the diff and the commit messages on the branch. State what the change does and why. No bullets. No file paths. No restating the title.
->
-> ### `## Changes`
->
-> Bulleted list of concrete changes, each with a file reference where applicable. One bullet per logical change, not per file. Group related edits. Keep bullets tight — a reviewer should be able to scan the list and predict the diff.
->
-> ### `## Test plan`
->
-> Bulleted checklist (`- [ ]`) of verification steps. Each item is something a reviewer or CI can actually check. Prefer behavioral checks ("PR body renders with all three sections") over implementation checks ("function returns correct value"). If the change is pure docs or config, the checklist may be short — but it must exist.
->
-> ## Issue-reference footer
->
-> After the three sections, emit a blank line, then one token per line using GitHub's closing-keyword grammar.
->
-> | Token | When to use |
-> |-------|-------------|
-> | `Closes #N` | The child issue `#N` is fully resolved by this PR. GitHub will auto-close it on merge to the default branch. |
-> | `Refs #N` | The parent epic `#N`, or any issue this PR only partially advances. Does not auto-close. |
->
-> > **Important:** GitHub only parses one closing keyword per line. `Closes #A #B #C` on a single line silently leaves `#B` and `#C` open — only `#A` is treated as a closing reference. Always emit one token per line (`Closes #A` / `Closes #B` / `Closes #C`).
->
-> Rules:
->
-> - Emit one `Closes #N` line per fully-resolved child issue.
-> - Emit one `Refs #N` line for the parent epic, if any.
-> - Emit additional `Refs #N` lines for partial-progress references (PR advances the issue but does not close it).
-> - Do not use `Fixes` or `Resolves` in newly authored bodies — they are accepted by downstream aggregators for back-compat but `Closes` is canonical here.
-
-**Override rule for `open-pr`**: when tokens come from commit messages on the branch, emit them **verbatim** — do not rewrite `Fixes`/`Resolves` into `Closes`. The canonical guidance above applies to newly authored bodies; `open-pr` forwards what the author committed.
+**Override rule for `open-pr`**: when tokens come from commit messages on the branch, emit them **verbatim** — do not rewrite `Fixes`/`Resolves` into `Closes`. The canonical guidance applies to newly authored bodies; `open-pr` forwards what the author committed.
 
 ### 7. Lint the assembled body for broken closing-keyword footers
 

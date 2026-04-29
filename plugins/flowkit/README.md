@@ -93,36 +93,21 @@ When a feature spans multiple PRs and needs to stay isolated from `develop` unti
 /pr add CSV exporter             # sub-PR opened against feature/<slug>-1264 (not develop)
 /pr wire exporter into UI        # next sub-PR, also targets the epic branch
 # When ready to ship:
+/preview-epic                    # verify the integrated state before promoting
 gh pr create --base develop --head feature/<slug>-1264
 git config --unset claude.flowkit.prBase
 ```
 
-The epic branch composes with `swarmkit:swarm`: any agents spawned while `claude.flowkit.prBase` is set will open their PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
+The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flowkit.prBase` is set will open PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
 
-Before running `swarmkit:merge-stack`, validate the combined tree with `/preview-epic`. It builds a throwaway local branch combining every open PR in the stack (octopus merge with sequential fallback) and runs the project's verify commands against it — catching integration breakage that single-PR CI cannot.
+`/preview-epic` validates the integrated state of an epic locally before promotion. Each child PR's CI is green against its own base, but the union may not compile or pass tests — `/preview-epic` catches that integration breakage. It auto-detects the epic model:
+
+- **Stacked PRs** — every PR stays open and chains base→head→base. The skill builds a throwaway preview branch by octopus-merging all heads (sequential fallback on conflict), then runs `verify.typecheck`, `verify.test`, and `verify.lint` from `.squadkit/config.json` against the combined tree. Run before `swarmkit:merge-stack`.
+- **Direct-merge-to-epic** — child PRs squash-merge into the long-lived epic branch and close. The epic HEAD already is the integrated state, so verify runs directly on it. Run before opening the final epic-to-`develop` PR.
+
+Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` for the full Model A vs. Model B detection rules.
 
 > Do not run `/ship` while an epic is in flight unless you intend to ship the epic. `/ship` will rescope `claude.flowkit.prBase` to `develop` for its own flow.
-
-### Preview an epic before merging
-
-`/preview-epic` validates the combined tree of every open PR in an epic stack before any of them merge. Each PR's CI is green against its own base, but the union may not compile or pass tests — `/preview-epic` catches that integration breakage locally.
-
-```
-/preview-epic                    # discover the stack from the current branch's PR
-/preview-epic 1265               # or pass any PR number in the stack as the entry point
-```
-
-The skill:
-
-1. Resolves the base branch from `.squadkit/config.json` (falls back to `develop`).
-2. Discovers every open PR in the stack rooted at the current branch (or the supplied PR number).
-3. Builds a throwaway local preview branch by octopus-merging all PRs together; on conflict, falls back to sequential merges and reports the offender.
-4. Runs the project's verify commands (`verify.typecheck` and `verify.test` from `.squadkit/config.json`) against the combined tree.
-5. Reports pass/fail per command and leaves the preview branch in place for inspection.
-
-The preview branch is local-only — nothing is pushed. Delete it after inspection and proceed with [`swarmkit:merge-stack`](../swarmkit/README.md#skills) (or address conflicts in the offending PR first).
-
-Use `/preview-epic` immediately before `swarmkit:merge-stack` on any stacked-PR epic. It pairs naturally with `squadkit:spawn-team --epic`, which produces the same epic-branch shape that `/preview-epic` validates.
 
 ### Feature flow
 
@@ -137,9 +122,9 @@ Use `/preview-epic` immediately before `swarmkit:merge-stack` on any stacked-PR 
 /release                         # promote to main, tag v2026.4.16, close issues
 ```
 
-## How Ship Works
+## Ship boundaries
 
-Branch creation, commits, and PR opening are not part of `/ship` — those belong to `/pr` and `/swarm`. If `merge-stack` encounters a conflict, `/ship` stops before cutting or releasing.
+`/ship` only handles the merge-cut-release cascade. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. If `merge-stack` hits a conflict, `/ship` stops before cutting or releasing.
 
 ## How Runtime Staging Detection Works
 

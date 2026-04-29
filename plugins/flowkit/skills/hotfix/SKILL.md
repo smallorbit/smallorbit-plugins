@@ -52,11 +52,11 @@ git ls-remote --exit-code origin staging &>/dev/null && STAGING_EXISTS=true || S
 
 ### 6. Scope the PR base to main
 
-Follow the `pr-base-scope` sub-skill to set `claude.prBase = main`.
+Follow the `pr-base-scope` sub-skill to set `claude.flowkit.prBase = main`.
 
 ### 7. Open a PR targeting main
 
-Follow `/open-pr`. Because `claude.prBase = main`, the PR targets `main`.
+Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`.
 
 ### 8. Merge the PR into main
 
@@ -64,7 +64,7 @@ Follow `/merge-pr` to squash-merge the hotfix PR into `main`.
 
 ### 9. Unset the PR base scope
 
-Follow the `pr-base-scope` sub-skill to unset `claude.prBase`.
+Follow the `pr-base-scope` sub-skill to unset `claude.flowkit.prBase`.
 
 ### 10. Tag the hotfix on main
 
@@ -88,11 +88,9 @@ git push origin "$COMPANION"
 
 The annotation message preserves the "hotfix" signal for `git tag -n` queries; the companion tag keeps the canonical version tag clean while still flagging the commit as an emergency fix.
 
-### 11. Close referenced issues
+Referenced issues auto-close at merge time: `/open-pr` discovers `Closes #N` tokens from branch commits and emits them in the PR body footer (open-pr step 5). When the hotfix PR merges into `main` (the default branch), GitHub closes those references automatically — no explicit close step is needed.
 
-Follow the `gh-close-referenced-issues` sub-skill, passing the merged PR number.
-
-### 12. Back-merge main into develop
+### 11. Back-merge main into develop
 
 Keep `develop` in sync with the hotfix:
 
@@ -104,11 +102,11 @@ git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
 git push origin develop
 ```
 
-### 13. Sync develop
+### 12. Sync develop
 
 Follow the `git-sync-develop` sub-skill to confirm a clean local develop state.
 
-### 14. Report
+### 13. Report
 
 Summarize:
 - Hotfix PR merged into main
@@ -121,5 +119,4 @@ Summarize:
 - Always wait for user confirmation between branch creation (step 2) and committing (step 4)
 - Always back-merge main into develop after the hotfix merges
 - Tag directly on main — do not run a full RC cycle for hotfixes
-- No simplify pass — hotfix is an emergency flow
 - If any step fails, stop and report clearly — do not continue

@@ -162,7 +162,9 @@ PLUGINS="flowkit
 speckit
 swarmkit
 sessionkit
-polishkit"
+polishkit
+squadkit
+vaultkit"
 
 GROUPED_CHANGES_FILE=$(mktemp)
 printf '%s\n' "$PLUGINS" | while read PLUGIN; do
@@ -295,11 +297,11 @@ git ls-remote --heads origin "rc/$TODAY*" \
     done
 ```
 
-### 11. Sync develop
+### 10. Sync develop
 
 Follow the `git-sync-develop` sub-skill. Because the release PR was merged with a merge commit (not squashed), `git merge origin/main` on develop will correctly resolve without divergence — no force-push is needed.
 
-### 12. Report
+### 11. Report
 
 Output:
 - Tag created (e.g. `v2026.4.16`)
