@@ -32,20 +32,11 @@ Read the most recent session files and extract tool approval events.
 
 Scan for repeatedly approved operations across three categories:
 
-**Bash commands** — look for patterns like:
-- Package managers: `npm`, `yarn`, `pnpm`, `bun`, `pip`, `cargo`
-- VCS: `git`
-- Language runtimes: `node`, `python`, `ruby`, `go`
-- Project-specific scripts or directories
+- **Bash commands** — package managers, VCS, language runtimes, project-specific scripts.
+- **File edits** — source directories, file globs, config files.
+- **MCP tools** — any MCP tool approved more than once.
 
-**File edits** — look for patterns like:
-- Consistently approved source directories: `src/`, `lib/`, `app/`
-- File types: `*.ts`, `*.py`, `*.md`
-- Config files: `*.json`, `*.yaml`
-
-**MCP tools** — any MCP tool approved more than once in recent sessions.
-
-A pattern qualifies if it appears 2+ times across recent sessions, or if you can see the user approved it without hesitation.
+A pattern qualifies if it appears 2+ times across recent sessions, or if the user approved it without hesitation.
 
 ### 3. Propose additions
 
