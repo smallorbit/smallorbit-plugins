@@ -34,8 +34,6 @@ Then stop — do not proceed with the remaining steps.
 
 Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**. Unknown headings are passed through unmodified — section parsing is open-ended, so any future or legacy section names (including the legacy `## Team State` block emitted by sessionkit ≤ 1.5.0) are silently ignored.
 
-> Note: handoffs written by sessionkit ≤ 1.5.0 may carry a `## Team State` section. `/pickup` ignores it intentionally — squadkit's `SessionStart` hook now reads `~/.claude/teams/*/config.json` directly and re-emits the role reminder, so the legacy artifact is inert, not a bug.
-
 ### 3. Present orientation summary
 
 Output a structured summary to orient the agent. Surface essentials, not the document verbatim:
