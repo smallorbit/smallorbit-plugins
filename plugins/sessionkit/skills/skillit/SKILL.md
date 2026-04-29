@@ -34,8 +34,8 @@ Identify at least one candidate pattern.
 Scan the skill library for potential overlap:
 
 ```bash
-find ~/.claude/skills -name "skill.md" 2>/dev/null
-find .claude/skills -name "skill.md" 2>/dev/null
+find ~/.claude/skills -name "SKILL.md" 2>/dev/null
+find .claude/skills -name "SKILL.md" 2>/dev/null
 find ~/.claude/commands -name "*.md" 2>/dev/null
 ```
 
@@ -61,8 +61,8 @@ Then offer the user a choice:
 On user agreement, create the skill file at the path they specify (or prompt for one):
 
 ```
-~/.claude/skills/<name>/skill.md          # user-global
-.claude/skills/<name>/skill.md            # project-local
+~/.claude/skills/<name>/SKILL.md          # user-global
+.claude/skills/<name>/SKILL.md            # project-local
 ```
 
 The skill file must include:
