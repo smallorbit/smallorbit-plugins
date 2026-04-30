@@ -120,6 +120,20 @@ Step 1 squash-merges #201 into `develop` and deletes `worktree-agent-101`. Becau
 
 If anything had gone wrong on the way up — a merge conflict on #202, for example — the merge would have stopped there and reported the chain as halted at #202 with #203 as blocked upstream. The retarget happened before the first merge, so #203 still targets `develop`; the user can resolve the conflict on #202 and re-run `/merge-stack` without re-threading the stack.
 
+## Layered Review with `/swarm-plus`
+
+`/swarm` produces PRs and stops — the review and any follow-up work are manual. `/swarm-plus` layers an automatic review/fix pass on top of the same swarm machinery: same arg grammar, same isolation, same final state of open PRs awaiting human merge.
+
+The shape is a single deterministic pass per PR. As each swarm agent's notification lands, `/swarm-plus` dispatches the swarmkit-vendored `swarm-reviewer` agent for that PR in the background — no waiting for other swarm agents. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns its findings inline, in a fixed five-section structure (Verdict / Blockers / Concerns / Nits / Coverage gaps). The orchestrator parses the result and applies a skip-on-clean rule: if the verdict is `Approve` with no blockers, no concerns, and no `[recommended]` coverage gaps, no further action is taken on that PR. If the reviewer surfaces blockers, concerns, or recommended coverage gaps, a worker is spawned to address them. The worker branches off the existing PR head — never off the base — so its commits stack directly onto the PR rather than diverging.
+
+The single-pass rule is intentional. There is no reviewer-after-worker re-review; if you want a second opinion on the worker's commits, run `/review <pr>` manually. Manufactured churn ("just look at it again") is worse than no-op for a layer that is supposed to compress your review burden, not replicate it. Nits and `[optional]` coverage gaps never trigger a worker — the bar to dispatch is meaningful enough to materially change the PR.
+
+The reviewer is vendored into swarmkit (`plugins/swarmkit/agents/swarm-reviewer.md`) rather than imported from another plugin, so `/swarm-plus` carries no cross-marketplace dependency. Worker scope is constrained: blockers and concerns are in scope, recommended coverage gaps are in scope, optional coverage gaps and nits are out of scope along with any unrelated cleanups. The worker may comment once on the PR summarizing what it addressed and what it deferred; the reviewer never posts comments.
+
+The skill exposes three flags beyond the inherited `/swarm` set: `--no-worker` for triage runs that review without dispatching workers, `--reviewer-model <tier>`, and `--worker-model <tier>`. Both model overrides default to `sonnet`.
+
+`/swarm-plus` is the right layer when you want every swarm PR to land with at least one independent pass against its acceptance criteria, and when the acceptance criteria in the originating issue are crisp enough for a reviewer to evaluate against. It is not a replacement for human review on the final merge — every PR still ends in the same place: open, awaiting your merge.
+
 ## Further Reading
 
 - How do stacked diffs work — https://graphite.com/guides/how-do-stacked-diffs-work
