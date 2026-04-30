@@ -27,8 +27,9 @@ Materialize a crew of agents from a profile. The skill picks an unused phonetic 
 | `--with <role>` | none | Add a role to the resolved roster (count=1). Repeatable. |
 | `--without <role>` | none | Remove every member with the given role from the roster. Repeatable. |
 | `--name <custom>` | auto | Override the team name. Skips phonetic auto-naming. |
-| `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase`. If omitted, prompt. |
+| `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase`. If omitted, prompt. **Rejected when the resolved profile has `kind: discovery`.** |
 | `--issues <range>` | none | Issue numbers / ranges to load as the team's initial backlog. Accepts the swarmkit grammar: `1319,1329,1331` or `1319-1337` (inclusive). Resolved (open, non-on-hold) list is forwarded to the lead's first dispatch prompt as a structured backlog table. |
+| `--brief <text\|@path>` | none | Mission brief embedded into the architect's spawn prompt under `## Mission brief`. Accepts inline text (`--brief "the brief"`) or a file reference (`--brief @./path/to/brief.md`). **Required when the resolved profile has `kind: discovery`** (prompt via `AskUserQuestion` if missing). Optional and otherwise ignored when `kind: execution`. |
 
 ### Narrative-tail parsing
 
@@ -76,6 +77,7 @@ Extract every flag from `$ARGUMENTS`. Treat unknown flags as an error and stop, 
 - Collect `--with` and `--without` into lists (each may appear multiple times).
 - Coerce `--builders` to an integer; reject non-numeric input. If the value exceeds 5, cap it at 5 and warn.
 - For `--issues <range>`: resolve via the swarmkit `gh-fetch-issues` sub-skill (see step 5.5) — do not implement filtering inline.
+- For `--brief <value>`: capture the raw value verbatim. Do **not** read the file or apply discovery/execution gating yet — that happens in step 5.6 once the crew profile (and its `kind:`) is loaded.
 
 ### 3. Resolve the team name
 
@@ -133,12 +135,22 @@ Read `plugins/squadkit/crews/<profile>.yaml`. Validate the schema:
 ```yaml
 name: <string>
 description: <string>
+kind: <string, optional, default "execution">    # one of: execution | discovery
 members:
   - role: <string>
     count: <int, optional, default 1>
 ```
 
-If the file is missing or fails validation, stop with a diagnostic.
+If the file is missing or fails validation, stop with a diagnostic. If `kind:` is present but not one of `execution` or `discovery`, reject the profile with:
+
+> Crew profile `<profile>` declares `kind: <value>`, which is not a recognized crew kind. Allowed values: `execution`, `discovery`.
+
+If `kind:` is omitted, default to `execution` — this preserves backward compatibility with crew profiles authored before the field existed (`all-rounder`, `design`, `qa`, `builder`).
+
+**Crew kinds.**
+
+- `execution` (default) — produces code. Provisions per-builder worktrees, supports `--epic` and `claude.flowkit.prBase` pinning, ships PRs.
+- `discovery` — read-only investigative crew (architect + explorer + designer style). Produces blueprints / GitHub issue comments, not code. Skips worktree provisioning, rejects `--epic`, skips `claude.flowkit.prBase` pinning. Requires `--brief`.
 
 Build the resolved roster:
 
@@ -162,9 +174,53 @@ If the range expands to zero issues after filtering, warn the user and ask via `
 
 If `--issues` was not provided, skip this step — `RESOLVED_BACKLOG` stays empty and the lead is dispatched without a preset backlog (it works against the team's own task list).
 
+### 5.6 Resolve the mission brief and gate by `kind:`
+
+This step runs after the crew profile (with its resolved `kind:`) is loaded.
+
+**Discovery-mode `--epic` rejection.** If the resolved profile has `kind: discovery` and `--epic` was provided (either as a flag or via the prompt), stop with:
+
+> Crew profile `<profile>` is `kind: discovery` and produces issue comments rather than code. The `--epic` flag is incompatible with discovery crews — drop it and re-run.
+
+**Brief resolution.** If `--brief <value>` was provided, resolve it to text now:
+
+- If `<value>` starts with `@`, treat the rest as a path. Read the file (relative to the repo root if not absolute). If the file is missing or unreadable, stop with: `--brief @<path> could not be read: <error>`.
+- Otherwise treat `<value>` verbatim as the brief text.
+- Trim trailing whitespace. If the resulting text is empty, stop with: `--brief value resolved to empty content. Provide a non-empty brief.`
+
+Persist the resolved string as `MISSION_BRIEF`.
+
+**Discovery requires a brief.** If `kind: discovery` and `MISSION_BRIEF` is empty (no `--brief` provided), prompt via `AskUserQuestion`:
+
+> Crew profile `<profile>` is `kind: discovery`, which requires a `--brief`. Provide one now, or cancel?
+
+Options: `Provide brief — paste inline`, `Provide brief — supply @path`, `Cancel`.
+
+If the user cancels, abort the spawn. Otherwise re-run brief resolution against the supplied value.
+
+**Execution + brief.** When `kind: execution` and `--brief` is provided, `MISSION_BRIEF` is still embedded into the architect's spawn prompt under `## Mission brief` — but the absence of `--brief` is not an error.
+
+**Epic context prepending.** If `--epic <slug>` was provided alongside `--brief`, fetch the GitHub issue body for `<issue>` (the issue number passed with `--epic`) via `gh issue view <issue> --json body --jq .body` and prepend it to `MISSION_BRIEF` as:
+
+```
+## Epic context
+
+<epic body>
+
+## Mission brief
+
+<resolved brief text>
+```
+
+If the epic fetch fails (network, missing issue, auth), warn but do not abort — fall back to the brief alone, and surface the failure in the final summary.
+
+If `--brief` was not provided, leave `MISSION_BRIEF` empty.
+
 ### 6. Epic feature-branch ownership
 
-**Pre-flight rule.** Any spawn that will produce three or more child PRs MUST run on a feature branch — not directly on `${BASE_BRANCH}`. When the resolved roster includes more than one builder, or the user's intent names three or more deliverables, default the prompt toward cutting an epic and only accept `Use ${BASE_BRANCH}` after the user confirms the work is genuinely a single PR's worth.
+**Skip entirely when `kind: discovery`.** Discovery crews never cut a feature branch and never pin `claude.flowkit.prBase` — they produce issue comments, not PRs. Set `WORK_BRANCH=${BASE_BRANCH}` and proceed to step 6.5 without prompting for an epic.
+
+**Pre-flight rule (execution only).** Any spawn that will produce three or more child PRs MUST run on a feature branch — not directly on `${BASE_BRANCH}`. When the resolved roster includes more than one builder, or the user's intent names three or more deliverables, default the prompt toward cutting an epic and only accept `Use ${BASE_BRANCH}` after the user confirms the work is genuinely a single PR's worth.
 
 If `--epic <slug>` was provided, the skill cuts the epic branch. Otherwise prompt via `AskUserQuestion`:
 
@@ -219,6 +275,8 @@ This removes orphan worktrees and their orphaned `worktree-agent-*` branches. It
 If the user has explicitly opted to keep specific stale paths, surface them via `AskUserQuestion` before invoking the sub-skill.
 
 ### 7. Worktree provisioning
+
+**Skip entirely when `kind: discovery`.** Discovery crews are read-only and produce no per-builder branches; every member shares the main workspace. Skip this step (and the env-file seeding subsection below) and proceed to step 7.5.
 
 Count builders in the resolved roster.
 
@@ -324,6 +382,18 @@ Each spawned agent receives:
 - `base_branch` (`${BASE_BRANCH}`)
 - `squadkit_config_path` (`${SQUAD_CONFIG}`)
 
+**Architect-only mission brief.** When spawning the `architect` member and `MISSION_BRIEF` is non-empty, append the brief verbatim to the architect's spawn prompt as a trailing section:
+
+```markdown
+## Mission brief
+
+<MISSION_BRIEF, verbatim — including any prepended `## Epic context` from step 5.6>
+```
+
+The brief is included verbatim — do not paraphrase, summarize, or re-order its contents. If `--epic` was provided alongside `--brief`, step 5.6 has already prepended the `## Epic context` block; the architect sees both sections in a single embedded payload.
+
+**Other roles stay mission-agnostic.** Do **not** embed `MISSION_BRIEF` in the spawn prompts for explorer, designer, builder, reviewer, tester, or any other non-architect role. They receive the brief (if at all) only when the team-lead routes a scoped task to them — never via spawn-time injection.
+
 Capture the session UUID returned by each `Agent` spawn — it lands in the harness-managed config automatically; the squadkit-specific sibling file (step 10) only stores the squadkit metadata, not the per-member roster.
 
 ### 8.5 Tool-registry validation probe
@@ -396,9 +466,13 @@ Schema:
   "epic": "<slug or null>",
   "repo_root": "<absolute-path>",
   "profile": "<profile-name>",
+  "kind": "<execution|discovery>",
+  "brief_provided": <true|false>,
   "spawned_at": "<ISO-8601 timestamp>"
 }
 ```
+
+`brief_provided` records whether `--brief` was supplied at spawn time; the brief content itself is not persisted (it lives only in the architect's spawn prompt).
 
 `mkdir -p` the parent directory before writing. The harness's `config.json` is the source of truth for the roster; `squadkit.json` is the source of truth for squadkit-only coordination state. Never duplicate `members[]` here.
 
@@ -464,6 +538,9 @@ Idle ≠ delivery. The orchestrator reads the latest `(member, task)` line befor
 - Never silently reuse a stale `.claude/worktrees/<member>/` — always check the branch against `${WORK_BRANCH}` and prompt before reusing.
 - Worktrees live under `.claude/worktrees/<member>/` relative to the repo root, never an absolute scratch path. Always created with `--detach` to avoid branch-ref contention with the main worktree.
 - Singleton-builder profiles must not create worktrees (they share the workspace) and must not run env-file seeding.
+- Discovery crews (`kind: discovery`) must not provision worktrees, must not cut an epic branch, must not pin `claude.flowkit.prBase`, and must reject `--epic`. They require `--brief`.
+- Reject any `kind:` value other than `execution` or `discovery`. A missing `kind:` defaults to `execution`.
+- The `--brief` payload is embedded verbatim in the architect spawn prompt only — never in explorer, designer, builder, reviewer, or tester spawn prompts.
 
 ## Harness constraints
 

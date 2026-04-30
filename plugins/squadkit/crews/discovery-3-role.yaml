@@ -1,0 +1,7 @@
+name: discovery-3-role
+description: Read-only discovery crew for early-stage exploration — architect frames the system blueprint, explorer investigates prior art and constraints, designer shapes the surface. Deliverables are issue comments, not PRs. No worktrees, no epic branch, no prBase pinning.
+kind: discovery
+members:
+  - role: architect
+  - role: explorer
+  - role: designer
