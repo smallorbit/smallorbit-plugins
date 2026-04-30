@@ -121,7 +121,7 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 All `/swarm` flags are inherited. Swarm-plus adds:
 
-- `--no-worker` — dispatch reviewers but never spawn workers (triage mode)
+- `--review-only` — dispatch reviewers but never spawn workers (triage mode)
 - `--reviewer-model <sonnet|opus>` — override reviewer model (default: `sonnet`)
 - `--worker-model <sonnet|opus>` — override worker model (default: `sonnet`)
 
