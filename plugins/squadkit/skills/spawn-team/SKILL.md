@@ -200,7 +200,7 @@ If the user cancels, abort the spawn. Otherwise re-run brief resolution against 
 
 **Execution + brief.** When `kind: execution` and `--brief` is provided, `MISSION_BRIEF` is still embedded into the architect's spawn prompt under `## Mission brief` — but the absence of `--brief` is not an error.
 
-**Epic context prepending.** If `--epic <slug>` was provided alongside `--brief`, fetch the GitHub issue body for `<issue>` (the issue number passed with `--epic`) via `gh issue view <issue> --json body --jq .body` and prepend it to `MISSION_BRIEF` as:
+**Epic context prepending (execution only).** This composition only applies to `kind: execution` crews — `--epic` is rejected for discovery crews (see the rejection guard at the top of this step). If `--epic <slug>` was provided alongside `--brief`, fetch the GitHub issue body for `<issue>` (the issue number passed with `--epic`) via `gh issue view <issue> --json body --jq .body` and prepend it to `MISSION_BRIEF` as:
 
 ```
 ## Epic context
@@ -221,6 +221,8 @@ If `--brief` was not provided, leave `MISSION_BRIEF` empty.
 **Skip entirely when `kind: discovery`.** Discovery crews never cut a feature branch and never pin `claude.flowkit.prBase` — they produce issue comments, not PRs. Set `WORK_BRANCH=${BASE_BRANCH}` and proceed to step 6.5 without prompting for an epic.
 
 **Pre-flight rule (execution only).** Any spawn that will produce three or more child PRs MUST run on a feature branch — not directly on `${BASE_BRANCH}`. When the resolved roster includes more than one builder, or the user's intent names three or more deliverables, default the prompt toward cutting an epic and only accept `Use ${BASE_BRANCH}` after the user confirms the work is genuinely a single PR's worth.
+
+**(execution only — skip this block when kind: discovery)**
 
 If `--epic <slug>` was provided, the skill cuts the epic branch. Otherwise prompt via `AskUserQuestion`:
 
