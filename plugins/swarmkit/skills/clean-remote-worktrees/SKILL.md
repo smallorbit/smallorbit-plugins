@@ -13,84 +13,140 @@ Counterpart to `swarmkit:clean-worktrees` — this skill never touches local sta
 
 Parse `$ARGUMENTS`:
 
-- **No arguments** → **interactive**: fetch, classify, present plan, proceed to deletion on confirmation
+- **No arguments** → **interactive**: classify, present plan, ask for confirmation before deletion
 - `--yes` → **non-interactive**: skip confirmation (for automation contexts)
+
+## Setup
+
+**Resolve the skill base directory first.** Capture the runtime-resolved absolute path from the harness header (`Base directory for this skill: <absolute path>`):
+
+```bash
+export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
+```
+
+Use `"$SKILL_DIR/scripts/..."` for every script invocation. Do **not** hardcode `plugins/swarmkit/...`.
 
 ## Process
 
-1. **Fetch and prune** remote-tracking refs:
-   ```bash
-   git fetch origin --prune
-   ```
+### Step 1 — Classify remote branches
 
-2. **Enumerate candidates** — list every remote branch matching `worktree-agent-*` once, then reuse that list for classification:
-   ```bash
-   CANDIDATES=$(git ls-remote --heads origin 'worktree-agent-*' | awk '{print $2}' | sed 's|refs/heads/||')
-   ```
+Run the classify script. It fetches and prunes origin, lists all remote `worktree-agent-*` branches, and buckets each by PR state in a single pass:
 
-   If `CANDIDATES` is empty, report "no remote worktree-agent-* branches" and exit.
+```bash
+"$SKILL_DIR/scripts/classify.sh"
+```
 
-3. **Classify each candidate** by the state of its most-recent PR. Pipe the candidate list into a `while read` loop (do not use `for BRANCH in $CANDIDATES` — word-splitting on newline-delimited output is unreliable):
-   ```bash
-   printf '%s\n' "$CANDIDATES" | while read BRANCH; do
-     gh pr list --state all --head "$BRANCH" --json number,state,title --limit 1
-   done
-   ```
+On success the script exits 0 and emits a single JSON object on stdout:
 
-   Bucket each branch by its most-recent PR state:
+```json
+{
+  "candidates": [
+    {"branch": "worktree-agent-42", "pr_number": 210, "pr_title": "fix: ...", "state": "MERGED"},
+    {"branch": "worktree-agent-43", "pr_number": 211, "pr_title": "feat: ...", "state": "OPEN"},
+    {"branch": "worktree-agent-44", "pr_number": null, "pr_title": null, "state": "NO_PR"}
+  ],
+  "merged": ["worktree-agent-42"],
+  "closed": [],
+  "open": ["worktree-agent-43"],
+  "no_pr": ["worktree-agent-44"]
+}
+```
 
-   | Bucket | PR state | Action |
-   |--------|----------|--------|
-   | MERGED | `MERGED` | queue for deletion |
-   | CLOSED | `CLOSED` (not merged) | skip — branch holds the only copy of rejected work |
-   | OPEN | `OPEN` | skip — deletion would kill an active PR |
-   | No PR | empty array | skip — could be crashed-run debris; surface for inspection |
+If the script exits non-zero, surface stderr and stop.
 
-4. **Present the plan** — counts per bucket, plus branch names in the three skipped buckets so the user can spot anything unexpected:
-   ```
-   MERGED (to delete): 12
-   CLOSED (skipped):   2
-     - worktree-agent-47
-     - worktree-agent-89
-   OPEN (skipped):     3
-     - worktree-agent-101
-     - worktree-agent-102
-     - worktree-agent-103
-   No PR (skipped):    1
-     - worktree-agent-55
-   ```
+### Step 2 — Check if there is anything to do
 
-   If the MERGED bucket is empty, report and exit — nothing to delete.
+If `candidates` is an empty array, report:
 
-   In interactive mode, ask for confirmation before proceeding. With `--yes`, proceed immediately.
+> No remote `worktree-agent-*` branches found.
 
-5. **Delete all MERGED branches in a single push** — one refspec per branch, one network round-trip:
-   ```bash
-   git push origin :worktree-agent-12 :worktree-agent-15 :worktree-agent-18 ...
-   ```
+And stop.
 
-   Build the refspec list from the MERGED bucket. Do not loop per-branch — batch deletion is both faster and atomic in output.
+If `merged` is empty, report the counts per bucket and stop:
 
-6. **Report**:
-   ```
-   Deleted: 12 remote branches
-   Skipped: 6 branches (2 CLOSED, 3 OPEN, 1 no-PR)
+```
+Nothing to delete.
 
-   Skipped branches:
-     CLOSED (rejected work, preserved):
-       - worktree-agent-47
-       - worktree-agent-89
-     OPEN (active PR):
-       - worktree-agent-101
-       ...
-     No PR (inspect manually):
-       - worktree-agent-55
-   ```
+MERGED (to delete):  0
+CLOSED (skipped):    <count>
+OPEN (skipped):      <count>
+No PR (skipped):     <count>
+```
+
+### Step 3 — Present the plan
+
+Display the full classification to give the user visibility into what will and won't be touched:
+
+```
+MERGED (to delete):  <count>
+  - worktree-agent-42
+
+CLOSED (skipped):    <count>
+  - worktree-agent-47
+  ...
+
+OPEN (skipped):      <count>
+  - worktree-agent-101
+  ...
+
+No PR (skipped):     <count>
+  - worktree-agent-55
+  ...
+```
+
+### Step 4 — Confirm (interactive mode only)
+
+In interactive mode (no `--yes`), ask before proceeding:
+
+> Proceed with deleting **<count>** remote branch(es)?
+
+Wait for user confirmation. If the user declines, stop without deleting anything.
+
+With `--yes`, skip the prompt and proceed immediately.
+
+### Step 5 — Delete merged branches
+
+Run the delete script with the `merged` array from Step 1:
+
+```bash
+"$SKILL_DIR/scripts/delete.sh" --branches '<merged JSON array from classify output>'
+```
+
+On success the script exits 0 and emits a single JSON object on stdout:
+
+```json
+{
+  "deleted": ["worktree-agent-42"],
+  "skipped": [],
+  "errors": []
+}
+```
+
+If the script exits non-zero, surface stderr and stop.
+
+### Step 6 — Report
+
+```
+Deleted:  <count> remote branch(es)
+  - worktree-agent-42
+  ...
+
+Skipped:  <count> branch(es)
+  CLOSED (rejected work, preserved):
+    - worktree-agent-47
+  OPEN (active PR):
+    - worktree-agent-101
+  No PR (inspect manually):
+    - worktree-agent-55
+
+Errors: <list any errors; omit section if empty>
+```
 
 ## Constraints
 
 - Never delete a branch that is the head of an OPEN PR
 - Never delete a branch whose most-recent PR is CLOSED (non-merged) — the branch contains rejected work that persists nowhere else
-- Always use refspec syntax (`git push origin :branch1 :branch2 ...`) for batch deletion; never loop `git push --delete` per branch
+- Never delete a branch with no associated PR — surface it for manual inspection
+- Always use refspec syntax (`git push origin :branch1 :branch2 ...`) for batch deletion; never loop `git push --delete` per branch (handled inside delete.sh)
 - Never touch local state — worktrees and local branches are `swarmkit:clean-worktrees`'s concern
 - Idempotent: running twice on a clean repo is a no-op
