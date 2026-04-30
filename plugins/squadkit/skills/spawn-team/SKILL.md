@@ -487,3 +487,10 @@ These are observed limitations of the `Agent` and `TeamCreate` primitives at the
 | `swarmkit:gh-fetch-issues` | Resolves `--issues <range>` into a filtered (open + non-on-hold) list for the lead's first dispatch prompt. |
 | `swarmkit:clean-worktrees` | Pre-flight sweep when stale `.claude/worktrees/*` paths exist that don't match the resolved roster. |
 | `swarmkit:swarm` | Independent fan-out for issue queues. Use `swarmkit` when work is already sliced into issues; use `spawn-team` when you want a coordinated long-running crew. |
+
+## Crew shapes
+
+Two coordination shapes are supported:
+
+- **Execution crews** (default) — architect drafts blueprints, builders implement, tester/reviewer gate. Output is merged code via PRs.
+- **Discovery crews** (`kind: discovery`) — architect IS the lead and synthesizes explorer/designer replies into long-form blueprints posted as GitHub issue comments. Builders are absent. See [`../../docs/patterns/discovery-coordination.md`](../../docs/patterns/discovery-coordination.md) for the full coordination protocol, role scopes, deliverable shape, stop condition, and a worked example.
