@@ -120,13 +120,12 @@ Audit of 7 source skills from `~/src/claude-config/skills/`. Documents current n
 - "archive this conversation"
 
 **Cross-skill references:**
-- Calls `get-session-id` sub-skill (from sessionkit — external dependency)
+- Inlines session-id resolution (formerly `get-session-id` sub-skill from sessionkit; inlined to drop the cross-plugin dependency — see #672)
 - References `obsidian-file-edit` in comments (birth time pattern for new files)
 
 **Rename needed:** No — `archive-export` is already a clean name.
 **Namespace updates needed:**
 - Comment reference to `obsidian-file-edit` → `file-edit`
-- `get-session-id` is from sessionkit — must remain a cross-plugin reference or be documented as an external dependency
 
 ---
 
@@ -153,14 +152,11 @@ load-project        → obsidian, project, list-projects
 list-projects       → obsidian
 file-edit           (leaf — no outgoing calls)
 jot                 → project (→ file-edit transitively)
-archive-export      → get-session-id (sessionkit — external)
+archive-export      (leaf — session-id resolution inlined)
 ```
 
 ---
 
 ## External Dependencies
 
-- `get-session-id` (sessionkit) — called by `archive-export`. This is a cross-plugin dependency. Options:
-  1. Document it as a required companion plugin (sessionkit must be installed)
-  2. Inline the session ID resolution logic into `archive-export`
-  3. Make it optional with a fallback (manual session ID entry)
+None. The previous cross-plugin call into `sessionkit:get-session-id` was resolved by inlining the session-id snippet into `archive-export` (option 2 from the original list). Vaultkit now stands alone — no required companion plugin.

@@ -44,7 +44,12 @@ and ask the user which project to file it under.
 
 ### 3. Get the session ID
 
-Follow the `get-session-id` sub-skill to resolve the current session ID. Save the result as `SESSION_ID`.
+Claude Code stores per-session `.jsonl` files under `~/.claude/projects/<encoded-cwd>/`, where `<encoded-cwd>` is `$PWD` with every `/` replaced by `-`. The most recent file's basename (minus `.jsonl`) is the active session UUID:
+
+```bash
+PROJECT_PATH=$(echo "$PWD" | sed 's|/|-|g')
+SESSION_ID=$(ls -t ~/.claude/projects/${PROJECT_PATH}/*.jsonl 2>/dev/null | head -1 | xargs basename -s .jsonl)
+```
 
 ### 4. Ensure the Conversations folder exists
 
@@ -118,7 +123,7 @@ Report both destination paths and the session ID to the user.
 ## Notes
 - The `.txt` file is the source of truth for content; the `.md` file embeds it as an attachment and also inlines the full text in a `plaintext` block for Obsidian search indexing
 - Both files should have the same base name — only the extension differs
-- The session ID resolution logic is documented in the `get-session-id` sub-skill
+- The session ID resolution logic is inlined above (step 3)
 - To resume a session: `claude --resume SESSION_ID`
 - If the user ran `/export` from the wrong directory, locate the file with:
   ```bash

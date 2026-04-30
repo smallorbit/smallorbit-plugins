@@ -19,7 +19,7 @@ Scan recent Claude Code session history to surface permission patterns — Bash 
 
 ### 1. Locate session history
 
-Use `/get-session-id` to resolve the current session, then scan recent session files:
+Claude Code stores per-session `.jsonl` files under `~/.claude/projects/<encoded-cwd>/`, where `<encoded-cwd>` is `$PWD` with every `/` replaced by `-`. List the five most recent files in that directory:
 
 ```bash
 PROJECT_PATH=$(echo "$PWD" | sed 's|/|-|g')
