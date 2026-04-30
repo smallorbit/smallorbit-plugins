@@ -32,12 +32,6 @@ claude --plugin-dir /path/to/sessionkit
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
 
-### Sub-Skills (internal)
-
-| Skill | Used by | Purpose |
-|-------|---------|---------|
-| **get-session-id** | suggest-permissions, handoff, pickup | Resolves the current Claude Code session UUID from `~/.claude/projects/`. |
-
 ## Typical Workflows
 
 ### Handing off between sessions
