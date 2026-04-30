@@ -25,12 +25,6 @@ Run it before staging and committing the release.
 
 ## Plugins
 
-`swarmkit` includes an experimental skill marked with the `x-` prefix:
-
-- `x-swarm` — variant of `/swarm` that collapses preflight, gather, verify, and teardown into shell scripts to reduce model round-trips.
-
-The `x-` prefix is the convention for experimental skills in this plugin. See `plugins/swarmkit/README.md` for details.
-
 `squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
 
 **Crew shapes.** Crew profiles carry an optional `kind:` field — `execution` (default) for crews that ship code, `discovery` for read-only research crews that produce blueprint comments on GitHub issues instead of PRs. Discovery crews skip worktree provisioning, epic-branch cutting, and `claude.flowkit.prBase` pinning. See [`plugins/squadkit/docs/patterns/discovery-coordination.md`](./plugins/squadkit/docs/patterns/discovery-coordination.md) for the architect-led coordination pattern.
