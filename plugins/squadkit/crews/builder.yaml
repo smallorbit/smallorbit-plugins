@@ -1,0 +1,8 @@
+name: builder
+description: Execution-focused crew — architect drafts, two builders implement in parallel, reviewer + tester gate quality. Subset of all-rounder without explorer/designer; use when the implementation contract is already locked (e.g. blueprints exist) and the work is straight execution.
+members:
+  - role: architect
+  - role: builder
+    count: 2
+  - role: reviewer
+  - role: tester
