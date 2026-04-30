@@ -35,6 +35,9 @@ done
 
 [[ -n "$BRANCHES_JSON" ]] || { echo "delete: --branches is required" >&2; exit 2; }
 
+T_PUSH_ERR=$(mktemp)
+trap "rm -f $T_PUSH_ERR" EXIT
+
 branch_count="$(printf '%s' "$BRANCHES_JSON" | jq 'length')"
 
 if [[ "$branch_count" -eq 0 ]]; then
@@ -51,13 +54,13 @@ done < <(printf '%s' "$BRANCHES_JSON" | jq -r '.[]')
 deleted=()
 errors=()
 
-if git push origin "${refspecs[@]}" 2>/tmp/push_err; then
+if git push origin "${refspecs[@]}" 2>"$T_PUSH_ERR"; then
   while IFS= read -r branch; do
     [[ -z "$branch" ]] && continue
     deleted+=("$branch")
   done < <(printf '%s' "$BRANCHES_JSON" | jq -r '.[]')
 else
-  err="$(cat /tmp/push_err)"
+  err="$(cat "$T_PUSH_ERR")"
   errors+=("$err")
 fi
 

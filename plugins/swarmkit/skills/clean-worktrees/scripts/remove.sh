@@ -47,7 +47,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$MAIN_WORKTREE" ]] || { echo "remove: --main-worktree is required" >&2; exit 2; }
-[[ -n "$CALLER_BRANCH" ]] || { echo "remove: --caller-branch is required" >&2; exit 2; }
+
+T_WT_ERR=$(mktemp)
+T_BR_ERR=$(mktemp)
+trap "rm -f $T_WT_ERR $T_BR_ERR" EXIT
 
 git worktree prune >/dev/null 2>&1 || true
 
@@ -58,10 +61,10 @@ remove_errors_parts=()
 
 while IFS= read -r path; do
   [[ -z "$path" ]] && continue
-  if git worktree remove "$path" -f -f 2>/tmp/wt_remove_err; then
+  if git worktree remove "$path" -f -f 2>"$T_WT_ERR"; then
     removed+=("$path")
   else
-    err="$(cat /tmp/wt_remove_err)"
+    err="$(cat "$T_WT_ERR")"
     remove_errors_parts+=("$(jq -n --arg path "$path" --arg error "$err" '{"path": $path, "error": $error}')")
   fi
 done < <(printf '%s\n' "$WORKTREES_JSON" | jq -r '.[] | .path')
@@ -73,10 +76,10 @@ branch_errors_parts=()
 
 while IFS= read -r branch; do
   [[ -z "$branch" ]] && continue
-  if git branch -D "$branch" 2>/tmp/br_delete_err; then
+  if git branch -D "$branch" 2>"$T_BR_ERR"; then
     pruned_branches+=("$branch")
   else
-    err="$(cat /tmp/br_delete_err)"
+    err="$(cat "$T_BR_ERR")"
     branch_errors_parts+=("$(jq -n --arg branch "$branch" --arg error "$err" '{"branch": $branch, "error": $error}')")
   fi
 done < <(printf '%s\n' "$BRANCHES_JSON" | jq -r '.[]')
