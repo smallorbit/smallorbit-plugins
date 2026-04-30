@@ -51,6 +51,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
+| **swarm-plus** | `/swarm-plus` | Wraps `/swarm` with an automatic review/fix pass. After each swarm PR opens, dispatches the vendored `swarm-reviewer` agent per PR; if the reviewer flags blockers or concerns, dispatches a worker to push follow-up commits. Single pass per PR. |
 | **x-swarm** | `/x-swarm` | Experimental parallel variant of `/swarm`. Script-backed mechanical phases (preflight, teardown) reduce model round-trips. Same arg grammar and behavior as `/swarm` — prefer `/swarm` for stable workflows. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. |
@@ -66,6 +67,14 @@ These are called by the skills above — you don't invoke them directly.
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
 | **gh-fetch-issues** | next-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
 | **issue-rank** | next-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
+
+### Agents
+
+Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a general-purpose reviewer — it is purpose-built for comparing a swarm-produced PR against its originating issue.
+
+| Agent | Used by | Purpose |
+|-------|---------|---------|
+| **swarm-reviewer** | swarm-plus | Reviews a swarm PR against the originating issue's acceptance criteria. Returns findings inline (never via `gh pr comment`) using a fixed five-section output structure: Verdict / Blockers / Concerns / Nits / Coverage gaps. |
 
 ## Typical Workflow
 
@@ -95,6 +104,27 @@ These are called by the skills above — you don't invoke them directly.
 
 - `--model <sonnet|opus>` — override model selection for all agents
 - `--base <branch>` — override the default base branch (`develop`)
+
+## How Swarm Plus Works
+
+`/swarm-plus` runs `/swarm` first, then layers a review/fix pass on each resulting PR:
+
+1. Invokes `/swarm` with the same args. Records `(issue, pr_number, head_branch)` for each PR produced.
+2. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR in the background — no waiting for other swarm agents.
+3. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
+4. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
+5. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `develop` — so its commits stack directly onto the PR.
+6. After all workers finish, a final table summarizes verdict and worker action per PR.
+
+**Single pass** — there is no reviewer-after-worker re-review. Use `/review <pr>` manually if a second pass is desired.
+
+### Swarm Plus Flags
+
+All `/swarm` flags are inherited. Swarm-plus adds:
+
+- `--no-worker` — dispatch reviewers but never spawn workers (triage mode)
+- `--reviewer-model <sonnet|opus>` — override reviewer model (default: `sonnet`)
+- `--worker-model <sonnet|opus>` — override worker model (default: `sonnet`)
 
 ## Assumptions & Conventions
 
