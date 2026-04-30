@@ -70,7 +70,7 @@ Use exit code `1` for runtime failures, `2` for invalid arguments.
 
 ## Canonical example
 
-`plugins/swarmkit/skills/x-swarm/scripts/preflight.sh` — collapses git fetch, base-branch verification, and `gh` auth check into one call. Its output is a bare JSON object; errors go to stderr with non-zero exit. Refer to it and the other scripts in that directory as the reference implementation.
+`plugins/swarmkit/skills/swarm/scripts/preflight.sh` — collapses git fetch, base-branch verification, and `gh` auth check into one call. Its output is a bare JSON object; errors go to stderr with non-zero exit. Refer to it and the other scripts in that directory as the reference implementation.
 
 ## `.claude/settings.json` allowlist
 

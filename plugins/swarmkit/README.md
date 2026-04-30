@@ -52,7 +52,6 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
 | **swarm-plus** | `/swarm-plus` | Wraps `/swarm` with an automatic review/fix pass. After each swarm PR opens, dispatches the vendored `swarm-reviewer` agent per PR; if the reviewer flags blockers or concerns, dispatches a worker to push follow-up commits. Single pass per PR. |
-| **x-swarm** | `/x-swarm` | Experimental parallel variant of `/swarm`. Script-backed mechanical phases (preflight, teardown) reduce model round-trips. Same arg grammar and behavior as `/swarm` — prefer `/swarm` for stable workflows. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
@@ -186,17 +185,4 @@ Swarmkit executes work; [speckit](../speckit) defines it. Use them together for 
 
 Swarmkit handles parallel-issue resolution — one fire-and-forget agent per GitHub issue, each on its own worktree. For interactive multi-role collaboration with a long-lived team-lead orchestrating architects, builders, reviewers, and testers, use [squadkit](../squadkit).
 
-## Experimental features
-
-### `x-swarm`
-
-A parallel, experimental variant of `/swarm`. It accepts the same arguments and produces the same outcomes, but collapses deterministic mechanical phases — preflight, issue gathering, post-agent verification, and loop-mode teardown — into shell scripts rather than conversational model steps. This reduces model round-trips for work that doesn't require judgment.
-
-**When to use it**: dogfooding script-extraction changes or benchmarking round-trip reduction. `/swarm` remains the stable entry point — if anything misbehaves, fall back to it.
-
-```
-/x-swarm 12 15 18
-```
-
-No special setup is required beyond what `/swarm` needs. See [Prerequisites](#prerequisites) and [Permissions](#permissions).
 
