@@ -34,40 +34,46 @@ Repo-level calver tags (`v2026.4.16`) are separate and not used for plugin versi
 
 ### Step 1 — Detect changed plugins
 
-For each plugin, find the most recent `{plugin-name}--v*` tag:
+Run the detection script once to get a JSON array of plugins with uncommitted changes since their last per-plugin tag:
 
 ```bash
-git tag --list 'swarmkit--v*' | sort -V | tail -1
+export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
+bash "$SKILL_DIR/scripts/detect_changed.sh"
 ```
 
-If no per-plugin tag exists, use the current version in `plugin.json` as the baseline and treat all files as changed.
+The script emits a bare JSON array on stdout:
 
-Count commits touching the plugin's directory since that tag:
-
-```bash
-git log {tag}..HEAD --oneline -- plugins/{name}/ | wc -l
+```json
+[
+  {"plugin": "swarmkit", "last_tag": "swarmkit--v5.1.0", "commit_count": 2, "current_version": "5.1.0"},
+  {"plugin": "flowkit",  "last_tag": "flowkit--v1.2.0",  "commit_count": 1, "current_version": "1.2.0"}
+]
 ```
+
+Only plugins with `commit_count > 0` (or no prior tag) are included. If the array is empty, no plugins have changed — report that and stop.
+
+If `$ARGUMENTS` is provided (e.g. `patch` or `minor`), apply that bump type to all changed plugins and skip the rest of Step 2 — do not prompt.
 
 ### Step 2 — Recommend and confirm bump types
 
-Display a table of plugins with changes:
+Display a table of plugins with changes (from the Step 1 JSON):
 
 ```
 Plugin      Current   Commits since last tag
 ----------  --------  ----------------------
-swarmkit    1.0.0     4
-flowkit     1.0.0     2
+swarmkit    5.1.0     2
+flowkit     1.2.0     1
 ```
 
-If `$ARGUMENTS` is provided (e.g. `patch` or `minor`), apply that bump type to all changed plugins and skip the rest of Step 2 — do not prompt.
-
-Otherwise, for each changed plugin, list its commits since the last tag and derive a recommended bump from the conventional-commit prefixes:
+For each changed plugin, retrieve its commits since the last tag to derive a recommended bump:
 
 ```bash
-git log {tag}..HEAD --oneline -- plugins/{name}/
+git log {last_tag}..HEAD --oneline -- plugins/{plugin}/
 ```
 
-Map prefixes to bump types (take the highest bump when multiple coexist; `major > minor > patch`):
+If `last_tag` is `(none)`, use the full history: `git log --oneline -- plugins/{plugin}/`.
+
+Map conventional-commit prefixes to bump types (take the highest when multiple coexist; `major > minor > patch`):
 
 | Commit signal | Recommended bump |
 |---------------|------------------|
@@ -90,8 +96,6 @@ Semver semantics for reference when explaining options:
 - **major** — breaking changes (`1.0.0 → 2.0.0`)
 
 Fall through to free-form prompting (asking the user to type patch/minor/major inline) only if `AskUserQuestion` is unavailable.
-
-Skip plugins with 0 commits since their last tag unless explicitly included via `$ARGUMENTS`.
 
 ### Step 3 — Update plugin.json files
 
