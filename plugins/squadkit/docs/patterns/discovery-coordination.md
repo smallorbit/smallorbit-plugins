@@ -4,6 +4,8 @@ Squadkit crews come in two shapes. **Execution crews** (`kind: execution`, the d
 
 The two shapes use a different coordination protocol because the deliverable is different. This document describes the discovery protocol so crews don't have to reinvent it in every custom skill.
 
+> **Implementation note:** The `kind: discovery` profile field, the `discovery-3-role` crew profile, and the spawn-team skip logic (no worktrees, no epic-cutting, no `prBase` pinning) are implemented in companion PR #681 (closes #675 and #676). This document is item 3 of 3 in the discovery-team graduation path; #681 is items 1 and 2.
+
 ## When to use this pattern
 
 Use a discovery crew when:
@@ -129,6 +131,8 @@ SendMessage({
 })
 ```
 
+_Routing note: the explorer's role contract (`agents/explorer.md`) specifies replies addressed to `"team-lead"`. In a `kind: discovery` crew the architect IS the team-lead, so `to: "architect"` and `to: "team-lead"` route to the same inbox. Either form is valid; this example uses `"architect"` for clarity about which role receives the research note._
+
 ### 3. Architect → designer dispatch
 
 The architect now needs the contract decision: cursor-based or offset-based pagination, and what the response envelope looks like.
@@ -168,10 +172,10 @@ Add cursor-based pagination to GET /api/items. Protects the invariant that a cli
 - `tests/api/items.pagination.test.ts` — new: covers first page, mid-scroll insert, last page (`next_cursor: null`), invalid cursor.
 
 ## Sequence
-1. Add cursor encode/decode helpers in `src/api/cursor.ts`. Verify: `${verify.typecheck}`, `${verify.test}`.
-2. Extend the query builder to accept the cursor predicate. Verify: `${verify.test}`.
-3. Wire pagination into the handler, default `limit=20`, cap `limit<=100`. Verify: `${verify.test}`.
-4. End-to-end: run the new pagination test and the full `${verify.test}` suite.
+1. Add cursor encode/decode helpers in `src/api/cursor.ts`. Verify: `npx tsc --noEmit`, `npm test`.
+2. Extend the query builder to accept the cursor predicate. Verify: `npm test`.
+3. Wire pagination into the handler, default `limit=20`, cap `limit<=100`. Verify: `npm test`.
+4. End-to-end: run the new pagination test and the full `npm test` suite.
 
 ## Interface contracts
 - `encodeCursor(row: { created_at: Date, id: string }): string` — returns opaque base64.
@@ -186,8 +190,10 @@ Add cursor-based pagination to GET /api/items. Protects the invariant that a cli
 - Backwards compat: requests without `?cursor` default to first page; existing first-party clients keep working.
 
 ## Verify steps
-1. `${verify.typecheck}`
-2. `${verify.test}` — full suite, including `tests/api/items.pagination.test.ts`.
+1. `npx tsc --noEmit`
+2. `npm test` — full suite, including `tests/api/items.pagination.test.ts`.
+
+_Substitute the concrete commands from your team's `squadkit.json` (or equivalent verify config) before posting; the architect resolves these at synthesis time, not at template-render time._
 ```
 
 The architect posts this with `gh issue comment 821 --body-file <path>`, marks the task complete, and moves on to the next issue in the batch. Once issues #821, #822, #823 all have their blueprint comments, the architect notifies the orchestrator with the URLs and the crew shuts down.
