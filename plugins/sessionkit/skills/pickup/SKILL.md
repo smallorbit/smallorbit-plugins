@@ -7,7 +7,7 @@ triggers:
   - "load handoff"
   - "resume from handoff"
   - "continue previous session"
-allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList, Skill
+allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList, AskUserQuestion, Skill
 ---
 
 # Pickup
@@ -90,9 +90,17 @@ Only suggest this when there's a mismatch. Do not switch branches automatically.
 
 ### 6. Confirm readiness
 
-End with:
+End by asking the user what to tackle first via the `AskUserQuestion` tool. Frame the question around the handoff's `Goal` and derive 2–4 concrete options from the `Remaining Work` list (highest-priority items first):
+
+- **question**: `Context loaded. Ready to continue work on: <Goal>. What would you like to tackle first?`
+- **header**: `Next action` (or similar short label)
+- **options**: one option per top Remaining Work item, with a short description summarizing scope/effort
+
+If `Remaining Work` has fewer than 2 actionable items, fall back to plain text:
 
 > Context loaded. Ready to continue work on: `<Goal>`. What would you like to tackle first?
+
+Do not pose this as a plain-text question when `AskUserQuestion` is viable — the structured prompt is the canonical end-of-pickup interaction.
 
 ## Constraints
 
