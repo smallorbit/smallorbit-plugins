@@ -18,7 +18,8 @@
       "Bash($SKILL_DIR/scripts/preflight.sh:*)",
       "Bash($SKILL_DIR/scripts/gather_issues.sh:*)",
       "Bash($SKILL_DIR/scripts/verify_agent.sh:*)",
-      "Bash($SKILL_DIR/scripts/teardown.sh:*)"
+      "Bash($SKILL_DIR/scripts/teardown.sh:*)",
+      "Bash($SKILL_DIR/scripts/detect_changed.sh:*)"
     ]
   }
 }
