@@ -24,8 +24,6 @@ for cmd in git jq; do
   }
 done
 
-records="[]"
-
 find "$REPO_ROOT/plugins" -maxdepth 3 -name "plugin.json" -path "*/.claude-plugin/plugin.json" | sort | while read -r manifest; do
   plugin_dir="$(dirname "$(dirname "$manifest")")"
   plugin_name="$(basename "$plugin_dir")"
