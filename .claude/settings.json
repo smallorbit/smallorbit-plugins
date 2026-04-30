@@ -22,7 +22,8 @@
       "Bash($SKILL_DIR/scripts/gather.sh:*)",
       "Bash($SKILL_DIR/scripts/remove.sh:*)",
       "Bash($SKILL_DIR/scripts/classify.sh:*)",
-      "Bash($SKILL_DIR/scripts/delete.sh:*)"
+      "Bash($SKILL_DIR/scripts/delete.sh:*)",
+      "Bash($SKILL_DIR/scripts/detect_changed.sh:*)"
     ]
   }
 }
