@@ -55,12 +55,16 @@ If `.sessionkit/HANDOFF.md` already exists, Read it and look for an HTML comment
 <!-- handoff-meta gitFingerprint=<sha> taskFingerprint=<sha> -->
 ```
 
-Compare against the fingerprints from step 1a:
+Compare against the fingerprints from step 1a using two **independent** reuse decisions — each fingerprint governs its own pair of sections, with no cross-coupling:
 
-- If **both** match: nothing material has changed. Reuse the existing file's `## Git State`, `## Progress`, `## Task List`, and `## Remaining Work` sections verbatim — only refresh the `**Date**` field, `## Goal` (if `$ARGUMENTS` was passed), and `## Context`. Skip the sub-agent call entirely; rewrite the file in-line. Report `(skip-unchanged: reused N sections)` in the confirmation.
-- If only `gitFingerprint` matches: reuse `## Git State` and `## Progress`. Regenerate the rest.
-- If only `taskFingerprint` matches: reuse `## Task List` and `## Remaining Work`. Regenerate the rest.
-- If neither matches, or no prior file exists, or the meta header is absent: regenerate all sections.
+- If `gitFingerprint` matches the prior header: reuse `## Git State` and `## Progress` verbatim. Otherwise regenerate them.
+- If `taskFingerprint` matches the prior header: reuse `## Task List` and `## Remaining Work` verbatim. Otherwise regenerate them.
+
+`## Goal` and `## Context` are always refreshed (Goal also incorporates `$ARGUMENTS` when present).
+
+If no prior file exists, or the meta header is absent, treat both fingerprints as non-matching and regenerate all sections.
+
+When **both** fingerprints match, all four reusable sections come straight from the prior file — skip the sub-agent call entirely and rewrite the file in-line. Report the reuse outcome in the confirmation (e.g. `reused 4 sections`, `reused 2 sections (git)`, `reused 2 sections (task)`, or `regenerated all sections`).
 
 ### 2. Synthesize via Haiku sub-agent
 
@@ -173,7 +177,7 @@ Write the synthesized document to `.sessionkit/HANDOFF.md` using the Write tool,
 
 ### 4. Confirm
 
-Report the absolute path of the file written, the skip-unchanged status (e.g. `regenerated all sections` / `reused 4 sections, regenerated 2`), and suggest:
+Report the absolute path of the file written, the reuse outcome from step 1b (e.g. `regenerated all sections` / `reused 4 sections` / `reused 2 sections (git)` / `reused 2 sections (task)`), and suggest:
 
 > Start a new session and run `/pickup` to resume.
 
