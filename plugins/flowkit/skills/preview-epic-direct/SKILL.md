@@ -8,11 +8,45 @@ allowed-tools: Bash, Read, AskUserQuestion
 
 Sub-skill of `flowkit:preview-epic`. The long-lived `feature/<slug>-<issue>` epic branch already accumulates the squash-merged contributions — there is nothing to synthesize. This sub-skill fetches the epic branch, fast-forwards locally, and runs verify directly on its HEAD.
 
-The dispatcher (`flowkit:preview-epic`) resolves `$BASE_BRANCH` and `$EPIC_BRANCH` before invoking this sub-skill.
+The dispatcher (`flowkit:preview-epic`) resolves `$BASE_BRANCH` and `$EPIC_BRANCH` before invoking this sub-skill, encoding them as structured flags in the argument string passed via the Skill tool.
 
 ## Process
 
-### 1. Sync the epic branch locally
+### 1. Parse dispatcher arguments
+
+Extract `--base` and `--epic` from `$ARGUMENTS`.
+
+```bash
+BASE_BRANCH=""
+EPIC_BRANCH=""
+_ARGS="$ARGUMENTS"
+
+while [[ -n "$_ARGS" ]]; do
+  case "$_ARGS" in
+    --base\ *)
+      _ARGS="${_ARGS#--base }"
+      BASE_BRANCH="${_ARGS%% *}"
+      _ARGS="${_ARGS#$BASE_BRANCH}"
+      _ARGS="${_ARGS# }"
+      ;;
+    --epic\ *)
+      _ARGS="${_ARGS#--epic }"
+      EPIC_BRANCH="${_ARGS%% *}"
+      _ARGS="${_ARGS#$EPIC_BRANCH}"
+      _ARGS="${_ARGS# }"
+      ;;
+    *)
+      _ARGS=""
+      ;;
+  esac
+done
+```
+
+If either `$BASE_BRANCH` or `$EPIC_BRANCH` is empty after parsing, stop with:
+
+> Missing required arguments. This sub-skill must be invoked by `flowkit:preview-epic` with `--base <branch> --epic <branch>`.
+
+### 2. Sync the epic branch locally
 
 There is no synthesis to do — the epic branch already accumulates the squash-merged contributions. Pull it down and check it out so verify runs against the integrated state.
 
@@ -51,7 +85,7 @@ After verify completes, restore the user's pre-skill working state if any was st
 [[ "$STASHED" -eq 1 ]] && git stash pop
 ```
 
-### 2. Resolve verify commands
+### 3. Resolve verify commands
 
 Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, and `install`:
 
@@ -70,7 +104,7 @@ For each command that resolved to empty, prompt the user via `AskUserQuestion`:
 
 If the user declines any, skip that step. The skill does not hardcode `npm run test:run`, `npx tsc -b --noEmit`, or any other framework-specific command; the only source of commands is `.squadkit/config.json` or the user prompt.
 
-### 3. Run verify commands
+### 4. Run verify commands
 
 If `$INSTALL` is set and HEAD moved during the fetch/fast-forward, run install first. Then run typecheck, tests, and lint. Capture exit codes — do not abort the skill on failure; the user wants to see all results.
 
@@ -99,7 +133,7 @@ if [[ -n "$LINT" ]]; then
 fi
 ```
 
-### 4. Report
+### 5. Report
 
 Print a concise summary tagged with the model:
 

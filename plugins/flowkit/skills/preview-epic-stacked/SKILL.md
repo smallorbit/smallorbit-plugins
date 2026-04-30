@@ -1,18 +1,56 @@
 ---
 name: preview-epic-stacked
 description: Preview-epic sub-skill for the stacked-PR (Model A) flow — discover the open-PR stack, octopus-merge into a throwaway preview branch (with sequential fallback), and run verify against the synthesized integrated state. Invoked by `flowkit:preview-epic` after auto-detection; not meant to be called directly.
-allowed-tools: Bash, Read, AskUserQuestion
+allowed-tools: Bash, Read, AskUserQuestion, Skill
 ---
 
 # Preview Epic — Stacked PRs (Model A)
 
 Sub-skill of `flowkit:preview-epic`. Synthesizes the integrated state of an epic whose contributions are still **open PRs** chained via `baseRefName` → previous PR's `headRefName`, ultimately rooting at `$BASE_BRANCH`. The integrated state is built locally via octopus merge (with sequential fallback) into a throwaway `preview/...` branch — nothing is pushed.
 
-The dispatcher (`flowkit:preview-epic`) resolves `$BASE_BRANCH`, `$EPIC_BRANCH`, and `$ARGUMENTS` before invoking this sub-skill.
+The dispatcher (`flowkit:preview-epic`) resolves `$BASE_BRANCH`, `$EPIC_BRANCH`, and `$ARGUMENTS` before invoking this sub-skill, encoding them as structured flags in the argument string passed via the Skill tool.
 
 ## Process
 
-### 1. Discover the stack
+### 1. Parse dispatcher arguments
+
+Extract `--base` and `--epic` from `$ARGUMENTS`. Everything after those flags (if any) is the user-supplied remainder and is treated as the original `$ARGUMENTS` for entry-PR resolution.
+
+```bash
+BASE_BRANCH=""
+EPIC_BRANCH=""
+REMAINDER=""
+_ARGS="$ARGUMENTS"
+
+while [[ -n "$_ARGS" ]]; do
+  case "$_ARGS" in
+    --base\ *)
+      _ARGS="${_ARGS#--base }"
+      BASE_BRANCH="${_ARGS%% *}"
+      _ARGS="${_ARGS#$BASE_BRANCH}"
+      _ARGS="${_ARGS# }"
+      ;;
+    --epic\ *)
+      _ARGS="${_ARGS#--epic }"
+      EPIC_BRANCH="${_ARGS%% *}"
+      _ARGS="${_ARGS#$EPIC_BRANCH}"
+      _ARGS="${_ARGS# }"
+      ;;
+    *)
+      REMAINDER="$_ARGS"
+      _ARGS=""
+      ;;
+  esac
+done
+
+ARGUMENTS="$REMAINDER"
+```
+
+If either `$BASE_BRANCH` or `$EPIC_BRANCH` is empty after parsing, stop with:
+
+> Missing required arguments. This sub-skill must be invoked by `flowkit:preview-epic` with `--base <branch> --epic <branch>`.
+
+### 2. Discover the stack
 
 List every open PR in the repo with the metadata needed to walk the base→head chain:
 
@@ -31,7 +69,7 @@ Build the stack:
 
 The result is an ordered list `[root, ..., leaf]` of PRs in the stack. If the entry PR has no chain to `$BASE_BRANCH`, the epic is malformed for Model A — fall back to Model B by invoking `flowkit:preview-epic-direct` (treat the epic branch HEAD as the integrated state).
 
-### 2. Pick the preview branch name
+### 3. Pick the preview branch name
 
 ```bash
 ROOT_NUM=<root PR number>
@@ -41,7 +79,7 @@ PREVIEW_BRANCH="preview/${ROOT_NUM}-${ROOT_SLUG}"
 
 If `$PREVIEW_BRANCH` already exists locally, append `-2`, `-3`, etc. until unused. Never overwrite an existing branch.
 
-### 3. Fetch and create the preview branch
+### 4. Fetch and create the preview branch
 
 ```bash
 git fetch origin
@@ -56,7 +94,7 @@ gh pr list --state open --json number,headRefName --jq '.[].headRefName' | while
 done
 ```
 
-### 4. Try octopus merge first; sequential fallback on conflict
+### 5. Try octopus merge first; sequential fallback on conflict
 
 Octopus merge combines every head in a single commit. It only succeeds if all branches merge cleanly together.
 
@@ -90,7 +128,7 @@ If a conflict halts the sequential merge, stop the skill and report:
 
 Do not proceed to verify commands when sequential merge fails.
 
-### 5. Resolve verify commands
+### 6. Resolve verify commands
 
 Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, and `install`:
 
@@ -109,7 +147,7 @@ For each command that resolved to empty, prompt the user via `AskUserQuestion`:
 
 If the user declines any, skip that step. The skill does not hardcode `npm run test:run`, `npx tsc -b --noEmit`, or any other framework-specific command; the only source of commands is `.squadkit/config.json` or the user prompt.
 
-### 6. Run verify commands
+### 7. Run verify commands
 
 If `$INSTALL` is set, run install first (the working tree just changed). Then run typecheck, tests, and lint. Capture exit codes — do not abort the skill on failure; the user wants to see all results.
 
@@ -138,7 +176,7 @@ if [[ -n "$LINT" ]]; then
 fi
 ```
 
-### 7. Report
+### 8. Report
 
 Print a concise summary tagged with the model:
 

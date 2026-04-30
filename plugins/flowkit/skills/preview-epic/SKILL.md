@@ -77,7 +77,6 @@ If `$EPIC_BRANCH` is still empty, the user invoked the skill on a non-epic conte
 
 ```bash
 OPEN_AGAINST_EPIC=$(gh pr list --state open --base "$EPIC_BRANCH" --limit 200 --json number --jq 'length')
-MERGED_AGAINST_EPIC=$(gh pr list --state merged --base "$EPIC_BRANCH" --limit 200 --json number --jq 'length')
 
 if [[ "$OPEN_AGAINST_EPIC" -gt 0 ]]; then
   MODEL="A"
@@ -94,7 +93,17 @@ fi
 
 If Model A is selected but the sub-skill's PR-chain walk cannot connect to `$BASE_BRANCH`, the sub-skill will fall back by invoking `flowkit:preview-epic-direct` (the open PRs are not actually a stack rooted at base) or report malformed epic.
 
-The dispatcher passes through `$BASE_BRANCH`, `$EPIC_BRANCH`, and `$ARGUMENTS` to the chosen sub-skill via the Skill tool.
+The dispatcher passes structured arguments to the chosen sub-skill via the Skill tool. The argument string is always `--base <BASE_BRANCH> --epic <EPIC_BRANCH>` followed by the original `$ARGUMENTS` (so any user-supplied flags like a PR number are preserved as trailing args). Example invocations:
+
+```
+# Model A
+Skill("flowkit:preview-epic-stacked", "--base develop --epic feature/payments-42 123")
+
+# Model B
+Skill("flowkit:preview-epic-direct", "--base develop --epic feature/payments-42")
+```
+
+The `--base` and `--epic` flags are the mechanism by which the dispatcher hands off the resolved branch names; sub-skills must parse them from `$ARGUMENTS` at the top of their Process section.
 
 ## Composition
 
