@@ -21,6 +21,7 @@ Every kit under `plugins/*` that ships a manifest at `.claude-plugin/plugin.json
 | polishkit | `plugins/polishkit/.claude-plugin/plugin.json` |
 | sessionkit | `plugins/sessionkit/.claude-plugin/plugin.json` |
 | speckit | `plugins/speckit/.claude-plugin/plugin.json` |
+| squadkit | `plugins/squadkit/.claude-plugin/plugin.json` |
 | swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` |
 | vaultkit | `plugins/vaultkit/.claude-plugin/plugin.json` |
 
