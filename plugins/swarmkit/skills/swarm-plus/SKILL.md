@@ -29,6 +29,18 @@ Identical to `/swarmkit:swarm`:
 
 ## Process
 
+### 0. Pre-flight: resolve verify command
+
+> Resolved once at the start of the run, before any worker is dispatched.
+
+Resolve the project's verify command once and reuse it for every worker prompt. This keeps swarm-plus useful in any repo, not just TS repos with `tsc`. Use this lookup chain (first hit wins):
+
+1. **`.squadkit/config.json` `verifyCommand`** — repo-level explicit override. Read with `jq -r '.verifyCommand // empty' .squadkit/config.json` if the file exists.
+2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is determined by the package manager: `yarn.lock` present → `yarn run verify`; `pnpm-lock.yaml` present → `pnpm run verify`; otherwise → `npm run verify`.
+3. **Fallback** — `npx tsc -b --noEmit` for TS projects. "TS toolchain present" means `tsconfig.json` exists at the repo root. If neither of the above resolves AND `tsconfig.json` is absent, print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail. **Note:** projects that use `tsc` via a non-standard mechanism (e.g. a wrapper script, a monorepo tool, or a config file named differently) won't be detected by this check — those repos should set `verifyCommand` in `.squadkit/config.json` to opt in explicitly.
+
+Record the resolved command as `<verify_command>` and interpolate it into the worker prompt template in step 4.
+
 ### 1. Run the swarm phase
 
 Invoke `/swarmkit:swarm` with the same args (excluding `--review-only`, `--worker-model`, and `--reviewer-model` — those are swarm-plus-only flags). Track the agent IDs and the issues each agent owns. Record `(issue, pr_number, head_branch, base_branch)` for each PR as it is produced.
@@ -38,16 +50,6 @@ Do NOT block on every swarm agent before spawning reviewers. As each swarm agent
 1. Verify the PR exists: `gh pr view <pr_number> --json url,headRefName,baseRefName,state`
 2. Fetch the original issue body: `gh issue view <issue> --json body --jq '.body'`
 3. Spawn a reviewer for that PR (see step 2). Continue handling other notifications in parallel.
-
-### 1a. Resolve the verify command
-
-Before spawning workers, resolve the project's verify command once and reuse it for every worker prompt. This keeps swarm-plus useful in any repo, not just TS repos with `tsc`. Use this lookup chain (first hit wins):
-
-1. **`.squadkit/config.json` `verifyCommand`** — repo-level explicit override. Read with `jq -r '.verifyCommand // empty' .squadkit/config.json` if the file exists.
-2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is `npm run verify` (or the package manager equivalent).
-3. **Fallback** — `npx tsc -b --noEmit` for TS projects. If neither of the above resolves AND no obvious TS toolchain is present (no `tsconfig.json`), print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail.
-
-Record the resolved command as `<verify_command>` and interpolate it into the worker prompt template in step 4.
 
 ### 2. Spawn reviewer per PR
 
