@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# test.sh — smoke tests for swarmkit:clean-worktrees scripts.
+# test.sh — smoke tests for swarmkit:clean-remote-worktrees scripts.
 #
 # Per the convention in plugins/_shared/script-authoring.md:
 # - Successful invocations exit 0 and emit a parseable JSON object on stdout
 #   with the documented top-level keys.
 # - Invalid-argument invocations exit non-zero and emit nothing on stdout.
 #
-# These scripts are network-free (operate on the local repo only) so a
-# read-only happy path is exercised. `remove.sh` is invoked with empty input
-# arrays so it has nothing to remove — a safe no-op.
+# classify.sh requires network access (git fetch + gh API) so only the
+# invalid-argument surface is exercisable here. Since classify.sh accepts no
+# flags, there is no flag-based invalid-arg path to test; the entire happy
+# path is network-dependent and therefore deferred to CI.
+#
+# delete.sh has a network-free early-exit path (--branches '[]') that is
+# exercised as the happy-path noop test.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PASS=0
@@ -97,27 +101,20 @@ assert_json_keys() {
   PASS=$((PASS + 1))
 }
 
-echo "clean-worktrees: smoke-testing scripts"
+echo "clean-remote-worktrees: smoke-testing scripts"
 echo
 
-# gather.sh — no args, read-only. Always succeeds in any git repo.
-assert_json_keys gather.sh "happy-path" \
-  "caller_branch main_worktree worktrees_to_remove branches_to_delete stuck"
+# delete.sh — invalid arg shapes.
+assert_invalid_args delete.sh "missing-required"  # no --branches at all
+assert_invalid_args delete.sh "missing-value"     --branches
+assert_invalid_args delete.sh "unknown-flag"      --bogus value
 
-# remove.sh — invalid arg shapes.
-assert_invalid_args remove.sh "missing-required" --worktrees '[]' --branches '[]'
-assert_invalid_args remove.sh "unknown-flag"     --bogus value
-assert_invalid_args remove.sh "missing-value"    --main-worktree
-
-# remove.sh — empty arrays = safe no-op happy path. We pass the current main
-# worktree so the cd succeeds, and an empty caller-branch so the restore step
-# is a no-op.
-MAIN_WT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
-assert_json_keys remove.sh "empty-arrays-noop" \
-  "removed remove_errors pruned_branches branch_errors caller_branch_restored" \
-  --main-worktree "$MAIN_WT" --caller-branch "" --worktrees '[]' --branches '[]'
+# delete.sh — empty array = network-free noop happy path.
+assert_json_keys delete.sh "empty-array-noop" \
+  "deleted skipped errors" \
+  --branches '[]'
 
 echo
-echo "clean-worktrees: ${PASS} passed, ${FAIL} failed"
+echo "clean-remote-worktrees: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]] || exit 1
 exit 0
