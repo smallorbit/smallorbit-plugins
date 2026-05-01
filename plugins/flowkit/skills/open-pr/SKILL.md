@@ -32,10 +32,27 @@ If the current branch is `develop`, `main`, `master`, or `staging`, stop immedia
 
 ### 2. Determine base branch
 
-Resolve the base branch using the `pr-base-scope` read order: new key → legacy key (with deprecation notice) → `develop` default.
+Resolve the base branch using the following precedence order:
+
+1. **Explicit caller arg** — if `$ARGUMENTS` contains a `--base <branch>` flag, extract and use it.
+2. **`claude.flowkit.prBase`** — per-session config key (set by swarm loop / cut-epic).
+3. **Legacy `claude.prBase`** — deprecated key (with migration notice).
+4. **`develop` if it exists on the remote** — check with `git ls-remote`.
+5. **GitHub default** — fall through to gh CLI default, but emit a one-line warning.
 
 ```bash
-BASE=$(git config claude.flowkit.prBase 2>/dev/null)
+# 1. Explicit caller arg
+BASE=""
+if echo "$ARGUMENTS" | grep -qE '\-\-base[= ]'; then
+  BASE=$(echo "$ARGUMENTS" | grep -oE '\-\-base[= ][^ ]+' | head -1 | sed 's/--base[= ]//')
+fi
+
+# 2. claude.flowkit.prBase config key
+if [ -z "$BASE" ]; then
+  BASE=$(git config claude.flowkit.prBase 2>/dev/null)
+fi
+
+# 3. Legacy claude.prBase (deprecated)
 if [ -z "$BASE" ]; then
   LEGACY=$(git config claude.prBase 2>/dev/null)
   if [ -n "$LEGACY" ]; then
@@ -43,13 +60,24 @@ if [ -z "$BASE" ]; then
     echo "note: claude.prBase is deprecated. Migrate with:" >&2
     echo "  git config --unset claude.prBase" >&2
     echo "  git config claude.flowkit.prBase $LEGACY" >&2
-  else
+  fi
+fi
+
+# 4. develop if it exists on the remote
+if [ -z "$BASE" ]; then
+  if git ls-remote --heads origin develop | grep -q 'refs/heads/develop'; then
     BASE="develop"
   fi
 fi
+
+# 5. Fallback — let gh CLI use the repo default, but warn
+if [ -z "$BASE" ]; then
+  REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "unknown")
+  echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
+fi
 ```
 
-Use `$BASE` as the PR target. This respects any scoped override set by the `pr-base-scope` sub-skill.
+When `$BASE` is non-empty, pass it explicitly as `--base "$BASE"` to `gh pr create`. When empty (fallback), omit `--base` and let gh CLI determine the target. Use `$BASE` as the PR target. This respects any scoped override set by the `pr-base-scope` sub-skill.
 
 ### 3. Push branch to origin
 
@@ -113,9 +141,20 @@ Fail loudly rather than auto-rewriting — the author should see and fix the foo
 
 ### 8. Open the PR
 
+When `$BASE` is set (resolved in step 2), pass it explicitly:
+
 ```bash
 gh pr create \
   --base "$BASE" \
+  --head "$(git rev-parse --abbrev-ref HEAD)" \
+  --title "<title>" \
+  --body "<assembled body from step 6>"
+```
+
+When `$BASE` is empty (fallback path — warning already emitted in step 2), omit `--base` and let gh CLI determine the target:
+
+```bash
+gh pr create \
   --head "$(git rev-parse --abbrev-ref HEAD)" \
   --title "<title>" \
   --body "<assembled body from step 6>"
@@ -127,6 +166,7 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
+- Always resolve `--base` before calling `gh pr create` using the precedence: explicit caller arg → `claude.flowkit.prBase` → legacy `claude.prBase` → `develop` (if remote exists) → gh CLI default with warning
 - Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
 - Never open a PR from a protected branch (`develop`, `main`, `master`, `staging`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
