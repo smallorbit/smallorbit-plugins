@@ -89,6 +89,7 @@ Each crew YAML conforms to:
 ```yaml
 name: <string>            # profile name; matches the filename without .yaml
 description: <string>     # one-line summary of when to use this crew
+kind: <string>            # optional, default "execution"; execution | discovery
 members:
   - role: <string>        # one of: team-lead, architect, builder, reviewer, tester, explorer, designer
     count: <int>          # optional, default 1; 1–5 for builder
