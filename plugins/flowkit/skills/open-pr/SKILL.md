@@ -43,8 +43,8 @@ Resolve the base branch using the following precedence order:
 ```bash
 # 1. Explicit caller arg
 BASE=""
-if echo "$ARGUMENTS" | grep -qE '\-\-base[= ]'; then
-  BASE=$(echo "$ARGUMENTS" | grep -oE '\-\-base[= ][^ ]+' | head -1 | sed 's/--base[= ]//')
+if echo "$ARGUMENTS" | grep -qE '(^|[[:space:]])\-\-base[= ]'; then
+  BASE=$(echo "$ARGUMENTS" | grep -oE '(^|[[:space:]])\-\-base[= ][^ ]+' | head -1 | sed 's/.*--base[= ]//')
 fi
 
 # 2. claude.flowkit.prBase config key
@@ -70,14 +70,15 @@ if [ -z "$BASE" ]; then
   fi
 fi
 
-# 5. Fallback — let gh CLI use the repo default, but warn
+# 5. Fallback — use the repo default and warn
 if [ -z "$BASE" ]; then
-  REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "unknown")
+  REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
   echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
+  BASE="$REPO_DEFAULT"
 fi
 ```
 
-When `$BASE` is non-empty, pass it explicitly as `--base "$BASE"` to `gh pr create`. When empty (fallback), omit `--base` and let gh CLI determine the target. Use `$BASE` as the PR target. This respects any scoped override set by the `pr-base-scope` sub-skill.
+`$BASE` is always non-empty after step 2 — pass it explicitly as `--base "$BASE"` to `gh pr create`. This respects any scoped override set by the `pr-base-scope` sub-skill.
 
 ### 3. Push branch to origin
 
@@ -141,20 +142,11 @@ Fail loudly rather than auto-rewriting — the author should see and fix the foo
 
 ### 8. Open the PR
 
-When `$BASE` is set (resolved in step 2), pass it explicitly:
+`$BASE` is always non-empty at this point (step 2 guarantees it). Pass it explicitly:
 
 ```bash
 gh pr create \
   --base "$BASE" \
-  --head "$(git rev-parse --abbrev-ref HEAD)" \
-  --title "<title>" \
-  --body "<assembled body from step 6>"
-```
-
-When `$BASE` is empty (fallback path — warning already emitted in step 2), omit `--base` and let gh CLI determine the target:
-
-```bash
-gh pr create \
   --head "$(git rev-parse --abbrev-ref HEAD)" \
   --title "<title>" \
   --body "<assembled body from step 6>"
@@ -166,7 +158,7 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
-- Always resolve `--base` before calling `gh pr create` using the precedence: explicit caller arg → `claude.flowkit.prBase` → legacy `claude.prBase` → `develop` (if remote exists) → gh CLI default with warning
+- Always resolve `--base` before calling `gh pr create` using the precedence: explicit caller arg → `claude.flowkit.prBase` → legacy `claude.prBase` → `develop` (if remote exists) → repo default (with warning). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
 - Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
 - Never open a PR from a protected branch (`develop`, `main`, `master`, `staging`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
