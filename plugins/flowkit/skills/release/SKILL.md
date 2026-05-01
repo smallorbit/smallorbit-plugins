@@ -255,8 +255,23 @@ Capture the PR number from the URL output.
 
 ### 6. Merge the PR
 
+`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` sub-skill so any dirty state is auto-stashed and restored:
+
 ```bash
+DIRTY=false
+if [ -n "$(git status --porcelain)" ]; then
+  DIRTY=true
+  git stash push -u -m "flowkit-auto-stash" >/dev/null
+fi
+
 gh pr merge "$PR_URL" --merge --delete-branch
+
+if [ "$DIRTY" = "true" ]; then
+  if ! git stash pop; then
+    echo "WARNING: stash pop conflicted. Your changes are preserved on the stash stack." >&2
+    echo "Run \`git stash list\` to see the saved entry (message: flowkit-auto-stash) and \`git stash pop\` after resolving." >&2
+  fi
+fi
 ```
 
 Use `--merge` to preserve the full commit history from the RC branch in main.
