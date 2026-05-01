@@ -22,7 +22,7 @@ Identical to `/swarmkit:swarm`:
 - Issue numbers (`12 15 18`, `#12 #15 #18`, range `12-18`) → one-shot mode → `develop`
 - `--model <tier>` (`sonnet`, `opus`) — model override for swarm agents (reviewer + worker have their own defaults; see below)
 - `--base <branch>` — override default base branch
-- `--no-worker` — review only; never dispatch worker (useful for triage)
+- `--review-only` — review only; never dispatch worker (useful for triage)
 - `--worker-model <tier>` — override worker model (default: `sonnet`)
 - `--reviewer-model <tier>` — override reviewer model (default: `sonnet`)
 
@@ -30,7 +30,7 @@ Identical to `/swarmkit:swarm`:
 
 ### 1. Run the swarm phase
 
-Invoke `/swarmkit:swarm` with the same args (excluding `--no-worker`, `--worker-model`, and `--reviewer-model` — those are swarm-plus-only flags). Track the agent IDs and the issues each agent owns. Record `(issue, pr_number, head_branch, base_branch)` for each PR as it is produced.
+Invoke `/swarmkit:swarm` with the same args (excluding `--review-only`, `--worker-model`, and `--reviewer-model` — those are swarm-plus-only flags). Track the agent IDs and the issues each agent owns. Record `(issue, pr_number, head_branch, base_branch)` for each PR as it is produced.
 
 Do NOT block on every swarm agent before spawning reviewers. As each swarm agent's task notification arrives:
 
@@ -66,7 +66,7 @@ When a reviewer's task notification arrives, parse its result. Apply the **skip-
 | Any blockers | **Spawn worker.** Blockers are mandatory. |
 | Any concerns | **Spawn worker.** Concerns get addressed or explicitly deferred. |
 | Coverage gaps flagged `[recommended]` | **Spawn worker.** Treat recommended coverage gaps as concerns. |
-| `--no-worker` flag set | Skip regardless. |
+| `--review-only` flag set | Skip regardless. |
 
 Print one line announcing the decision per PR:
 
