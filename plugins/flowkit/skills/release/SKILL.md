@@ -264,14 +264,22 @@ if [ -n "$(git status --porcelain)" ]; then
   git stash push -u -m "flowkit-auto-stash" >/dev/null
 fi
 
-gh pr merge "$PR_URL" --merge --delete-branch
+if gh pr merge "$PR_URL" --merge --delete-branch; then
+  MERGE_OK=true
+else
+  MERGE_OK=false
+fi
 
-if [ "$DIRTY" = "true" ]; then
+if [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "true" ]; then
   if ! git stash pop; then
     echo "WARNING: stash pop conflicted. Your changes are preserved on the stash stack." >&2
     echo "Run \`git stash list\` to see the saved entry (message: flowkit-auto-stash) and \`git stash pop\` after resolving." >&2
   fi
+elif [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "false" ]; then
+  echo "WARNING: merge failed — stash preserved. Run \`git stash pop\` after resolving the merge error." >&2
 fi
+
+[ "$MERGE_OK" = "false" ] && exit 1
 ```
 
 Use `--merge` to preserve the full commit history from the RC branch in main.
