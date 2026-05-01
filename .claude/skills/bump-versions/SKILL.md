@@ -45,8 +45,8 @@ The script emits a bare JSON array on stdout:
 
 ```json
 [
-  {"plugin": "swarmkit", "last_tag": "swarmkit--v5.1.0", "commit_count": 2, "current_version": "5.1.0"},
-  {"plugin": "flowkit",  "last_tag": "flowkit--v1.2.0",  "commit_count": 1, "current_version": "1.2.0"}
+  {"plugin": "swarmkit", "last_tag": "swarmkit--v5.1.0", "commit_count": 2, "current_version": "5.1.0", "suggested_bump": "minor"},
+  {"plugin": "flowkit",  "last_tag": "flowkit--v1.2.0",  "commit_count": 1, "current_version": "1.2.0", "suggested_bump": "patch"}
 ]
 ```
 
@@ -56,32 +56,24 @@ If `$ARGUMENTS` is provided (e.g. `patch` or `minor`), apply that bump type to a
 
 ### Step 2 — Recommend and confirm bump types
 
-Display a table of plugins with changes (from the Step 1 JSON):
+Display a table of plugins with changes (from the Step 1 JSON), using the `suggested_bump` field already computed by the script:
 
 ```
-Plugin      Current   Commits since last tag
-----------  --------  ----------------------
-swarmkit    5.1.0     2
-flowkit     1.2.0     1
+Plugin      Current   Commits since last tag   Suggested bump
+----------  --------  ----------------------   --------------
+swarmkit    5.1.0     2                        minor
+flowkit     1.2.0     1                        patch
 ```
 
-For each changed plugin, retrieve its commits since the last tag to derive a recommended bump:
-
-```bash
-git log {last_tag}..HEAD --oneline -- plugins/{plugin}/
-```
-
-If `last_tag` is `(none)`, use the full history: `git log --oneline -- plugins/{plugin}/`.
-
-Map conventional-commit prefixes to bump types (take the highest when multiple coexist; `major > minor > patch`):
+The `suggested_bump` is derived from conventional-commit prefixes across all commits in the range (`major > minor > patch`):
 
 | Commit signal | Recommended bump |
 |---------------|------------------|
-| `feat:` or new skill file added | **minor** |
-| `fix:` / `docs:` / `chore:` / `refactor:` (no behavior change) | **patch** |
-| `refactor:` with noted behavior change, or `BREAKING CHANGE:` footer anywhere | **major** |
+| `!:` in subject or `BREAKING CHANGE` in commit body | **major** |
+| `feat:` / `feat(…):` prefix | **minor** |
+| Any other prefix (`fix`, `chore`, `refactor`, etc.) | **patch** |
 
-Present the choice via the `AskUserQuestion` tool — **one question per changed plugin** — with the recommendation as the first (default) option. Each question should include a one-line rationale (e.g. "recommending **minor** — adds a new skill in `feat(flowkit): …`").
+Present the choice via the `AskUserQuestion` tool — **one question per changed plugin** — with `suggested_bump` as the first (default) option. Each question should include a one-line rationale (e.g. "recommending **minor** — adds a new skill in `feat(flowkit): …`").
 
 Options for each question (in this order; default first):
 
