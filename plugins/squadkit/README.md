@@ -79,7 +79,7 @@ A **crew profile** is a YAML file under `plugins/squadkit/crews/` describing a r
 | Profile | Roster | When to use |
 |---------|--------|-------------|
 | **all-rounder** | team-lead, architect, builder×2, reviewer, tester, explorer, designer | Full-spectrum feature work end-to-end. |
-| **design** | team-lead, architect, designer, explorer | Discovery-stage exploration with no implementation yet. |
+| **design** | architect, designer, explorer | Discovery-stage exploration with no implementation yet. Read-only: produces issue comments, no worktrees, no epic branch. (`kind: discovery`) |
 | **qa** | team-lead, reviewer, tester, builder×1 | Hardening, regression, bug-fix sweeps. |
 
 ### Schema
