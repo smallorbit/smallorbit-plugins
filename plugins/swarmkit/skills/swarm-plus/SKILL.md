@@ -7,6 +7,7 @@ triggers:
   - "swarm with review"
   - "swarm and review"
   - "swarm review"
+  - "swarm + review pass"
 ---
 
 # Swarm Plus
@@ -37,6 +38,16 @@ Do NOT block on every swarm agent before spawning reviewers. As each swarm agent
 1. Verify the PR exists: `gh pr view <pr_number> --json url,headRefName,baseRefName,state`
 2. Fetch the original issue body: `gh issue view <issue> --json body --jq '.body'`
 3. Spawn a reviewer for that PR (see step 2). Continue handling other notifications in parallel.
+
+### 1a. Resolve the verify command
+
+Before spawning workers, resolve the project's verify command once and reuse it for every worker prompt. This keeps swarm-plus useful in any repo, not just TS repos with `tsc`. Use this lookup chain (first hit wins):
+
+1. **`.squadkit/config.json` `verifyCommand`** — repo-level explicit override. Read with `jq -r '.verifyCommand // empty' .squadkit/config.json` if the file exists.
+2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is `npm run verify` (or the package manager equivalent).
+3. **Fallback** — `npx tsc -b --noEmit` for TS projects. If neither of the above resolves AND no obvious TS toolchain is present (no `tsconfig.json`), print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail.
+
+Record the resolved command as `<verify_command>` and interpolate it into the worker prompt template in step 4.
 
 ### 2. Spawn reviewer per PR
 
@@ -93,7 +104,7 @@ The worker prompt MUST:
      git checkout -B <head_branch> origin/<head_branch>
      ```
   2. Apply the changes.
-  3. Run `npx tsc -b --noEmit` and the relevant test scope. Resolve any failures before proceeding — never push a red build.
+  3. Run `<verify_command>` (resolved in step 1a) and the relevant test scope. Resolve any failures before proceeding — never push a red build.
   4. Commit with conventional-commit format (no Claude mentions, no co-author lines).
   5. Push to the same branch (`git push origin <head_branch>`) — auto-updates the PR.
   6. Optionally comment on the PR summarizing what was addressed and what was deferred:
