@@ -25,12 +25,6 @@ Run it before staging and committing the release.
 
 ## Plugins
 
-`swarmkit` includes an experimental skill marked with the `x-` prefix:
-
-- `x-swarm` — variant of `/swarm` that collapses preflight, gather, verify, and teardown into shell scripts to reduce model round-trips.
-
-The `x-` prefix is the convention for experimental skills in this plugin. See `plugins/swarmkit/README.md` for details.
-
 `squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
 
 **Crew shapes.** Crew profiles carry an optional `kind:` field — `execution` (default) for crews that ship code, `discovery` for read-only research crews that produce blueprint comments on GitHub issues instead of PRs. Discovery crews skip worktree provisioning, epic-branch cutting, and `claude.flowkit.prBase` pinning. See [`plugins/squadkit/docs/patterns/discovery-coordination.md`](./plugins/squadkit/docs/patterns/discovery-coordination.md) for the architect-led coordination pattern.
@@ -45,3 +39,5 @@ The `x-` prefix is the convention for experimental skills in this plugin. See `p
 **Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
 
 **PR body standard**: All PRs opened by agents in this repo must follow the canonical three-section shape (`## Summary`, `## Changes`, `## Test plan`) plus an issue-reference footer. The spec lives at [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md) — reference it instead of inventing a local format.
+
+**Skill scripts standard**: Skills that extract deterministic bash work into shell scripts must follow the convention at [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md) — folder layout, `$SKILL_DIR` resolution, bare-payload JSON, stderr errors, when to extract, and `.claude/settings.json` allowlist guidance.

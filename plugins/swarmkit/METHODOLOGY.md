@@ -130,7 +130,7 @@ The single-pass rule is intentional. There is no reviewer-after-worker re-review
 
 The reviewer is vendored into swarmkit (`plugins/swarmkit/agents/swarm-reviewer.md`) rather than imported from another plugin, so `/swarm-plus` carries no cross-marketplace dependency. Worker scope is constrained: blockers and concerns are in scope, recommended coverage gaps are in scope, optional coverage gaps and nits are out of scope along with any unrelated cleanups. The worker may comment once on the PR summarizing what it addressed and what it deferred; the reviewer never posts comments.
 
-The skill exposes three flags beyond the inherited `/swarm` set: `--no-worker` for triage runs that review without dispatching workers, `--reviewer-model <tier>`, and `--worker-model <tier>`. Both model overrides default to `sonnet`.
+The skill exposes three flags beyond the inherited `/swarm` set: `--review-only` for triage runs that review without dispatching workers, `--reviewer-model <tier>`, and `--worker-model <tier>`. Both model overrides default to `sonnet`.
 
 `/swarm-plus` is the right layer when you want every swarm PR to land with at least one independent pass against its acceptance criteria, and when the acceptance criteria in the originating issue are crisp enough for a reviewer to evaluate against. It is not a replacement for human review on the final merge — every PR still ends in the same place: open, awaiting your merge.
 
