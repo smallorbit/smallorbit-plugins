@@ -74,7 +74,7 @@ Compare against the fingerprints from step 1a using two **independent** reuse de
 
 If no prior file exists, or the meta header is absent, treat both fingerprints as non-matching and regenerate all sections.
 
-When **both** fingerprints match, all four reusable sections come straight from the prior file — skip the sub-agent call entirely and rewrite the file in-line. Report the reuse outcome in the confirmation (e.g. `reused 4 sections`, `reused 2 sections (git)`, `reused 2 sections (task)`, or `regenerated all sections`).
+When **both** fingerprints match, all four reusable sections come straight from the prior file. The actual routing decision — including whether to skip the sub-agent — is made in step 1c after this check. Report the reuse outcome in the confirmation (e.g. `reused 4 sections`, `reused 2 sections (git)`, `reused 2 sections (task)`, or `regenerated all sections`).
 
 ### 1c. Delta-mode decision
 
@@ -83,9 +83,9 @@ After step 1b classifies which sections need to be regenerated, decide whether t
 **Pick delta mode when ALL of these hold:**
 
 1. A prior `.sessionkit/HANDOFF.md` exists and parsed cleanly in step 1b (meta header found, all six canonical sections present in the documented order, fenced `json` block in `## Task List` parses).
-2. The prior `gitFingerprint`'s HEAD-sha component is an ancestor of the current HEAD — verify with `git merge-base --is-ancestor <prior-head-sha> HEAD` (exit 0 = ancestor). This confirms session continuity rather than a branch swap.
+2. The prior `gitFingerprint`'s HEAD-sha component is an ancestor of the current HEAD — verify with `git merge-base --is-ancestor <prior-head-sha> HEAD` (exit 0 = ancestor). This confirms session continuity rather than a branch swap. (The staged/unstaged drift is already captured by step 1b's fingerprint comparison; this ancestor check only guards against branch-swap or force-push scenarios where the commit graph has diverged.)
 3. At most **two** of the four reusable sections (`Git State`, `Progress`, `Task List`, `Remaining Work`) need regeneration. Goal and Context are always refreshed and don't count toward the threshold.
-4. `$ARGUMENTS` does not contain `--full` and does not look like a structural-rewrite directive (a freeform note longer than ~200 chars or one that explicitly mentions reframing/rewriting the goal/context counts as structural — when in doubt, fall back to full regenerate).
+4. `$ARGUMENTS` does not contain `--full` and does not look like a structural-rewrite directive (a freeform note longer than ~200 chars or one that explicitly mentions reframing/rewriting the goal/context counts as structural — when in doubt, fall back to full regenerate). The 200-char threshold is a heuristic; `--full` remains the deterministic override when you want a guaranteed full pass regardless of note length.
 
 **Otherwise, use the full Haiku regenerate path** (step 2). Specifically, fall back when:
 
