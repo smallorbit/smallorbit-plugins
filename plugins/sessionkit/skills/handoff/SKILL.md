@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Capture session context to a handoff document so another agent can take over seamlessly. Fast enough to run after every meaningful state change (PR opened, task completed, decision made) — not just when context is running low.
+description: Capture session context to a handoff document so another agent can take over seamlessly. Run it after every meaningful state change (PR opened, task completed, decision made) — delta mode keeps the cost trivial so you don't have to wait for context pressure.
 triggers:
   - "/handoff"
   - "write a handoff"
@@ -14,11 +14,21 @@ allowed-tools: Bash, Read, Write, TaskList, TaskGet, Skill, Agent
 
 Capture the current session's goal, progress, git state, remaining work, and key context into `<working-dir>/.sessionkit/HANDOFF.md` so another agent can pick up without losing momentum.
 
-Synthesis is delegated to a Haiku sub-agent and skips sections whose inputs haven't changed since the last run, so frequent invocation is cheap.
+Synthesis has three paths, picked automatically based on what's actually changed:
+
+- **Delta mode** (no sub-agent, in-line surgical Edits) — the default fast path when a prior `HANDOFF.md` exists, its git fingerprint is an ancestor of HEAD, and only a handful of sections need updating. Median wall time well under 3s.
+- **Full regenerate via Haiku sub-agent** — used when no prior file exists, the prior file is structurally divergent, drift exceeds the delta threshold, or `--full` is passed. Skips synthesis for sections whose fingerprints still match.
+- **Both-fingerprints-match short-circuit** — if both fingerprints match, all four reusable sections come straight from the prior file and the sub-agent is skipped entirely (this case is unchanged from prior behavior).
 
 ## Input
 
 `$ARGUMENTS` — optional freeform notes to fold into the handoff (e.g. "focus on the auth refactor, skip the docs work"). If omitted, auto-infer everything from session state.
+
+Recognized flags (parsed from `$ARGUMENTS`):
+
+- `--full` — force the full-regenerate Haiku path even if delta mode would otherwise apply. Use when you want a fresh narrative pass (e.g. Goal/Context have meaningfully drifted but the structural fingerprints haven't).
+
+If `--full` is present, strip it from `$ARGUMENTS` before folding the remaining text into Goal/Context.
 
 ## Process
 
@@ -66,9 +76,46 @@ If no prior file exists, or the meta header is absent, treat both fingerprints a
 
 When **both** fingerprints match, all four reusable sections come straight from the prior file — skip the sub-agent call entirely and rewrite the file in-line. Report the reuse outcome in the confirmation (e.g. `reused 4 sections`, `reused 2 sections (git)`, `reused 2 sections (task)`, or `regenerated all sections`).
 
+### 1c. Delta-mode decision
+
+After step 1b classifies which sections need to be regenerated, decide whether to use the in-line **delta-mode** path or dispatch the Haiku sub-agent.
+
+**Pick delta mode when ALL of these hold:**
+
+1. A prior `.sessionkit/HANDOFF.md` exists and parsed cleanly in step 1b (meta header found, all six canonical sections present in the documented order, fenced `json` block in `## Task List` parses).
+2. The prior `gitFingerprint`'s HEAD-sha component is an ancestor of the current HEAD — verify with `git merge-base --is-ancestor <prior-head-sha> HEAD` (exit 0 = ancestor). This confirms session continuity rather than a branch swap.
+3. At most **two** of the four reusable sections (`Git State`, `Progress`, `Task List`, `Remaining Work`) need regeneration. Goal and Context are always refreshed and don't count toward the threshold.
+4. `$ARGUMENTS` does not contain `--full` and does not look like a structural-rewrite directive (a freeform note longer than ~200 chars or one that explicitly mentions reframing/rewriting the goal/context counts as structural — when in doubt, fall back to full regenerate).
+
+**Otherwise, use the full Haiku regenerate path** (step 2). Specifically, fall back when:
+
+- No prior file, or prior file is missing the meta header / required sections / parseable Task List JSON.
+- Prior `gitFingerprint`'s HEAD is not an ancestor of current HEAD (branch swap, force-push, unrelated session).
+- Three or four reusable sections need regeneration (drift exceeds threshold).
+- `$ARGUMENTS` contains `--full`, or its freeform content suggests a structural rewrite.
+
+Record the chosen mode (`delta` vs `full`) for the step 4 confirmation.
+
+### 1d. Delta-mode mechanics (only when step 1c picked `delta`)
+
+In delta mode, do **not** invoke the Agent tool. Instead, surgically Edit the existing `.sessionkit/HANDOFF.md`:
+
+1. Always refresh `## Goal` and `## Context` in-line — synthesize new bullets directly from the conversation arc and the raw step-1 outputs (and `$ARGUMENTS` if present). Use the Edit tool, replacing the prior section bodies between their headings.
+2. For each of the four reusable sections, regenerate only those flagged in step 1b:
+   - `## Git State` — emit from the raw git outputs in step 1 using the template in step 2a.
+   - `## Progress` — bullets from staged/unstaged file lists, recent commits, and any conversation signals about completed/decided/abandoned threads.
+   - `## Task List` — serialize the Task List JSON exactly per the rules in step 2a.
+   - `## Remaining Work` — bullets in priority order from the (refreshed or reused) Task List plus unfinished conversation threads.
+3. Update the meta header in place: replace `gitFingerprint=<sha>` and `taskFingerprint=<sha>` with the values computed in step 1a, even if only one of them changed. Refresh the `**Date**` field.
+4. Preserve byte-exact content of any reusable section that step 1b marked verbatim — do not touch its bullets, ordering, or whitespace.
+
+The output of delta mode must be byte-equivalent (modulo touched sections and the meta-header / Date refresh) to what a full regenerate would have produced from the same inputs. `/pickup` parses both outputs identically — there is no parser-level distinction.
+
+After all Edits land, skip step 2 entirely and proceed to step 3.
+
 ### 2. Synthesize via Haiku sub-agent
 
-Delegate markdown synthesis to a sub-agent running on Haiku. The handoff document is structured output and does not need the main model.
+Reached only when step 1c picked the `full` path (no prior file, structural divergence, drift over threshold, or `--full`). Delegate markdown synthesis to a sub-agent running on Haiku — the handoff document is structured output and does not need the main model.
 
 Invoke the `Agent` tool with:
 
@@ -79,9 +126,11 @@ Invoke the `Agent` tool with:
   2. The conversation context summary (recent goal, decisions, gotchas — bullet form, no prose).
   3. The raw outputs from step 1 (git fingerprints, file lists, recent commits, todo file contents).
   4. The Task List JSON from step 1.
-  5. Any sections from step 1b marked "reuse verbatim" with their existing content.
-  6. `$ARGUMENTS` if present.
-  7. Explicit instructions: "Emit ONLY the markdown document. No commentary, no fences around the whole thing. Use bullets, not paragraphs, for Progress / Remaining Work / Context. Preserve the JSON code block for Task List exactly as given."
+  5. For each section from step 1b: an explicit per-section directive of either `reuse verbatim` (with the existing content) or `regenerate`. List the four reusable sections (`Git State`, `Progress`, `Task List`, `Remaining Work`) with their directive; `Goal` and `Context` are always `regenerate`.
+  6. `$ARGUMENTS` if present (with `--full` already stripped).
+  7. Explicit instructions, including the verbatim contract:
+
+     > "Sections marked `reuse verbatim` MUST be emitted byte-for-byte unchanged from the content provided — do not paraphrase, reorder, re-format, or re-wrap them. Generate fresh content ONLY for sections marked `regenerate`. Emit ONLY the markdown document. No commentary, no fences around the whole thing. Use bullets, not paragraphs, for Progress / Remaining Work / Context. Preserve the JSON code block for Task List exactly as given when reusing it verbatim."
 
 **Timeout / failure handling**: if the Agent call fails, returns empty output, or produces output that does not contain the required `## Task List` heading, fall back to in-line synthesis. Prepend a single comment line to the document:
 
@@ -167,17 +216,18 @@ test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" |
 
 If `.sessionkit/HANDOFF.md` already exists, Read it first (the Write tool requires a prior Read of the target path). Step 1b already did this when a prior file exists.
 
-Then create the directory and write the file:
+Then create the directory if needed:
 
 ```bash
 mkdir -p .sessionkit
 ```
 
-Write the synthesized document to `.sessionkit/HANDOFF.md` using the Write tool, silently overwriting any existing file.
+- **Delta mode** (step 1d): the surgical Edits in step 1d already updated the file in place. Nothing more to do here beyond the `.gitignore` check above.
+- **Full path** (step 2): Write the synthesized document to `.sessionkit/HANDOFF.md` using the Write tool, silently overwriting any existing file.
 
 ### 4. Confirm
 
-Report the absolute path of the file written, the reuse outcome from step 1b (e.g. `regenerated all sections` / `reused 4 sections` / `reused 2 sections (git)` / `reused 2 sections (task)`), and suggest:
+Report the absolute path of the file written, the chosen mode and reuse outcome (e.g. `delta mode — refreshed Goal/Context, regenerated Git State + Progress`, `full regenerate — reused 2 sections (task)`, `full regenerate — regenerated all sections`), and suggest:
 
 > Start a new session and run `/pickup` to resume.
 
