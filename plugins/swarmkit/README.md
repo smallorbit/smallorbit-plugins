@@ -172,6 +172,8 @@ Swarmkit **never closes issues** — that's intentional. Closing is left to the 
 
 ## Pairing with Other Plugins
 
+Swarmkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Swarmkit executes work; [speckit](../speckit) defines it. Use them together for the full planning-to-execution loop:
 
 ```

@@ -274,23 +274,23 @@
                 <a class="plugin-readme" href="https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/polishkit" target="_blank" rel="noopener">README ↗</a>
               </div>
             </div>
-            <p class="plugin-desc">Codebase quality toolkit. Assess code craft with a connoisseur's eye, sweep for cruft and hygiene issues, and eliminate dead code.</p>
+            <p class="plugin-desc">Codebase quality toolkit. Appraise code craft with a connoisseur's eye, sweep dead code and accumulated cruft in one pass, and apply cross-cutting code-quality fixes.</p>
             <ul class="skill-list">
-              <li><code>/critique</code> — scored quality assessment across 5 dimensions</li>
-              <li><code>/tidy-codebase</code> — hygiene sweep: stale files, artifacts, merged branches</li>
-              <li><code>/dead-code</code> — find and remove unused exports, imports, and variables</li>
+              <li><code>/appraise</code> — scored quality assessment across 5 dimensions</li>
+              <li><code>/sweep</code> — dead code + cruft in one pass: unused exports, stale files, merged branches</li>
+              <li><code>/buff</code> — buff out cross-cutting reuse / quality / efficiency issues in one PR</li>
             </ul>
             <div class="transcript" role="group" aria-label="polishkit example session">
-<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/tidy-codebase</span></span>
-<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">scanning for cruft...</span></span>
+<span class="transcript-line"><span class="transcript-prompt">$</span> <span class="transcript-cmd">/sweep</span></span>
+<span class="transcript-line"><span class="transcript-prompt">►</span> <span class="transcript-annotate">scanning dead code + cruft...</span></span>
+<span class="transcript-line">  <span class="transcript-annotate">· 12 unused exports across src/utils/</span></span>
 <span class="transcript-line">  <span class="transcript-annotate">· 7 merged local branches (2 weeks stale)</span></span>
 <span class="transcript-line">  <span class="transcript-annotate">· dist/ and .coverage/ tracked but in .gitignore</span></span>
-<span class="transcript-line">  <span class="transcript-annotate">· 3 TODO.md files from abandoned spikes</span></span>
 <span class="transcript-line">  <span class="transcript-annotate">· README references removed /deploy command</span></span>
 <span class="transcript-line"> </span>
-<span class="transcript-line"><span class="transcript-prompt">?</span> act on all findings? <span class="transcript-annotate">[y/n/select]</span> → select: 1,2,4</span>
-<span class="transcript-line"><span class="transcript-prompt">✓</span> deleted 7 branches, untracked 2 dirs, patched README</span>
-<span class="transcript-line"><span class="transcript-prompt">✓</span> committed: <span class="transcript-annotate">chore: tidy stale branches and tracked artifacts</span></span>
+<span class="transcript-line"><span class="transcript-prompt">?</span> act on all findings? <span class="transcript-annotate">[y/n/select]</span> → select: all</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> removed 12 exports, deleted 7 branches, untracked 2 dirs, patched README</span>
+<span class="transcript-line"><span class="transcript-prompt">✓</span> committed: <span class="transcript-annotate">chore: sweep dead code and stale artifacts</span></span>
             </div>
           </article>
 

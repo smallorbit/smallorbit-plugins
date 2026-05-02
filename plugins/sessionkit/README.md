@@ -31,6 +31,7 @@ claude --plugin-dir /path/to/sessionkit
 | **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
+| **retro** | `/retro` | Runs a session retrospective — scans conversation transcript, task list, git activity, and hook/tool-denial events, then surfaces what went well and what didn't, and presents a one-keystroke action menu that delegates to the right downstream skill. |
 
 ## Typical Workflows
 
@@ -121,7 +122,9 @@ It scans your existing skill library for overlap before proposing anything new, 
 
 ## Pairing with Other Plugins
 
-Sessionkit works alongside every plugin in the suite:
+Sessionkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
+Sessionkit works alongside every other plugin in the suite:
 
 **With [swarmkit](../swarmkit)**
 - Use `/skillit` after a swarm run to capture reusable patterns that emerged
