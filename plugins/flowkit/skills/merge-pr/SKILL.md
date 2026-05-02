@@ -1,6 +1,6 @@
 ---
 name: merge-pr
-description: Squash-merge the open PR for the current branch, delete the remote branch, and label referenced issues as merged-to-develop.
+description: Squash-merge the open PR for the current branch and delete the remote branch.
 triggers:
   - "/merge-pr"
   - "merge this PR"
@@ -11,7 +11,7 @@ allowed-tools: Bash
 
 # merge-pr
 
-Squash-merge the open PR for the current branch, delete the remote branch, and apply the `merged-to-develop` label to any issues referenced in the PR body.
+Squash-merge the open PR for the current branch and delete the remote branch.
 
 ## Input
 
@@ -66,31 +66,12 @@ fi
 [ "$MERGE_OK" = "false" ] && exit 1
 ```
 
-### 4. Label referenced issues
-
-Parse the PR body for `Closes/Fixes/Resolves #N` references (case-insensitive) and apply the `merged-to-develop` label to each referenced issue. Skip any issue labeled `on-hold`.
-
-```bash
-gh label list | grep -q "^merged-to-develop" || \
-  gh label create "merged-to-develop" --description "PR merged to develop; awaiting release" --color "0E8A16"
-
-gh pr view "$PR_NUM" --json body --jq .body \
-  | grep -oiE '(closes|fixes|resolves) #[0-9]+' \
-  | grep -oE '[0-9]+' \
-  | sort -u \
-  | while read N; do
-      gh issue view "$N" --json labels --jq '.labels[].name' | grep -q "^on-hold$" && continue
-      gh issue edit "$N" --add-label "merged-to-develop"
-    done
-```
-
-### 5. Report
+### 4. Report
 
 Print a summary:
 
-> Merged PR #N. Labeled issues: #X, #Y.
+> Merged PR #N.
 
-If no issues were referenced, omit the issues line.
 
 ## Constraints
 

@@ -37,7 +37,7 @@ claude --plugin-dir /path/to/flowkit
 | **preview-epic** | `/preview-epic` | Build a local preview branch combining every open PR in an epic stack via octopus merge (sequential fallback), then run configurable verify commands to validate the epic end-to-end. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop` (skipping any labeled `on-hold`). |
+| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
@@ -117,7 +117,7 @@ Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` 
 # ... make changes ...
 /commit                          # stage + commit with conventional format
 /open-pr                         # push + open PR targeting develop
-/merge-pr                        # squash-merge, label issues
+/merge-pr                        # squash-merge, delete remote branch
 /sync                            # pull develop, prune branches
 /cut                             # create rc/2026-04-16.1, auto-stage if staging exists
 /release                         # promote to main, tag v2026.4.16, close issues
