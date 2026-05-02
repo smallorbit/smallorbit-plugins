@@ -30,7 +30,7 @@ fi
 # Lines with no branch line (detached HEAD) are omitted.
 all_wt_pairs="$(git worktree list --porcelain | awk '
   /^worktree / { path = $2; branch = "" }
-  /^branch refs\/heads\// { branch = substr($0, 20) }
+  /^branch refs\/heads\// { branch = substr($0, 19) }
   /^$/ { if (path != "" && branch != "") print path "\t" branch; path = ""; branch = "" }
   END  { if (path != "" && branch != "") print path "\t" branch }
 ')"
@@ -43,15 +43,6 @@ while IFS=$'\t' read -r path branch; do
     worktrees_to_remove+=("$path")
   fi
 done <<< "$all_wt_pairs"
-
-# Produce a newline-delimited list of branches checked out by the removal set.
-removing_branches_list=""
-for path in "${worktrees_to_remove[@]+"${worktrees_to_remove[@]}"}"; do
-  branch="$(printf '%s\n' "$all_wt_pairs" | awk -F'\t' -v p="$path" '$1==p{print $2}')"
-  if [[ -n "$branch" ]]; then
-    removing_branches_list+="$branch"$'\n'
-  fi
-done
 
 # Produce a newline-delimited list of branches checked out by worktrees NOT in
 # the removal set (excluding main worktree).
