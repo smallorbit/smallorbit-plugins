@@ -121,7 +121,9 @@ It scans your existing skill library for overlap before proposing anything new, 
 
 ## Pairing with Other Plugins
 
-Sessionkit works alongside every plugin in the suite:
+Sessionkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
+Sessionkit works alongside every other plugin in the suite:
 
 **With [swarmkit](../swarmkit)**
 - Use `/skillit` after a swarm run to capture reusable patterns that emerged

@@ -219,6 +219,8 @@ All five issues share the `epic:dark-mode-support` label. Filtering by that labe
 
 ## Pairing with Other Plugins
 
+Speckit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Speckit defines the work; [swarmkit](../swarmkit) executes it:
 
 ```

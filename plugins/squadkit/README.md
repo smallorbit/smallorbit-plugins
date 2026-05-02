@@ -214,6 +214,8 @@ Future role contracts and crew profiles will reference these values rather than 
 
 ## Pairing with Other Plugins
 
+Squadkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Squadkit complements the rest of the suite:
 
 - **[swarmkit](../swarmkit)** — `/swarm` spawns one agent per GitHub issue. Squadkit is the longer-running, role-aware sibling for crew workflows.
