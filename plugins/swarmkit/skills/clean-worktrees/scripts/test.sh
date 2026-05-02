@@ -117,6 +117,111 @@ assert_json_keys remove.sh "empty-arrays-noop" \
   "removed remove_errors pruned_branches branch_errors caller_branch_restored" \
   --main-worktree "$MAIN_WT" --caller-branch "" --worktrees '[]' --branches '[]'
 
+# gather.sh — path/branch decoupling test.
+# Simulate swarm worktrees where path name (agent-<hex>) differs from branch name
+# (worktree-agent-<n>). Build a scratch git repo with two registered worktrees
+# whose paths and branches are intentionally mismatched, verify gather.sh:
+#   - emits those worktrees in worktrees_to_remove
+#   - emits the checked-out branches in branches_to_delete (not stuck)
+#   - stuck is empty (the only checked-out branches are in the removal set)
+echo "  [gather.sh path-branch-mismatch] setting up scratch repo..."
+SCRATCH_DIR="$(mktemp -d)"
+cleanup_scratch() { rm -rf "$SCRATCH_DIR"; }
+trap cleanup_scratch EXIT
+
+# Main repo.
+MAIN_REPO="$SCRATCH_DIR/main"
+git init -q "$MAIN_REPO"
+git -C "$MAIN_REPO" commit -q --allow-empty -m "init"
+
+# Create the worktree-agent-* branches in the main repo.
+git -C "$MAIN_REPO" branch worktree-agent-694
+git -C "$MAIN_REPO" branch worktree-agent-695
+
+# Create two agent worktrees with hex-style paths but issue-numbered branches.
+WT1="$SCRATCH_DIR/main/.claude/worktrees/agent-a08bdd74112e06062"
+WT2="$SCRATCH_DIR/main/.claude/worktrees/agent-b19cee85223f17173"
+mkdir -p "$(dirname "$WT1")"
+git -C "$MAIN_REPO" worktree add -q "$WT1" worktree-agent-694
+git -C "$MAIN_REPO" worktree add -q "$WT2" worktree-agent-695
+
+# Run gather.sh from within the main repo so git commands resolve correctly.
+GATHER_OUT="$(cd "$MAIN_REPO" && bash "$SCRIPT_DIR/gather.sh" 2>/tmp/gather_stderr)"
+GATHER_RC=$?
+
+if [[ $GATHER_RC -ne 0 ]]; then
+  red   "  FAIL [gather.sh path-branch-mismatch]: gather.sh exited $GATHER_RC"
+  cat /tmp/gather_stderr | sed 's/^/         stderr: /' || true
+  FAIL=$((FAIL + 1))
+else
+  # Verify worktrees_to_remove has 2 entries.
+  WT_COUNT="$(printf '%s' "$GATHER_OUT" | jq '.worktrees_to_remove | length')"
+  # Verify branches_to_delete contains both worktree-agent-694 and worktree-agent-695.
+  B694="$(printf '%s' "$GATHER_OUT" | jq -r '.branches_to_delete[] | select(. == "worktree-agent-694")')"
+  B695="$(printf '%s' "$GATHER_OUT" | jq -r '.branches_to_delete[] | select(. == "worktree-agent-695")')"
+  # Verify stuck is empty.
+  STUCK_COUNT="$(printf '%s' "$GATHER_OUT" | jq '.stuck | length')"
+
+  if [[ "$WT_COUNT" -eq 2 && -n "$B694" && -n "$B695" && "$STUCK_COUNT" -eq 0 ]]; then
+    green "  PASS [gather.sh path-branch-mismatch]: 2 worktrees to remove, branches in delete list, stuck empty"
+    PASS=$((PASS + 1))
+  else
+    red   "  FAIL [gather.sh path-branch-mismatch]: unexpected output"
+    printf '%s\n' "$GATHER_OUT" | jq . | sed 's/^/         /'
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
+# gather.sh — stuck-from-outside test.
+# A worktree at a path that does NOT match worktrees/(agent-|worktree-agent-)
+# checks out a worktree-agent-* branch. That branch must land in stuck[], not
+# branches_to_delete. An agent-path worktree on a different worktree-agent-*
+# branch must land in branches_to_delete and worktrees_to_remove.
+echo "  [gather.sh stuck-from-outside] setting up scratch repo..."
+SCRATCH2_DIR="$(mktemp -d)"
+cleanup_scratch2() { rm -rf "$SCRATCH2_DIR"; }
+trap cleanup_scratch2 EXIT
+
+MAIN2_REPO="$SCRATCH2_DIR/main"
+git init -q "$MAIN2_REPO"
+git -C "$MAIN2_REPO" commit -q --allow-empty -m "init"
+
+git -C "$MAIN2_REPO" branch worktree-agent-700
+git -C "$MAIN2_REPO" branch worktree-agent-701
+
+# Agent-path worktree (will land in worktrees_to_remove + branches_to_delete).
+AGENT_WT="$SCRATCH2_DIR/main/.claude/worktrees/agent-c30dff96334b28284"
+mkdir -p "$(dirname "$AGENT_WT")"
+git -C "$MAIN2_REPO" worktree add -q "$AGENT_WT" worktree-agent-700
+
+# External-path worktree (NOT an agent path — checks out worktree-agent-701).
+EXTERNAL_WT="$SCRATCH2_DIR/main/external-wt"
+git -C "$MAIN2_REPO" worktree add -q "$EXTERNAL_WT" worktree-agent-701
+
+GATHER2_OUT="$(cd "$MAIN2_REPO" && bash "$SCRIPT_DIR/gather.sh" 2>/tmp/gather2_stderr)"
+GATHER2_RC=$?
+
+if [[ $GATHER2_RC -ne 0 ]]; then
+  red   "  FAIL [gather.sh stuck-from-outside]: gather.sh exited $GATHER2_RC"
+  sed 's/^/         stderr: /' /tmp/gather2_stderr || true
+  FAIL=$((FAIL + 1))
+else
+  WT2_COUNT="$(printf '%s' "$GATHER2_OUT" | jq '.worktrees_to_remove | length')"
+  B700="$(printf '%s' "$GATHER2_OUT" | jq -r '.branches_to_delete[] | select(. == "worktree-agent-700")')"
+  B701_IN_DELETE="$(printf '%s' "$GATHER2_OUT" | jq -r '.branches_to_delete[] | select(. == "worktree-agent-701")')"
+  B701_IN_STUCK="$(printf '%s' "$GATHER2_OUT" | jq -r '.stuck[].branch | select(. == "worktree-agent-701")')"
+  STUCK2_COUNT="$(printf '%s' "$GATHER2_OUT" | jq '.stuck | length')"
+
+  if [[ "$WT2_COUNT" -eq 1 && -n "$B700" && -z "$B701_IN_DELETE" && -n "$B701_IN_STUCK" && "$STUCK2_COUNT" -eq 1 ]]; then
+    green "  PASS [gather.sh stuck-from-outside]: agent worktree in remove set, external worktree-agent branch in stuck"
+    PASS=$((PASS + 1))
+  else
+    red   "  FAIL [gather.sh stuck-from-outside]: unexpected output"
+    printf '%s\n' "$GATHER2_OUT" | jq . | sed 's/^/         /'
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
 echo
 echo "clean-worktrees: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]] || exit 1

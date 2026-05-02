@@ -170,7 +170,7 @@ GROUPED_CHANGES_FILE=$(mktemp)
 printf '%s\n' "$PLUGINS" | while read PLUGIN; do
   [ -z "$PLUGIN" ] && continue
   PLUGIN_COMMITS=$(printf '%s\n' "$ALL_COMMITS" \
-    | grep -iE "\($PLUGIN\)" \
+    | grep -iE '\('"$PLUGIN"'[:)]' \
     | sed 's/^[a-f0-9]* /- /' \
     || true)
   if [ -n "$PLUGIN_COMMITS" ]; then
@@ -185,7 +185,7 @@ done
 # information value and the commits speak for themselves.
 SCOPED_PATTERN=$(printf '%s\n' "$PLUGINS" | tr '\n' '|' | sed 's/|$//')
 MEANINGFUL_UNSCOPED=$(printf '%s\n' "$ALL_COMMITS" \
-  | grep -ivE "\($SCOPED_PATTERN\)" \
+  | grep -ivE '\('"$SCOPED_PATTERN"'[:)]' \
   | grep -iE "^[a-f0-9]+ (feat|fix|refactor|perf)" \
   | sed 's/^[a-f0-9]* /- /' \
   || true)
@@ -216,7 +216,7 @@ if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
   printf '%s\n' "$PLUGINS" | while read PLUGIN; do
     [ -z "$PLUGIN" ] && continue
     PLUGIN_NOTES=$(printf '%s\n' "$MERGED_PR_DATA" \
-      | grep -iE "\($PLUGIN\)" \
+      | grep -iE '\('"$PLUGIN"'[:)]' \
       | while IFS=$(printf '\t') read TITLE SUMMARY; do
           if [ -n "$SUMMARY" ] && [ "$SUMMARY" != "$TITLE" ]; then
             printf '- %s — %s\n' "$TITLE" "$SUMMARY"
