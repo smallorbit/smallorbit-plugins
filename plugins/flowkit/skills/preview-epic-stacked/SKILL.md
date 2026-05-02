@@ -130,7 +130,7 @@ Do not proceed to verify commands when sequential merge fails.
 
 ### 6. Resolve verify commands
 
-Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, and `install`:
+Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, `install`:
 
 ```bash
 TYPECHECK=$(jq -r '.verify.typecheck // empty' .squadkit/config.json 2>/dev/null)
@@ -149,7 +149,7 @@ If the user declines any, skip that step. The skill does not hardcode `npm run t
 
 ### 7. Run verify commands
 
-If `$INSTALL` is set, run install first (the working tree just changed). Then run typecheck, tests, and lint. Capture exit codes — do not abort the skill on failure; the user wants to see all results.
+If `$INSTALL` is set, run install first (working tree just changed). Run typecheck, tests, lint. Capture all exit codes — do not abort on failure.
 
 ```bash
 if [[ -n "$INSTALL" ]]; then
@@ -194,9 +194,3 @@ Suggested cleanup:
 git checkout "$BASE_BRANCH"
 git branch -D "$PREVIEW_BRANCH"
 ```
-
-## Constraints
-
-- **Local-only.** Never push the synthesized preview branch; it is a throwaway integration check.
-- **Halt cleanly on conflict.** Sequential merge must `git merge --abort` before reporting, so the working tree is left in a clean state on the preview branch's pre-conflict commit.
-- **Idempotent in spirit.** Re-running with the same root will pick a fresh `preview/...-N` name rather than clobbering existing local state.

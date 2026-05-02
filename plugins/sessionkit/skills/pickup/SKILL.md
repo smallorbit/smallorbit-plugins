@@ -104,7 +104,7 @@ Do not pose this as a plain-text question when `AskUserQuestion` is viable — t
 
 ## Constraints
 
-- Never modify or delete `.sessionkit/HANDOFF.md` — this skill is read-only with respect to the handoff file
+- Never modify `.sessionkit/HANDOFF.md` — this skill is read-only
 - Do not assume the handoff file always exists — always check first and fail gracefully
 - Keep the orientation summary concise — surface the essentials, not everything verbatim
 - Do not automatically re-execute any commands referenced in the handoff — the goal is to orient, not to act
