@@ -29,6 +29,8 @@ claude --plugin-dir /path/to/sessionkit
 |-------|--------|--------------|
 | **handoff** | `/handoff` | Captures session goal, progress, git state, remaining work, and active tasks into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
 | **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
+| **roadmap** | `/roadmap` | Surveys the current work-in-flight and produces an approved task chain that takes it all the way to "shipped". On approval, optionally hands off to `/drive` for autonomous execution. |
+| **drive** | `/drive` | Executes an approved task chain autonomously — marks each task in_progress before starting and completed immediately after, surfaces only for blockers or executive decisions. Pairs with `/roadmap`; standalone-invokable when a task list is already prepared. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
 | **retro** | `/retro` | Runs a session retrospective — scans conversation transcript, task list, git activity, and hook/tool-denial events, then surfaces what went well and what didn't, and presents a one-keystroke action menu that delegates to the right downstream skill. |
@@ -41,6 +43,19 @@ claude --plugin-dir /path/to/sessionkit
 /handoff                          # Capture current state before context runs out
                                   # — start a new Claude Code session —
 /pickup                           # Restore context and resume work
+```
+
+### Planning the path to "done", then driving it
+
+```
+/roadmap                          # Survey work-in-flight, propose a task chain to ship,
+                                  # ask for approval
+
+# On approval, either:
+/drive                            # Hand the chain to Claude — it executes autonomously
+                                  # and only surfaces for blockers or executive decisions
+
+# …or work the task list manually if you'd rather drive it yourself.
 ```
 
 ### Growing your skill library
@@ -105,6 +120,28 @@ Handoff files written by sessionkit ≤ 1.5.0 may contain a legacy squad-coordin
 | **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
 
 You can manually edit `.sessionkit/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
+
+## How Roadmap / Drive Works
+
+`/roadmap` surveys the current work-in-flight — uncommitted state, current branch's role (feature / epic / RC / develop), open PRs targeting common bases, peer PRs in a stack, in-flight worktrees, RC branches awaiting release, the latest release tag, and the existing task list. It classifies the state, picks the matching sub-chain from a step library (commit → push → PR → review → merge → bump → cut → release), and materializes it as a linear task chain with `blockedBy` edges wired between steps.
+
+After the plan is built, `/roadmap` presents a compact summary and asks for approval via `AskUserQuestion`:
+
+- **Drive it for me** — hands the chain to `/drive` for autonomous execution.
+- **I'll drive** — exits; you work the task list manually.
+- **Modify** — describe a change, plan is regenerated.
+- **Cancel** — the provisional tasks created during planning are deleted.
+
+`/drive` picks up an approved task chain and executes it end-to-end. It marks each task `in_progress` *before* starting work and `completed` *immediately after* — never batched. While driving, it stays silent: the task list itself is the progress feed. It surfaces only for:
+
+- **Blockers** — a tool failed in a way it can't recover from.
+- **Executive decisions** — a real fork in approach not covered by the task description; a scope change.
+- **Risky/destructive actions** — anything that would delete data, force-push, or modify shared state.
+- **Completion** — final report.
+
+`/drive` is standalone-invokable. If you've populated a task list any other way (manually, via `/pickup`, via another planning workflow), you can just run `/drive` and it picks up the chain.
+
+The driving contract lives entirely inside the `/drive` skill — it does **not** depend on any rule in your global or project `CLAUDE.md`. Installs of sessionkit get the autonomous-execution semantics out of the box.
 
 ## How Skillit Works
 
