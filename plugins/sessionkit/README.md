@@ -31,6 +31,7 @@ claude --plugin-dir /path/to/sessionkit
 | **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
 | **skillit** | `/skillit` | Reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new. |
 | **suggest-permissions** | `/suggest-permissions` | Scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts. |
+| **retro** | `/retro` | Runs a session retrospective — scans conversation transcript, task list, git activity, and hook/tool-denial events, then surfaces what went well and what didn't, and presents a one-keystroke action menu that delegates to the right downstream skill. |
 
 ## Typical Workflows
 
