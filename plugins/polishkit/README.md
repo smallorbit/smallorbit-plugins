@@ -1,6 +1,6 @@
 # Polishkit
 
-A Claude Code plugin for improving what you've already built. Assess code craft with a connoisseur's eye, sweep for accumulated cruft, eliminate dead code, and apply cross-cutting code-quality fixes — four focused skills for codebase quality.
+A Claude Code plugin for improving what you've already built. Appraise code craft with a connoisseur's eye, sweep dead code and accumulated cruft in one pass, and apply cross-cutting code-quality fixes — three focused skills for codebase quality.
 
 ## Installation
 
@@ -25,37 +25,35 @@ claude --plugin-dir /path/to/polishkit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **critique** | `/critique` | Assesses code for elegance, architecture, and craft across 5 weighted dimensions. Produces a scored report with beauty highlights and violation flags. Works on single files, modules, or full repos. |
-| **tidy-codebase** | `/tidy-codebase` | Codebase hygiene sweep — finds and cleans up stale files, outdated documentation, build artifacts, and accumulated cruft. Confirms each action before executing. |
-| **dead-code** | `/dead-code` | Scans for unused exports, unreachable branches, dead variables, and obsolete imports. Runs language-appropriate static analysis, presents findings with file:line references, and removes after confirmation. |
+| **appraise** | `/appraise` | Appraises code for elegance, architecture, and craft across 5 weighted dimensions. Produces a scored report with beauty highlights and violation flags. Works on single files, modules, or full repos. |
+| **sweep** | `/sweep` | Sweeps the codebase in two phases: dead code (unused exports, imports, variables, unreachable branches) and cruft (stale docs, build artifacts, duplicate content, merged branches). Confirms each action before executing. |
 | **buff** | `/buff <scope>` | Buffs out cross-cutting code-quality issues (reuse, quality, efficiency) across a path, glob, or themed scope. Runs in an isolated worktree, gates on your project's verify commands, and opens one PR. |
 
 ## Typical Workflows
 
-### Assess code quality before a refactor
+### Appraise code quality before a refactor
 
 ```
-/critique src/services          # Score the service layer across 5 dimensions
+/appraise src/services          # Score the service layer across 5 dimensions
 ```
 
 ### Clean up after a long sprint
 
 ```
-/tidy-codebase                  # Full hygiene sweep — stale docs, artifacts, merged branches
-/dead-code                      # Find and remove unused exports and imports
+/sweep                          # Full sweep — dead code + stale files in one pass
 ```
 
 ### Deep-clean a specific module
 
 ```
-/dead-code src/components       # Scope dead-code scan to one directory
-/critique src/components        # Then assess what remains
+/sweep src/components           # Scope sweep to one directory
+/appraise src/components        # Then assess what remains
 ```
 
 ### Prepare for a code review
 
 ```
-/critique                       # Get an honest assessment before submitting
+/appraise                       # Get an honest assessment before submitting
 ```
 
 ### Apply cross-cutting cleanup as a single PR
@@ -65,17 +63,13 @@ claude --plugin-dir /path/to/polishkit
 /buff error handling in src/providers/  # Cross-cutting theme + boundary
 ```
 
-## How critique Works
+## How appraise Works
 
-`/critique` surveys the codebase structure, identifies the language(s) in use, and scores across five weighted dimensions: Architecture & Separation of Concerns (30%), Naming & Readability (25%), Algorithmic Elegance (20%), Testability & Test Design (15%), and Idiomatic Consistency (10%). It always leads with beauty highlights before discussing flaws, and flags critical violations (god classes, magic numbers, functions over 30 lines) in a dedicated section.
+`/appraise` surveys the codebase structure, identifies the language(s) in use, and scores across five weighted dimensions: Architecture & Separation of Concerns (30%), Naming & Readability (25%), Algorithmic Elegance (20%), Testability & Test Design (15%), and Idiomatic Consistency (10%). It always leads with beauty highlights before discussing flaws, and flags critical violations (god classes, magic numbers, functions over 30 lines) in a dedicated section.
 
-## How tidy-codebase Works
+## How sweep Works
 
-`/tidy-codebase` runs parallel checks for stale docs, build artifacts, documentation gaps, duplicate content, and git hygiene issues (merged branches, stale worktrees, orphaned remotes). Findings are organized into Remove / Update / Keep categories and confirmed via `AskUserQuestion` before any changes are made.
-
-## How dead-code Works
-
-`/dead-code` detects the project language and available static analysis tools, then runs all applicable checks in parallel: unused exports, unused imports, dead variables, and commented-out code blocks. Findings are grouped by severity, shown with file:line references, and confirmed in batches before removal. After cleanup, it verifies the codebase still compiles.
+`/sweep` runs in two phases. **Phase 1 — dead code**: detects the project language and available static analysis tools (`tsc --noEmit`, `pyflakes`, `vulture`, `staticcheck`, etc.), then scans for unused exports, unused imports, dead variables, unreachable branches, and commented-out code blocks. **Phase 2 — cruft**: parallel checks for stale docs, build artifacts, documentation gaps, duplicate content, and git hygiene (merged branches, stale worktrees, orphaned remotes). Findings from both phases are merged into a single Remove / Update / Keep summary and confirmed via `AskUserQuestion` before any changes are made.
 
 ## How buff Works
 
@@ -88,7 +82,7 @@ Polishkit works on its own. The companion plugins referenced below are siblings 
 Polishkit improves quality; [speckit](../speckit) defines the next work; [swarmkit](../swarmkit) executes it:
 
 ```
-/critique                       # Assess current quality
+/appraise                       # Assess current quality
 /spec address architecture gaps # Plan improvements as issues
 /swarm                          # Execute with parallel agents
 ```

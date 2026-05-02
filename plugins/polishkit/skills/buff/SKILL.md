@@ -16,9 +16,8 @@ Buff out the rough edges across a scope you specify — a path, glob, or cross-c
 
 Lightweight sibling to polishkit's other skills:
 
-- `polishkit:critique` — score code quality without changing anything.
-- `polishkit:dead-code` — remove unused exports/imports/variables.
-- `polishkit:tidy-codebase` — sweep stale files and accumulated cruft.
+- `polishkit:appraise` — score code quality without changing anything.
+- `polishkit:sweep` — remove dead code and accumulated cruft (unused exports/imports/variables, stale files, build artifacts).
 - `polishkit:buff` (this skill) — apply semantic code-quality fixes (reuse, quality, efficiency) across a scope.
 
 Use this when you want quick, targeted cleanup applied across a cross-cutting concern, not a full assessment or hygiene sweep.
