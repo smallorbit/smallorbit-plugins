@@ -56,7 +56,14 @@ Follow the `pr-base-scope` sub-skill to set `claude.flowkit.prBase = main`.
 
 ### 7. Open a PR targeting main
 
-Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`. Capture the PR URL from `/open-pr`'s output as `$HOTFIX_PR_URL` — step 11 needs it to re-aggregate `Closes #N` references for the explicit close loop after the merge deletes the branch.
+Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`. After `/open-pr` completes, capture the PR URL by querying GitHub for the open PR on the current head branch:
+
+```bash
+HOTFIX_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+HOTFIX_PR_URL=$(gh pr view --head "$HOTFIX_BRANCH" --json url --jq '.url')
+```
+
+Step 11 needs `$HOTFIX_PR_URL` to re-aggregate `Closes #N` references for the explicit close loop after the merge deletes the branch.
 
 ### 8. Merge the PR into main
 
@@ -104,7 +111,10 @@ ISSUE_NUMBERS=$(printf '%s\n' "$HOTFIX_PR_BODY" \
 printf '%s\n' "$ISSUE_NUMBERS" | while read N; do
   [ -z "$N" ] && continue
   STATE=$(gh issue view "$N" --json state --jq '.state' 2>/dev/null)
-  if [ "$STATE" = "OPEN" ]; then
+  if [ "$STATE" != "OPEN" ] && [ "$STATE" != "CLOSED" ]; then
+    echo "note: could not determine state of #$N — attempting close anyway" >&2
+  fi
+  if [ "$STATE" != "CLOSED" ]; then
     gh issue close "$N" --reason completed || \
       echo "warning: failed to close issue #$N — close manually if needed" >&2
   fi

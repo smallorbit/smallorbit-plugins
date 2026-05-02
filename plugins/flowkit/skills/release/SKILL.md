@@ -389,8 +389,11 @@ CLOSED_ISSUES_FILE=$(mktemp)
 printf '%s\n' "$ISSUE_NUMBERS" | while read N; do
   [ -z "$N" ] && continue
   STATE=$(gh issue view "$N" --json state --jq '.state' 2>/dev/null)
-  if [ "$STATE" = "OPEN" ]; then
-    if gh issue close "$N" --reason completed >/dev/null 2>&1; then
+  if [ "$STATE" != "OPEN" ] && [ "$STATE" != "CLOSED" ]; then
+    echo "note: could not determine state of #$N — attempting close anyway" >&2
+  fi
+  if [ "$STATE" != "CLOSED" ]; then
+    if gh issue close "$N" --reason completed >/dev/null; then
       echo "$N" >> "$CLOSED_ISSUES_FILE"
     else
       echo "warning: failed to close issue #$N — close manually if needed" >&2
