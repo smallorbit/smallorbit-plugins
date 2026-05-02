@@ -1,7 +1,7 @@
 {
   "name": "swarmkit",
   "description": "Resolve GitHub issues with parallel agents. Pick what to work on, swarm it with isolated worktree agents, merge PRs in dependency order, and keep your branches clean.",
-  "version": "5.4.0",
+  "version": "5.4.1",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
