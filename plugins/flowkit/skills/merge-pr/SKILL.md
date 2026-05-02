@@ -39,8 +39,31 @@ If `PR_NUM` is empty, abort with:
 
 ### 3. Squash-merge and delete the remote branch
 
+`gh pr merge --squash --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` sub-skill so any dirty state is auto-stashed and restored:
+
 ```bash
-gh pr merge "$PR_NUM" --squash --delete-branch
+DIRTY=false
+if [ -n "$(git status --porcelain)" ]; then
+  DIRTY=true
+  git stash push -u -m "flowkit-auto-stash" >/dev/null
+fi
+
+if gh pr merge "$PR_NUM" --squash --delete-branch; then
+  MERGE_OK=true
+else
+  MERGE_OK=false
+fi
+
+if [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "true" ]; then
+  if ! git stash pop; then
+    echo "WARNING: stash pop conflicted. Your changes are preserved on the stash stack." >&2
+    echo "Run \`git stash list\` to see the saved entry (message: flowkit-auto-stash) and \`git stash pop\` after resolving." >&2
+  fi
+elif [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "false" ]; then
+  echo "WARNING: merge failed — stash preserved. Run \`git stash pop\` after resolving the merge error." >&2
+fi
+
+[ "$MERGE_OK" = "false" ] && exit 1
 ```
 
 ### 4. Label referenced issues

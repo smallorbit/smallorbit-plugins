@@ -35,26 +35,15 @@ git config --unset claude.flowkit.prBase
 
 ### Read
 
-Resolve the current target branch (used by `/open-pr`). Apply this resolution order:
+Resolve the current target branch (used by `/open-pr`). The authoritative five-step resolution order lives in [`open-pr/SKILL.md`](../open-pr/SKILL.md) — step 2. In summary:
 
-1. `claude.flowkit.prBase` — primary source of truth
-2. `claude.prBase` — legacy fallback (emits deprecation notice when hit)
-3. Built-in default: `develop`
+1. Explicit `--base <branch>` caller arg in `$ARGUMENTS`
+2. `claude.flowkit.prBase` — primary config key
+3. `claude.prBase` — legacy fallback (emits deprecation notice when hit)
+4. `develop` — if the branch exists on the remote
+5. Repo default branch (via `gh repo view`) — with a warning; always assigned so `$BASE` is never empty
 
-```bash
-BASE=$(git config claude.flowkit.prBase 2>/dev/null)
-if [ -z "$BASE" ]; then
-  LEGACY=$(git config claude.prBase 2>/dev/null)
-  if [ -n "$LEGACY" ]; then
-    BASE="$LEGACY"
-    echo "note: claude.prBase is deprecated. Migrate with:" >&2
-    echo "  git config --unset claude.prBase" >&2
-    echo "  git config claude.flowkit.prBase $LEGACY" >&2
-  else
-    BASE="develop"
-  fi
-fi
-```
+`$BASE` is guaranteed non-empty after resolution; `/open-pr` always passes `--base "$BASE"` to `gh pr create`.
 
 ## Usage by Callers
 
@@ -63,7 +52,7 @@ fi
 | `/ship` | Sets `claude.flowkit.prBase develop` before opening PRs, then unsets after the flow completes |
 | `/swarm` loop mode | Sets `claude.flowkit.prBase` to the appropriate integration branch for the loop session |
 | `/cut-epic` | Sets `claude.flowkit.prBase` to the long-lived epic branch so sub-PRs target it; user runs **Unset** when the epic ships |
-| `/open-pr` | Reads the resolved base (new key → legacy key → `develop`) before creating the PR |
+| `/open-pr` | Reads the resolved base (explicit arg → new key → legacy key → `develop` → repo default) before creating the PR; `$BASE` is always non-empty |
 
 ## Constraints
 

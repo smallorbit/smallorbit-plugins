@@ -7,6 +7,7 @@ triggers:
   - "swarm with review"
   - "swarm and review"
   - "swarm review"
+  - "swarm + review pass"
 ---
 
 # Swarm Plus
@@ -27,6 +28,18 @@ Identical to `/swarmkit:swarm`:
 - `--reviewer-model <tier>` — override reviewer model (default: `sonnet`)
 
 ## Process
+
+### 0. Pre-flight: resolve verify command
+
+> Resolved once at the start of the run, before any worker is dispatched.
+
+Resolve the project's verify command once and reuse it for every worker prompt. This keeps swarm-plus useful in any repo, not just TS repos with `tsc`. Use this lookup chain (first hit wins):
+
+1. **`.squadkit/config.json` `verifyCommand`** — repo-level explicit override. Read with `jq -r '.verifyCommand // empty' .squadkit/config.json` if the file exists.
+2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is determined by the package manager: `yarn.lock` present → `yarn run verify`; `pnpm-lock.yaml` present → `pnpm run verify`; otherwise → `npm run verify`.
+3. **Fallback** — `npx tsc -b --noEmit` for TS projects. "TS toolchain present" means `tsconfig.json` exists at the repo root. If neither of the above resolves AND `tsconfig.json` is absent, print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail. **Note:** projects that use `tsc` via a non-standard mechanism (e.g. a wrapper script, a monorepo tool, or a config file named differently) won't be detected by this check — those repos should set `verifyCommand` in `.squadkit/config.json` to opt in explicitly.
+
+Record the resolved command as `<verify_command>` and interpolate it into the worker prompt template in step 4.
 
 ### 1. Run the swarm phase
 
@@ -93,7 +106,7 @@ The worker prompt MUST:
      git checkout -B <head_branch> origin/<head_branch>
      ```
   2. Apply the changes.
-  3. Run `npx tsc -b --noEmit` and the relevant test scope. Resolve any failures before proceeding — never push a red build.
+  3. Run `<verify_command>` (resolved in step 1a) and the relevant test scope. Resolve any failures before proceeding — never push a red build.
   4. Commit with conventional-commit format (no Claude mentions, no co-author lines).
   5. Push to the same branch (`git push origin <head_branch>`) — auto-updates the PR.
   6. Optionally comment on the PR summarizing what was addressed and what was deferred:
