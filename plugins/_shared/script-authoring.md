@@ -72,6 +72,42 @@ Use exit code `1` for runtime failures, `2` for invalid arguments.
 
 `plugins/swarmkit/skills/swarm/scripts/preflight.sh` — collapses git fetch, base-branch verification, and `gh` auth check into one call. Its output is a bare JSON object; errors go to stderr with non-zero exit. Refer to it and the other scripts in that directory as the reference implementation.
 
+## Smoke tests
+
+Every skill that ships scripts also ships a `scripts/test.sh` smoke test alongside them:
+
+```
+plugins/<plugin>/skills/<skill>/scripts/test.sh
+```
+
+`test.sh` exercises every script in the same `scripts/` directory and asserts the contract documented above:
+
+1. **Invalid-argument invocations** — for each script, drive at least one invalid-argument case (unknown flag, missing required value, wrong arity, malformed positional) and assert:
+   - exit code is non-zero,
+   - stdout is empty,
+   - stderr is non-empty.
+2. **Successful invocations** — where a script can be invoked deterministically without external network or destructive side effects (e.g. with empty input arrays that short-circuit, or read-only inspection commands), assert:
+   - exit code is 0,
+   - stdout is parseable JSON (`jq -e .`),
+   - the JSON object exposes every documented top-level key (`jq -e 'has("...")'`).
+
+Scripts that always require live network or destructive state changes (live `gh` calls, `git fetch origin`, `git checkout`) cannot be exercised on their happy path from a smoke harness — limit those to invalid-argument coverage. Document that limitation in the test header so reviewers understand the scope.
+
+A test failure must surface a clear, line-grep-able message (`FAIL [<script> <case>]: ...`) and exit non-zero. Reference implementations:
+
+- `plugins/swarmkit/skills/swarm/scripts/test.sh` — argument-validation-only coverage for network-dependent scripts.
+- `plugins/swarmkit/skills/clean-worktrees/scripts/test.sh` — argument validation plus read-only / empty-input happy paths.
+
+### Top-level runner
+
+The repo-root runner discovers and executes every skill's `test.sh`:
+
+```bash
+bash scripts/test-all-skill-scripts.sh
+```
+
+It walks `plugins/*/skills/*/scripts/test.sh`, runs each with the test directory as CWD, and exits non-zero if any test fails. This is the single entry point intended for CI.
+
 ## `.claude/settings.json` allowlist
 
 The harness requires explicit permission before executing each script path. Add an entry to the project `.claude/settings.json` allowlist when introducing a new script:
