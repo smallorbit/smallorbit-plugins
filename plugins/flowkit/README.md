@@ -186,7 +186,7 @@ Flowkit is opinionated. Understanding these assumptions upfront will save you fr
 
 Feature work merges into `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
 
-### Default Branch
+### Default Branch (Current Assumption)
 
 Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle. Likewise, `/hotfix` relies on the merge into `main` to close hotfix-referenced issues.
 
@@ -224,7 +224,7 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 
 ### Default Branch (Recommendation for New Users)
 
-For new flowkit adopters, we recommend setting **`develop` as the GitHub default branch** rather than the GitHub-provided `main`. This aligns with the modern Gitflow-on-GitHub convention and ensures GitHub's `Closes #N` auto-close keywords fire on the per-feature PRs that actually carry the work — not just at release time.
+While the `main`-as-default configuration described above is fully supported, for new flowkit adopters we recommend setting **`develop` as the GitHub default branch** instead. This aligns with the modern Gitflow-on-GitHub convention and ensures GitHub's `Closes #N` auto-close keywords fire on the per-feature PRs that actually carry the work — not just at release time.
 
 The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit will surface a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). The prompt has three options:
 

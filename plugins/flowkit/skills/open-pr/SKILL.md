@@ -26,7 +26,7 @@ Before any other preflight, invoke the [`default-branch-prompt`](../default-bran
 
 - If `git config --get claude.flowkit.defaultBranchPrompted` is `true`, the sub-skill exits silently.
 - If `gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'` fails, returns empty, or returns anything other than `main`, the sub-skill exits silently.
-- Only when the GitHub default branch is exactly `main` does the sub-skill surface an `AskUserQuestion` offering `Switch to develop` / `Keep main as default` / `Don't ask again`. Each answer sets `claude.flowkit.defaultBranchPrompted=true`; `Switch` additionally runs `gh repo edit --default-branch develop` after a second confirmation.
+- Only when the GitHub default branch is exactly `main` does the sub-skill surface an `AskUserQuestion` offering `Switch to develop` / `Keep main as default` / `Don't ask again`. Each definitive answer (`Switch` success, `Keep main as default`, `Don't ask again`) sets `claude.flowkit.defaultBranchPrompted=true`; `Cancel` at the second confirmation leaves the marker unset so the prompt resurfaces next time. `Switch` additionally runs `gh repo edit --default-branch develop` after a second confirmation.
 
 This nudge is fire-and-forget — open-pr does not branch on its outcome. After the sub-skill returns, continue with step 1 regardless of which path the user took (or whether the prompt fired at all).
 
