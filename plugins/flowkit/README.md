@@ -222,6 +222,24 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 
 `/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` (or `/hotfix`) when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
 
+### Default Branch (Recommendation for New Users)
+
+For new flowkit adopters, we recommend setting **`develop` as the GitHub default branch** rather than the GitHub-provided `main`. This aligns with the modern Gitflow-on-GitHub convention and ensures GitHub's `Closes #N` auto-close keywords fire on the per-feature PRs that actually carry the work — not just at release time.
+
+The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit will surface a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). The prompt has three options:
+
+- **Switch to develop** — runs `gh repo edit --default-branch develop` after a second confirmation.
+- **Keep main as default** — keeps the current configuration; the prompt won't reappear. Flowkit's `/release` and `/hotfix` skills already run an explicit `gh issue close` loop, so the issue lifecycle still completes on either configuration.
+- **Don't ask again** — silences the prompt without recording a deliberate choice.
+
+The choice is persisted via `git config claude.flowkit.defaultBranchPrompted=true`, so subsequent `/open-pr` invocations stay silent. To re-surface the prompt (e.g., after revisiting the question), unset the marker:
+
+```bash
+git config --unset claude.flowkit.defaultBranchPrompted
+```
+
+The nudge is **never automatic** — every default-branch change requires explicit user confirmation, and existing `main`-as-default setups continue to work without modification.
+
 ## Pairing with Other Plugins
 
 Flowkit handles the shipping half of the development loop. Use it with speckit and swarmkit for the full planning-to-production cycle:

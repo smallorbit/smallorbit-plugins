@@ -20,6 +20,16 @@ Push the current branch to origin and open a GitHub pull request against the bas
 
 ## Process
 
+### 0. First-run default-branch nudge
+
+Before any other preflight, invoke the [`default-branch-prompt`](../default-branch-prompt/SKILL.md) sub-skill. It is a no-op in every case except the narrow first-run-on-`main`-default scenario:
+
+- If `git config --get claude.flowkit.defaultBranchPrompted` is `true`, the sub-skill exits silently.
+- If `gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'` fails, returns empty, or returns anything other than `main`, the sub-skill exits silently.
+- Only when the GitHub default branch is exactly `main` does the sub-skill surface an `AskUserQuestion` offering `Switch to develop` / `Keep main as default` / `Don't ask again`. Each answer sets `claude.flowkit.defaultBranchPrompted=true`; `Switch` additionally runs `gh repo edit --default-branch develop` after a second confirmation.
+
+This nudge is fire-and-forget — open-pr does not branch on its outcome. After the sub-skill returns, continue with step 1 regardless of which path the user took (or whether the prompt fired at all).
+
 ### 1. Check current branch
 
 ```bash
