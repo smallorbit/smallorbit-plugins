@@ -35,7 +35,7 @@ Optional flags:
 - `--model <tier>` — `sonnet` (default) or `opus` for harder cross-cutting passes
 - `--agent <type>` — subagent type override (default: `general-purpose`). The skill prompt embeds the review heuristics inline, so a dedicated `code-simplifier` agent is not required.
 - `--max-files <N>` — soft cap on files the subagent should touch in one PR (default: 15). Lightweight stays lightweight.
-- `--base <branch>` — override the resolved PR base branch (see Process step 3). When set, short-circuits `claude.flowkit.prBase` / `develop` / repo-default resolution.
+- `--base <branch>` — override the resolved PR base branch (see Process step 3). When set, short-circuits config / `develop` / repo-default resolution.
 - `--dry-run` — review and report findings without applying fixes; useful as a pre-flight before committing to a PR
 
 If `<scope>` is empty:
@@ -77,7 +77,9 @@ Pass the resolved verify commands to the agent prompt as `VERIFY_COMMANDS`.
 
 The agent's branch must be cut from the project's PR base, and `gh pr create` must explicitly target the same branch (otherwise it falls through to the GitHub default — usually `main` — which silently produces wrong-base PRs against repos that develop on a non-default branch).
 
-Resolve `BASE` in this order, mirroring `flowkit:open-pr`:
+Polishkit resolves the base standalone — no other plugin is required. If flowkit is also installed and has set its own per-session base, polishkit silently honors it as a courtesy, but never depends on it.
+
+Resolve `BASE` in this order:
 
 ```bash
 # 1. Explicit caller arg
@@ -86,20 +88,14 @@ if echo "$ARGUMENTS" | grep -qE '(^|[[:space:]])\-\-base[= ]'; then
   BASE=$(echo "$ARGUMENTS" | grep -oE '(^|[[:space:]])\-\-base[= ][^ ]+' | head -1 | sed 's/.*--base[= ]//')
 fi
 
-# 2. claude.flowkit.prBase (per-session config set by swarm loop / cut-epic / pr-base-scope)
+# 2. Polishkit's own config
 if [ -z "$BASE" ]; then
-  BASE=$(git config claude.flowkit.prBase 2>/dev/null)
+  BASE=$(git config claude.polishkit.prBase 2>/dev/null)
 fi
 
-# 3. Legacy claude.prBase (deprecated, with migration notice)
+# 3. Optional flowkit interop — honored if flowkit set it, but not required
 if [ -z "$BASE" ]; then
-  LEGACY=$(git config claude.prBase 2>/dev/null)
-  if [ -n "$LEGACY" ]; then
-    BASE="$LEGACY"
-    echo "note: claude.prBase is deprecated. Migrate with:" >&2
-    echo "  git config --unset claude.prBase" >&2
-    echo "  git config claude.flowkit.prBase $LEGACY" >&2
-  fi
+  BASE=$(git config claude.flowkit.prBase 2>/dev/null)
 fi
 
 # 4. develop if it exists on the remote
@@ -118,6 +114,8 @@ fi
 ```
 
 Pass the resolved `BASE` to the agent prompt as `BASE_BRANCH`. The agent must use it for both the branch cut **and** the `gh pr create --base` argument.
+
+To pin a base for the current repo, run `git config claude.polishkit.prBase <branch>` (e.g. `develop`). The flowkit read at step 3 is best-effort interop only — polishkit works without flowkit installed.
 
 ### 4. Dispatch the subagent
 
