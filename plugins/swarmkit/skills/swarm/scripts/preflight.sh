@@ -48,12 +48,14 @@ base_existed=true
 base_created=false
 if ! git rev-parse --verify --quiet "refs/remotes/origin/$BASE" >/dev/null; then
   base_existed=false
-  if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
-    echo "preflight: base '$BASE' is missing on origin and 'main' does not exist to seed it from" >&2
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+  DEFAULT_BRANCH=${DEFAULT_BRANCH:-main}
+  if ! git rev-parse --verify --quiet "refs/remotes/origin/$DEFAULT_BRANCH" >/dev/null; then
+    echo "preflight: base '$BASE' is missing on origin and '$DEFAULT_BRANCH' does not exist to seed it from" >&2
     exit 1
   fi
-  if ! git push origin "refs/remotes/origin/main:refs/heads/$BASE" >/dev/null 2>&1; then
-    echo "preflight: failed to create '$BASE' on origin from 'main'" >&2
+  if ! git push origin "refs/remotes/origin/$DEFAULT_BRANCH:refs/heads/$BASE" >/dev/null 2>&1; then
+    echo "preflight: failed to create '$BASE' on origin from '$DEFAULT_BRANCH'" >&2
     exit 1
   fi
   base_created=true

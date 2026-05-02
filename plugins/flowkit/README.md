@@ -37,7 +37,7 @@ claude --plugin-dir /path/to/flowkit
 | **preview-epic** | `/preview-epic` | Build a local preview branch combining every open PR in an epic stack via octopus merge (sequential fallback), then run configurable verify commands to validate the epic end-to-end. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch; labels referenced issues with `merged-to-develop` (skipping any labeled `on-hold`). |
+| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
@@ -117,7 +117,7 @@ Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` 
 # ... make changes ...
 /commit                          # stage + commit with conventional format
 /open-pr                         # push + open PR targeting develop
-/merge-pr                        # squash-merge, label issues
+/merge-pr                        # squash-merge, delete remote branch
 /sync                            # pull develop, prune branches
 /cut                             # create rc/2026-04-16.1, auto-stage if staging exists
 /release                         # promote to main, tag v2026.4.16, close issues
@@ -186,7 +186,7 @@ Flowkit is opinionated. Understanding these assumptions upfront will save you fr
 
 Feature work merges into `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
 
-### Default Branch
+### Default Branch (Current Assumption)
 
 Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle. Likewise, `/hotfix` relies on the merge into `main` to close hotfix-referenced issues.
 
@@ -221,6 +221,24 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 ### Issue Lifecycle
 
 `/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` (or `/hotfix`) when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
+
+### Default Branch (Recommendation for New Users)
+
+While the `main`-as-default configuration described above is fully supported, for new flowkit adopters we recommend setting **`develop` as the GitHub default branch** instead. This aligns with the modern Gitflow-on-GitHub convention and ensures GitHub's `Closes #N` auto-close keywords fire on the per-feature PRs that actually carry the work — not just at release time.
+
+The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit will surface a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). The prompt has three options:
+
+- **Switch to develop** — runs `gh repo edit --default-branch develop` after a second confirmation.
+- **Keep main as default** — keeps the current configuration; the prompt won't reappear. Flowkit's `/release` and `/hotfix` skills already run an explicit `gh issue close` loop, so the issue lifecycle still completes on either configuration.
+- **Don't ask again** — silences the prompt without recording a deliberate choice.
+
+The choice is persisted via `git config claude.flowkit.defaultBranchPrompted=true`, so subsequent `/open-pr` invocations stay silent. To re-surface the prompt (e.g., after revisiting the question), unset the marker:
+
+```bash
+git config --unset claude.flowkit.defaultBranchPrompted
+```
+
+The nudge is **never automatic** — every default-branch change requires explicit user confirmation, and existing `main`-as-default setups continue to work without modification.
 
 ## Pairing with Other Plugins
 
