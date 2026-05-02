@@ -32,7 +32,7 @@
     {
       "name": "polishkit",
       "source": "./plugins/polishkit",
-      "description": "Codebase quality toolkit. Assess code craft with /critique, sweep for cruft with /tidy-codebase, and eliminate unused code with /dead-code."
+      "description": "Codebase quality toolkit. Assess code craft with /critique, sweep for cruft with /tidy-codebase, eliminate unused code with /dead-code, and apply cross-cutting fixes with /simplify-scope."
     },
     {
       "name": "vaultkit",
