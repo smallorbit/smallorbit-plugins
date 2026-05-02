@@ -1,24 +1,25 @@
 ---
-name: simplify-scope
-description: Apply code-quality fixes (reuse, quality, efficiency) across a scope (path, glob, or cross-cutting concern) in an isolated worktree and open one PR. Lightweight, fast, single-pass — meant for cross-cutting cleanup like naming consistency, error handling patterns, or type hygiene across modules.
+name: buff
+description: Buff out cross-cutting code-quality issues (reuse, quality, efficiency) across a scope (path, glob, or themed concern) in an isolated worktree and open one PR. Lightweight, fast, single-pass — for cleanup like naming consistency, error handling patterns, or type hygiene across modules.
 triggers:
-  - "simplify scope"
-  - "simplify across"
-  - "simplify the X concern"
+  - "buff"
+  - "buff scope"
+  - "buff across"
+  - "buff the X concern"
   - "lightweight polish"
   - "cross-cutting cleanup"
 ---
 
-# Simplify Scope
+# Buff
 
-Apply code-quality fixes over a scope you specify — a path, glob, or cross-cutting concern — in an isolated worktree, and open one PR. Single pass, single agent, single PR.
+Buff out the rough edges across a scope you specify — a path, glob, or cross-cutting concern — in an isolated worktree, and open one PR. Single pass, single agent, single PR.
 
 Lightweight sibling to polishkit's other skills:
 
 - `polishkit:critique` — score code quality without changing anything.
 - `polishkit:dead-code` — remove unused exports/imports/variables.
 - `polishkit:tidy-codebase` — sweep stale files and accumulated cruft.
-- `polishkit:simplify-scope` (this skill) — apply semantic code-quality fixes (reuse, quality, efficiency) across a scope.
+- `polishkit:buff` (this skill) — apply semantic code-quality fixes (reuse, quality, efficiency) across a scope.
 
 Use this when you want quick, targeted cleanup applied across a cross-cutting concern, not a full assessment or hygiene sweep.
 
@@ -39,7 +40,7 @@ Optional flags:
 
 If `<scope>` is empty:
 
-> What scope should I simplify? (path, glob, or cross-cutting concern + scope hint)
+> What scope should I buff? (path, glob, or cross-cutting concern + scope hint)
 
 ## Process
 
@@ -55,7 +56,7 @@ Derive a kebab-case slug from the scope. Examples:
 - `error handling in src/providers/` → `providers-error-handling`
 - `naming consistency in hooks` → `hooks-naming`
 
-Branch name: `simplify/<slug>`.
+Branch name: `buff/<slug>`.
 
 ### 2. Detect the project's verify commands
 
@@ -106,11 +107,11 @@ For a cross-cutting theme, prioritize fixes matching that theme; deprioritize ev
    ```
    BASE=$(git ls-remote --exit-code --heads origin develop >/dev/null 2>&1 && echo develop || echo main)
    git fetch origin "$BASE"
-   git checkout -B simplify/<slug> "origin/$BASE"
+   git checkout -B buff/<slug> "origin/$BASE"
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: not in worktree" && exit 1
    ```
 2. First pass: read every file in scope and build a findings list grouped by category (reuse / quality / efficiency / deferred). Apply the cross-cutting theme filter if one was given.
-3. Apply edits. Surgical changes; don't bundle unrelated fixes into a single "simplify" commit. Group commits by category or by file (conventional-commit format).
+3. Apply edits. Surgical changes; don't bundle unrelated fixes into a single "buff" commit. Group commits by category or by file (conventional-commit format).
 4. Verify by running every command in `VERIFY_COMMANDS` (passed by the orchestrator). All MUST pass before push. If any fails, iterate until green or revert the breaking edit and list it as deferred.
 5. Push and open the PR (see PR BODY SHAPE below).
 6. Report the PR URL. That is the only acceptable termination condition.
@@ -134,13 +135,13 @@ If `--dry-run` is set, the agent skips the apply/commit/push phase and instead r
 
 Print one line confirming dispatch (scope, slug, branch, agent type, model, max-files, verify commands). Don't wait synchronously — the harness notifies on completion. When notified:
 
-- Verify branch is pushed: `git ls-remote --exit-code origin simplify/<slug>`
-- Verify the PR exists: `gh pr list --head simplify/<slug>`
+- Verify branch is pushed: `git ls-remote --exit-code origin buff/<slug>`
+- Verify the PR exists: `gh pr list --head buff/<slug>`
 - Report the PR URL.
 
 ## Constraints
 
-- One agent per invocation, one PR per agent. Never fan out multiple simplify agents on the same scope.
+- One agent per invocation, one PR per agent. Never fan out multiple buff agents on the same scope.
 - Lightweight by default — if scope is so large the agent wants to touch >50 files, it should narrow to the highest-impact subset and defer the rest. The skill is for cross-cutting cleanup, not whole-codebase rewrites.
 - Always pass relative paths to the agent. Never include absolute repo paths in the prompt.
 - Always run in an isolated worktree. Never edit the scope directly from the orchestrator.

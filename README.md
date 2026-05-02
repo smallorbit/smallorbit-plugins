@@ -139,7 +139,7 @@ The development-lifecycle plugins form a complete loop from idea to release:
 
 **swarmkit** runs a built-in `simplify-loop` after each agent finishes — iterative `/simplify` passes that tighten the code before opening the PR. This is a lightweight pre-PR sanity check, not a code review.
 
-**polishkit** sits between `/swarm` and `/release` as a quality gate: use `/critique` to assess elegance and craft, `/tidy-codebase` to sweep for stale files and cruft, `/dead-code` to eliminate unused exports, and `/simplify-scope` to apply cross-cutting code-quality fixes (reuse, quality, efficiency) across a path or themed scope before shipping.
+**polishkit** sits between `/swarm` and `/release` as a quality gate: use `/critique` to assess elegance and craft, `/tidy-codebase` to sweep for stale files and cruft, `/dead-code` to eliminate unused exports, and `/buff` to buff out cross-cutting code-quality issues (reuse, quality, efficiency) across a path or themed scope before shipping.
 
 **sessionkit** acts as connective tissue throughout: use `/handoff` to preserve state across agent context limits, `/skillit` to capture reusable patterns after a swarm, and `/suggest-permissions` to reduce approval friction over time.
 
