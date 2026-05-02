@@ -27,7 +27,7 @@ claude --plugin-dir /path/to/polishkit
 |-------|--------|--------------|
 | **appraise** | `/appraise` | Appraises code for elegance, architecture, and craft across 5 weighted dimensions. Produces a scored report with beauty highlights and violation flags. Works on single files, modules, or full repos. |
 | **sweep** | `/sweep` | Sweeps the codebase in two phases: dead code (unused exports, imports, variables, unreachable branches) and cruft (stale docs, build artifacts, duplicate content, merged branches). Confirms each action before executing. |
-| **buff** | `/buff <scope>` | Buffs out cross-cutting code-quality issues (reuse, quality, efficiency) across a path, glob, or themed scope. Runs in an isolated worktree, gates on your project's verify commands, and opens one PR. |
+| **polish** | `/polish <scope>` | Polishes cross-cutting code-quality issues (reuse, quality, efficiency) across a path, glob, or themed scope. Runs in an isolated worktree, gates on your project's verify commands, and opens one PR. |
 
 ## Typical Workflows
 
@@ -59,8 +59,8 @@ claude --plugin-dir /path/to/polishkit
 ### Apply cross-cutting cleanup as a single PR
 
 ```
-/buff src/hooks/                        # Path scope
-/buff error handling in src/providers/  # Cross-cutting theme + boundary
+/polish src/hooks/                        # Path scope
+/polish error handling in src/providers/  # Cross-cutting theme + boundary
 ```
 
 ## How appraise Works
@@ -71,9 +71,9 @@ claude --plugin-dir /path/to/polishkit
 
 `/sweep` runs in two phases. **Phase 1 — dead code**: detects the project language and available static analysis tools (`tsc --noEmit`, `pyflakes`, `vulture`, `staticcheck`, etc.), then scans for unused exports, unused imports, dead variables, unreachable branches, and commented-out code blocks. **Phase 2 — cruft**: parallel checks for stale docs, build artifacts, documentation gaps, duplicate content, and git hygiene (merged branches, stale worktrees, orphaned remotes). Findings from both phases are merged into a single Remove / Update / Keep summary and confirmed via `AskUserQuestion` before any changes are made.
 
-## How buff Works
+## How polish Works
 
-`/buff` takes a scope (path, glob, or cross-cutting concern + scope hint), resolves the file list, sniffs the project's typecheck/test commands, and dispatches a single subagent in an isolated worktree. The agent applies semantic fixes across three categories — reuse (extract duplication, use existing helpers), quality (naming, error handling, type hygiene), and efficiency (avoidable recomputation, quadratic loops) — under a soft cap on files touched. It must keep public surfaces compatible, gate on every verify command, and open one PR with deferred findings called out for follow-up.
+`/polish` takes a scope (path, glob, or cross-cutting concern + scope hint), resolves the file list, sniffs the project's typecheck/test commands, and dispatches a single subagent in an isolated worktree. The agent applies semantic fixes across three categories — reuse (extract duplication, use existing helpers), quality (naming, error handling, type hygiene), and efficiency (avoidable recomputation, quadratic loops) — under a soft cap on files touched. It must keep public surfaces compatible, gate on every verify command, and open one PR with deferred findings called out for follow-up.
 
 ## Pairing with Other Plugins
 
