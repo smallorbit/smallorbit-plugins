@@ -48,10 +48,7 @@ If either `$BASE_BRANCH` or `$EPIC_BRANCH` is empty after parsing, stop with:
 
 ### 2. Sync the epic branch locally
 
-There is no synthesis to do — the epic branch already accumulates the squash-merged contributions. Pull it down and check it out so verify runs against the integrated state.
-
 ```bash
-# Preserve any uncommitted state in the working tree.
 STASHED=0
 if ! git diff --quiet HEAD || ! git diff --cached --quiet; then
   git stash push -u -m "preview-epic auto-stash"
@@ -87,7 +84,7 @@ After verify completes, restore the user's pre-skill working state if any was st
 
 ### 3. Resolve verify commands
 
-Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, and `install`:
+Read `.squadkit/config.json` for `verify.typecheck`, `verify.test`, `verify.lint`, `install`:
 
 ```bash
 TYPECHECK=$(jq -r '.verify.typecheck // empty' .squadkit/config.json 2>/dev/null)
@@ -106,7 +103,7 @@ If the user declines any, skip that step. The skill does not hardcode `npm run t
 
 ### 4. Run verify commands
 
-If `$INSTALL` is set and HEAD moved during the fetch/fast-forward, run install first. Then run typecheck, tests, and lint. Capture exit codes — do not abort the skill on failure; the user wants to see all results.
+If `$INSTALL` is set and HEAD moved, run install first. Run typecheck, tests, lint. Capture all exit codes — do not abort on failure.
 
 ```bash
 if [[ -n "$INSTALL" ]]; then
@@ -145,9 +142,3 @@ Print a concise summary tagged with the model:
   - Verify failure → fix on the epic branch (or open a follow-up PR targeting the epic) and re-run.
 
 No cleanup needed — the epic branch is long-lived.
-
-## Constraints
-
-- **Epic branch is fetched, not modified beyond fast-forward.** Diverged remotes abort rather than auto-resolving.
-- **Preserve working state.** Auto-stash uncommitted changes before checking out the epic branch; restore on completion.
-- **Idempotent in spirit.** Re-running simply re-fast-forwards the epic branch rather than clobbering existing local state.

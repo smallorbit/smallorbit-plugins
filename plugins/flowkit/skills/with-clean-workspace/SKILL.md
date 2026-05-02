@@ -50,9 +50,3 @@ fi
 [ "$MERGE_OK" = "false" ] && exit 1
 ```
 
-## Constraints
-
-- Never auto-resolve a stash-pop conflict — leave the stash on the stack and tell the user.
-- Always use `-u` so untracked files (e.g. new hook scripts) are stashed too.
-- Use the literal message `flowkit-auto-stash` so the user can identify the entry in `git stash list`.
-- Only pop the stash if the wrapped command exited 0 — a failed command must not trigger a pop that masks the failure on retry.
