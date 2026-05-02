@@ -78,6 +78,73 @@ assert_invalid_args gather_issues.sh "no-args"
 assert_invalid_args gather_issues.sh "non-integer"  abc
 assert_invalid_args gather_issues.sh "mixed-bad"    1 abc
 
+echo "swarm: DEFAULT_BRANCH empty-string guard"
+echo
+
+# preflight.sh: gh returns empty defaultBranchRef → guard falls back to "main"
+# Stubs: gh returns empty string (exit 0); git fetch succeeds; rev-parse fails
+# for the custom base branch but succeeds for "main"; jq and git push are not
+# reached because the test asserts on the error path.
+(
+  stub_dir="$(mktemp -d)"
+  trap 'rm -rf "$stub_dir"' EXIT
+
+  cat >"$stub_dir/gh" <<'STUB'
+#!/usr/bin/env bash
+# Simulate: gh repo view returns empty defaultBranchRef; auth check fails so
+# the authenticated block is skipped; "gh repo view" for nameWithOwner is also
+# not exercised on this path.
+if [[ "$*" == *"defaultBranchRef"* ]]; then
+  printf ''
+  exit 0
+fi
+# auth status — report unauthenticated so the gh_authenticated block is skipped
+exit 1
+STUB
+  chmod +x "$stub_dir/gh"
+
+  cat >"$stub_dir/git" <<'STUB'
+#!/usr/bin/env bash
+if [[ "$1" == "fetch" ]]; then exit 0; fi
+if [[ "$1" == "rev-parse" ]]; then
+  # Fail for "refs/remotes/origin/nonexistent-base" (the custom --base value),
+  # succeed for "refs/remotes/origin/main" (the guard fallback).
+  if [[ "$*" == *"nonexistent-base"* ]]; then exit 1; fi
+  if [[ "$*" == *"refs/remotes/origin/main"* ]]; then exit 1; fi
+  exit 1
+fi
+if [[ "$1" == "config" ]]; then exit 0; fi
+exec /usr/bin/git "$@"
+STUB
+  chmod +x "$stub_dir/git"
+
+  # jq must be real; only gh and git are stubbed
+  PATH="$stub_dir:$PATH" \
+    tmp_out="$(mktemp)" tmp_err="$(mktemp)" rc=0
+  set +e
+  PATH="$stub_dir:$PATH" "$SCRIPT_DIR/preflight.sh" --base nonexistent-base \
+    >"$tmp_out" 2>"$tmp_err"
+  rc=$?
+  set -e
+  stderr_out="$(cat "$tmp_err")"
+  stdout_out="$(cat "$tmp_out")"
+  rm -f "$tmp_out" "$tmp_err"
+
+  if [[ $rc -eq 0 ]]; then
+    red   "  FAIL [preflight.sh empty-gh-result]: expected non-zero exit, got 0"
+    FAIL=$((FAIL + 1))
+  elif [[ -n "$stdout_out" ]]; then
+    red   "  FAIL [preflight.sh empty-gh-result]: expected empty stdout, got: $stdout_out"
+    FAIL=$((FAIL + 1))
+  elif [[ "$stderr_out" == *"''"* ]] || [[ "$stderr_out" != *"main"* ]]; then
+    red   "  FAIL [preflight.sh empty-gh-result]: error message should reference 'main', got: $stderr_out"
+    FAIL=$((FAIL + 1))
+  else
+    green "  PASS [preflight.sh empty-gh-result]: exit=$rc, stderr references 'main'"
+    PASS=$((PASS + 1))
+  fi
+)
+
 echo
 echo "swarm: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]] || exit 1
