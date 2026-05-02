@@ -190,7 +190,7 @@ MEANINGFUL_UNSCOPED=$(printf '%s\n' "$ALL_COMMITS" \
   | sed 's/^[a-f0-9]* /- /' \
   || true)
 if [ -n "$MEANINGFUL_UNSCOPED" ]; then
-  printf '\n%s\n' "$MEANINGFUL_UNSCOPED" >> "$GROUPED_CHANGES_FILE"
+  printf '\n**cross-plugin**\n%s\n' "$MEANINGFUL_UNSCOPED" >> "$GROUPED_CHANGES_FILE"
 fi
 
 GROUPED_CHANGES=$(cat "$GROUPED_CHANGES_FILE"); rm -f "$GROUPED_CHANGES_FILE"
@@ -204,13 +204,13 @@ GROUPED_CHANGES=$(cat "$GROUPED_CHANGES_FILE"); rm -f "$GROUPED_CHANGES_FILE"
 # ### Changes remains the raw commit log for completeness.
 RELEASE_NOTES_FILE=$(mktemp)
 if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
-  MERGED_PR_DATA=$(gh pr list --base develop --state merged \
+  MERGED_PR_DATA=$(gh pr list --base develop --state merged --limit 200 \
     --json title,body,mergedAt \
     | jq --arg td "$TAG_DATE" -r \
         '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601))
                | [.title,
                   (.body // "" | gsub("\r";"")
-                    | capture("(?i)## Summary\n+(?P<s>[^\n]+)").s // "")]
+                    | capture("(?i)## Summary\n+(?<s>[^\n]+)").s // "")]
                  | @tsv')
 
   printf '%s\n' "$PLUGINS" | while read PLUGIN; do
@@ -231,6 +231,25 @@ if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
   done
 fi
 RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE"); rm -f "$RELEASE_NOTES_FILE"
+
+# Smoke-test: verify the synthesis produced output before proceeding.
+# Run this one-liner against the real repo to confirm jq parses the regex
+# and at least one PR is matched:
+#
+#   TAG_DATE=$(git log -1 --format=%aI $(git for-each-ref --sort=-creatordate \
+#     --format='%(refname:short)' 'refs/tags/v[0-9]*' | head -1) \
+#     | python3 -c "import sys; from datetime import datetime, timezone; \
+#       print(datetime.fromisoformat(sys.stdin.read().strip()) \
+#             .astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))") \
+#   && gh pr list --base develop --state merged --limit 200 --json title,body,mergedAt \
+#   | jq --arg td "$TAG_DATE" -r \
+#       '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601))
+#              | [.title, (.body // "" | gsub("\r";"")
+#                 | capture("(?i)## Summary\n+(?<s>[^\n]+)").s // "")] | @tsv' \
+#   | head -5
+#
+# A non-empty result (exit 0) confirms the pipeline is healthy.
+# An empty result or non-zero exit means the tag range or jq regex needs investigation.
 
 # --- narrative summary ---
 # Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
