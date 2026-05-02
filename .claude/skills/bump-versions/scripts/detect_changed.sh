@@ -57,7 +57,7 @@ find "$REPO_ROOT/plugins" -maxdepth 3 -name "plugin.json" -path "*/.claude-plugi
       [[ "$suggested_bump" == "major" ]] && break
       if [[ "$line" =~ ^[^:]+\!: ]] || echo "$line" | grep -qF "BREAKING CHANGE"; then
         suggested_bump="major"
-      elif [[ "$suggested_bump" != "major" ]] && [[ "$line" =~ ^feat[:(] ]]; then
+      elif [[ "$suggested_bump" != "major" ]] && echo "$line" | grep -qE '^feat[:(]'; then
         suggested_bump="minor"
       fi
     done < <(git log "${log_range_args[@]}" --format="%s%n%b" 2>/dev/null)
