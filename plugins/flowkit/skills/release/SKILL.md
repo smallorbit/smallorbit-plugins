@@ -376,7 +376,33 @@ git tag "$TAG"
 git push origin "$TAG"
 ```
 
-### 9. Clean up RC branches for today
+### 9. Close referenced issues explicitly
+
+When `main` is the GitHub default branch, the merged release PR's `Closes #N` footer auto-closed every aggregated issue. When the repo's default is `develop` (or any other non-`main` branch), the auto-close path silently no-ops and aggregated issues stay open. Run an explicit `gh issue close` loop over the same `$ISSUE_REFS` collected in step 4 so the lifecycle works on either default-branch configuration. The loop is idempotent — already-closed issues are skipped — so it's safe even when auto-close already fired.
+
+```bash
+ISSUE_NUMBERS=$(printf '%s\n' "$ISSUE_REFS" \
+  | grep -oE '[0-9]+' \
+  | sort -u)
+
+CLOSED_ISSUES_FILE=$(mktemp)
+printf '%s\n' "$ISSUE_NUMBERS" | while read N; do
+  [ -z "$N" ] && continue
+  STATE=$(gh issue view "$N" --json state --jq '.state' 2>/dev/null)
+  if [ "$STATE" = "OPEN" ]; then
+    if gh issue close "$N" --reason completed >/dev/null 2>&1; then
+      echo "$N" >> "$CLOSED_ISSUES_FILE"
+    else
+      echo "warning: failed to close issue #$N — close manually if needed" >&2
+    fi
+  fi
+done
+EXPLICITLY_CLOSED=$(sort -u "$CLOSED_ISSUES_FILE" 2>/dev/null); rm -f "$CLOSED_ISSUES_FILE"
+```
+
+`$EXPLICITLY_CLOSED` is the set of issues this loop closed (i.e. those that were still `OPEN` after the merge). On a `main`-default repo this list is typically empty because GitHub's auto-close already ran; on a `develop`-default repo it contains every aggregated issue. Surface it in the final report.
+
+### 10. Clean up RC branches for today
 
 ```bash
 TODAY=$(date +%Y-%m-%d)
@@ -388,16 +414,16 @@ git ls-remote --heads origin "rc/$TODAY*" \
     done
 ```
 
-### 10. Sync develop
+### 11. Sync develop
 
 Follow the `git-sync-develop` sub-skill. Because the release PR was merged with a merge commit (not squashed), `git merge origin/main` on develop will correctly resolve without divergence — no force-push is needed.
 
-### 11. Report
+### 12. Report
 
 Output:
 - Tag created (e.g. `v2026.4.16`)
 - PR number and URL
-- Issues closed
+- Issues closed — list the aggregated `$ISSUE_REFS` numbers, and note which subset was closed by step 9's explicit loop (`$EXPLICITLY_CLOSED`) versus by GitHub's auto-close at merge time
 - RC branches deleted
 - Epics skipped due to sub_issues parse error, if any — read `$SKIPPED_EPICS` (set in step 4). When non-empty, list each epic number and remind the operator to check manually and add `Closes #N` to the release PR body if needed.
 

@@ -56,7 +56,7 @@ Follow the `pr-base-scope` sub-skill to set `claude.flowkit.prBase = main`.
 
 ### 7. Open a PR targeting main
 
-Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`.
+Follow `/open-pr`. Because `claude.flowkit.prBase = main`, the PR targets `main`. Capture the PR URL from `/open-pr`'s output as `$HOTFIX_PR_URL` — step 11 needs it to re-aggregate `Closes #N` references for the explicit close loop after the merge deletes the branch.
 
 ### 8. Merge the PR into main
 
@@ -88,9 +88,32 @@ git push origin "$COMPANION"
 
 The annotation message preserves the "hotfix" signal for `git tag -n` queries; the companion tag keeps the canonical version tag clean while still flagging the commit as an emergency fix.
 
-Referenced issues auto-close at merge time: `/open-pr` discovers `Closes #N` tokens from branch commits and emits them in the PR body footer (open-pr step 5). When the hotfix PR merges into `main` (the default branch), GitHub closes those references automatically — no explicit close step is needed.
+Referenced issues are closed at merge time: `/open-pr` discovers `Closes #N` tokens from branch commits and emits them in the PR body footer (open-pr step 5). When the hotfix PR merges into `main` (which must be your repo's GitHub default branch for `Closes #N` keywords to fire — if not, the explicit close loop below handles it), GitHub closes those references automatically.
 
-### 11. Back-merge main into develop
+### 11. Close referenced issues explicitly
+
+Re-aggregate the `Closes/Fixes/Resolves #N` references from the merged hotfix PR body and close each issue directly. This is idempotent — already-closed issues are skipped — so it works whether or not GitHub auto-close fired at merge time:
+
+```bash
+HOTFIX_PR_BODY=$(gh pr view "$HOTFIX_PR_URL" --json body --jq '.body' 2>/dev/null)
+ISSUE_NUMBERS=$(printf '%s\n' "$HOTFIX_PR_BODY" \
+  | grep -oiE '(closes|fixes|resolves) #[0-9]+' \
+  | grep -oE '[0-9]+' \
+  | sort -u)
+
+printf '%s\n' "$ISSUE_NUMBERS" | while read N; do
+  [ -z "$N" ] && continue
+  STATE=$(gh issue view "$N" --json state --jq '.state' 2>/dev/null)
+  if [ "$STATE" = "OPEN" ]; then
+    gh issue close "$N" --reason completed || \
+      echo "warning: failed to close issue #$N — close manually if needed" >&2
+  fi
+done
+```
+
+If a hotfix is targeting a repo where `main` is the GitHub default, the auto-close already fired and every issue is `CLOSED` by the time this loop runs — the loop is a no-op in that case. When `main` is not the default branch, this loop is what actually closes the referenced issues.
+
+### 12. Back-merge main into develop
 
 Keep `develop` in sync with the hotfix:
 
@@ -102,16 +125,16 @@ git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
 git push origin develop
 ```
 
-### 12. Sync develop
+### 13. Sync develop
 
 Follow the `git-sync-develop` sub-skill to confirm a clean local develop state.
 
-### 13. Report
+### 14. Report
 
 Summarize:
 - Hotfix PR merged into main
 - Tags created (include both the canonical version tag and the `hotfix/` companion tag)
-- Referenced issues closed
+- Referenced issues closed (list each issue number from step 11's explicit close loop; idempotent against issues already closed by GitHub auto-close)
 - develop updated with back-merge
 
 ## Constraints

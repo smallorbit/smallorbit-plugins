@@ -186,6 +186,14 @@ Flowkit is opinionated. Understanding these assumptions upfront will save you fr
 
 Feature work merges into `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
 
+### Default Branch
+
+Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle. Likewise, `/hotfix` relies on the merge into `main` to close hotfix-referenced issues.
+
+If you've configured `develop` (or any non-`main` branch) as the GitHub default, the auto-close path on the release PR silently no-ops and aggregated issues stay open. To stay safe regardless of which branch is set as default, `/release` and `/hotfix` run an explicit `gh issue close` loop after the merge succeeds — closing every aggregated issue directly so the lifecycle works on either configuration. Issues that were closed earlier (e.g., already resolved) are skipped idempotently.
+
+If you set a non-`main` default branch, also note the `/open-pr` warning: when a feature PR targeting `develop` includes `Closes #N` keywords, those won't auto-close at squash-merge time — they'll close when `/release` later runs the explicit close loop.
+
 ### RC Naming: `rc/YYYY-MM-DD.N`
 
 Release candidates are named by date and sequence number (e.g., `rc/2026-04-16.1`). A second cut on the same day becomes `rc/2026-04-16.2`.

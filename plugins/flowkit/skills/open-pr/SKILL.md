@@ -122,7 +122,22 @@ The body shape, footer grammar, and worked example live in [`plugins/_shared/pr-
 
 **Override rule for `open-pr`**: when tokens come from commit messages on the branch, emit them **verbatim** — do not rewrite `Fixes`/`Resolves` into `Closes`. The canonical guidance applies to newly authored bodies; `open-pr` forwards what the author committed.
 
-### 7. Lint the assembled body for broken closing-keyword footers
+### 7. Warn when closing keywords target a non-default branch
+
+GitHub's auto-close keywords (`Closes/Fixes/Resolves #N`) only fire when a PR merges into the repo's default branch. If the assembled body contains any closing keyword and `$BASE` is not the GitHub default, emit a one-line note pointing the user at `/flowkit:release`, which runs an explicit `gh issue close` loop after the staging→main merge:
+
+```bash
+if printf '%s\n' "$PR_BODY" | grep -qiE '(closes|fixes|resolves) #[0-9]+'; then
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+  if [ -n "$DEFAULT_BRANCH" ] && [ "$BASE" != "$DEFAULT_BRANCH" ]; then
+    echo "note: 'Closes #N' won't fire auto-close on PRs into $BASE when default branch is $DEFAULT_BRANCH. /flowkit:release will close those issues at release time." >&2
+  fi
+fi
+```
+
+This is informational only — do not abort or rewrite the body. The `/release` and `/hotfix` skills explicitly close aggregated issues after their respective merges, so the lifecycle still completes.
+
+### 8. Lint the assembled body for broken closing-keyword footers
 
 GitHub only parses one closing keyword per line. A footer like `Closes #1 #2 #3` silently leaves `#2` and `#3` open. Reject the body before calling `gh pr create` if any line packs multiple issue refs onto a single closing keyword:
 
@@ -140,7 +155,7 @@ fi
 
 Fail loudly rather than auto-rewriting — the author should see and fix the footer themselves so the same mistake does not recur in the source commits.
 
-### 8. Open the PR
+### 9. Open the PR
 
 `$BASE` is always non-empty at this point (step 2 guarantees it). Pass it explicitly:
 
@@ -152,7 +167,7 @@ gh pr create \
   --body "<assembled body from step 6>"
 ```
 
-### 9. Report
+### 10. Report
 
 Output the PR URL returned by `gh pr create`.
 
