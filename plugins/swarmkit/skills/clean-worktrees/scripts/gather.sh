@@ -25,35 +25,47 @@ if [[ -z "$main_worktree" ]]; then
   exit 1
 fi
 
+# Parse porcelain output into tab-separated "path<TAB>branch" pairs, one per
+# worktree stanza that has a checked-out (non-detached) branch.
+# Lines with no branch line (detached HEAD) are omitted.
+all_wt_pairs="$(git worktree list --porcelain | awk '
+  /^worktree / { path = $2; branch = "" }
+  /^branch refs\/heads\// { branch = substr($0, 19) }
+  /^$/ { if (path != "" && branch != "") print path "\t" branch; path = ""; branch = "" }
+  END  { if (path != "" && branch != "") print path "\t" branch }
+')"
+
+# Worktrees to remove: non-main paths whose basename matches agent-* or worktree-agent-*.
 worktrees_to_remove=()
-while IFS= read -r line; do
-  path="${line#worktree }"
-  if [[ "$path" != "$main_worktree" ]]; then
+while IFS=$'\t' read -r path branch; do
+  [[ "$path" == "$main_worktree" ]] && continue
+  if [[ "$path" =~ worktrees/(agent-|worktree-agent-) ]]; then
     worktrees_to_remove+=("$path")
   fi
-done < <(git worktree list --porcelain | grep '^worktree ')
+done <<< "$all_wt_pairs"
 
-active_worktree_branches=()
-while IFS= read -r line; do
-  branch="${line#branch refs/heads/}"
-  if [[ "$line" == branch\ * ]]; then
-    active_worktree_branches+=("$branch")
-  fi
-done < <(git worktree list --porcelain)
+# Produce a newline-delimited list of branches checked out by worktrees NOT in
+# the removal set (excluding main worktree).
+other_active_branches_list=""
+while IFS=$'\t' read -r path branch; do
+  [[ "$path" == "$main_worktree" ]] && continue
+  # Skip if this path is in the removal set.
+  in_removal=false
+  for rpath in "${worktrees_to_remove[@]+"${worktrees_to_remove[@]}"}"; do
+    if [[ "$rpath" == "$path" ]]; then
+      in_removal=true
+      break
+    fi
+  done
+  [[ "$in_removal" == true ]] && continue
+  other_active_branches_list+="$branch"$'\n'
+done <<< "$all_wt_pairs"
 
 branches_to_delete=()
 stuck=()
 while IFS= read -r branch; do
   if [[ "$branch" == worktree-agent-* ]]; then
-    is_active=false
-    for active in "${active_worktree_branches[@]+"${active_worktree_branches[@]}"}"; do
-      if [[ "$active" == "$branch" ]]; then
-        is_active=true
-        break
-      fi
-    done
-
-    if [[ "$is_active" == true ]]; then
+    if printf '%s' "$other_active_branches_list" | grep -qxF "$branch"; then
       stuck+=("$branch")
     else
       branches_to_delete+=("$branch")
