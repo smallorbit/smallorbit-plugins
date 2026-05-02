@@ -35,6 +35,7 @@ Optional flags:
 - `--model <tier>` — `sonnet` (default) or `opus` for harder cross-cutting passes
 - `--agent <type>` — subagent type override (default: `general-purpose`). The skill prompt embeds the review heuristics inline, so a dedicated `code-simplifier` agent is not required.
 - `--max-files <N>` — soft cap on files the subagent should touch in one PR (default: 15). Lightweight stays lightweight.
+- `--base <branch>` — override the resolved PR base branch (see Process step 3). When set, short-circuits `claude.flowkit.prBase` / `develop` / repo-default resolution.
 - `--dry-run` — review and report findings without applying fixes; useful as a pre-flight before committing to a PR
 
 If `<scope>` is empty:
@@ -72,7 +73,53 @@ If nothing matches, ask the user for the verify command before dispatching. Neve
 
 Pass the resolved verify commands to the agent prompt as `VERIFY_COMMANDS`.
 
-### 3. Dispatch the subagent
+### 3. Resolve the PR base branch
+
+The agent's branch must be cut from the project's PR base, and `gh pr create` must explicitly target the same branch (otherwise it falls through to the GitHub default — usually `main` — which silently produces wrong-base PRs against repos that develop on a non-default branch).
+
+Resolve `BASE` in this order, mirroring `flowkit:open-pr`:
+
+```bash
+# 1. Explicit caller arg
+BASE=""
+if echo "$ARGUMENTS" | grep -qE '(^|[[:space:]])\-\-base[= ]'; then
+  BASE=$(echo "$ARGUMENTS" | grep -oE '(^|[[:space:]])\-\-base[= ][^ ]+' | head -1 | sed 's/.*--base[= ]//')
+fi
+
+# 2. claude.flowkit.prBase (per-session config set by swarm loop / cut-epic / pr-base-scope)
+if [ -z "$BASE" ]; then
+  BASE=$(git config claude.flowkit.prBase 2>/dev/null)
+fi
+
+# 3. Legacy claude.prBase (deprecated, with migration notice)
+if [ -z "$BASE" ]; then
+  LEGACY=$(git config claude.prBase 2>/dev/null)
+  if [ -n "$LEGACY" ]; then
+    BASE="$LEGACY"
+    echo "note: claude.prBase is deprecated. Migrate with:" >&2
+    echo "  git config --unset claude.prBase" >&2
+    echo "  git config claude.flowkit.prBase $LEGACY" >&2
+  fi
+fi
+
+# 4. develop if it exists on the remote
+if [ -z "$BASE" ]; then
+  if git ls-remote --heads origin develop | grep -q 'refs/heads/develop'; then
+    BASE="develop"
+  fi
+fi
+
+# 5. Fallback — use the repo default and warn
+if [ -z "$BASE" ]; then
+  REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
+  echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
+  BASE="$REPO_DEFAULT"
+fi
+```
+
+Pass the resolved `BASE` to the agent prompt as `BASE_BRANCH`. The agent must use it for both the branch cut **and** the `gh pr create --base` argument.
+
+### 4. Dispatch the subagent
 
 Spawn one agent with:
 
@@ -102,17 +149,16 @@ For a cross-cutting theme, prioritize fixes matching that theme; deprioritize ev
 
 **WORKFLOW**:
 
-1. Branch from the repo's base branch (`develop` if it exists, otherwise `main`):
+1. Branch from `BASE_BRANCH` (provided by the orchestrator — never re-derive):
    ```
-   BASE=$(git ls-remote --exit-code --heads origin develop >/dev/null 2>&1 && echo develop || echo main)
-   git fetch origin "$BASE"
-   git checkout -B polish/<slug> "origin/$BASE"
+   git fetch origin "$BASE_BRANCH"
+   git checkout -B polish/<slug> "origin/$BASE_BRANCH"
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: not in worktree" && exit 1
    ```
 2. First pass: read every file in scope and build a findings list grouped by category (reuse / quality / efficiency / deferred). Apply the cross-cutting theme filter if one was given.
 3. Apply edits. Surgical changes; don't bundle unrelated fixes into a single "polish" commit. Group commits by category or by file (conventional-commit format).
 4. Verify by running every command in `VERIFY_COMMANDS` (passed by the orchestrator). All MUST pass before push. If any fails, iterate until green or revert the breaking edit and list it as deferred.
-5. Push and open the PR (see PR BODY SHAPE below).
+5. Push and open the PR with `--base "$BASE_BRANCH"` explicitly (see PR BODY SHAPE below). **Never** call `gh pr create` without `--base` — without it, gh falls through to the GitHub default branch (often `main`), which silently produces wrong-base PRs.
 6. Report the PR URL. That is the only acceptable termination condition.
 
 **PR BODY SHAPE** — follow the canonical spec at `plugins/_shared/pr-body.md` (`## Summary` / `## Changes` / `## Test plan` plus issue-reference footer). Append one extra section after `## Test plan`:
@@ -126,16 +172,16 @@ The `## Test plan` checklist must include each command from `VERIFY_COMMANDS` as
 
 **NO-OP IS LEGITIMATE** — if the pass finds nothing actionable in the scope, open the PR anyway with `## Summary` stating `no actionable simplifications found` and a `## Findings deferred to issues` section listing what was considered. Manufactured churn is worse than a no-op PR.
 
-### 4. Dry-run mode
+### 5. Dry-run mode
 
 If `--dry-run` is set, the agent skips the apply/commit/push phase and instead returns a structured findings report inline (not as a PR). Useful as a pre-flight before committing to a full pass.
 
-### 5. Report
+### 6. Report
 
-Print one line confirming dispatch (scope, slug, branch, agent type, model, max-files, verify commands). Don't wait synchronously — the harness notifies on completion. When notified:
+Print one line confirming dispatch (scope, slug, branch, base branch, agent type, model, max-files, verify commands). Don't wait synchronously — the harness notifies on completion. When notified:
 
 - Verify branch is pushed: `git ls-remote --exit-code origin polish/<slug>`
-- Verify the PR exists: `gh pr list --head polish/<slug>`
+- Verify the PR exists and targets the resolved base: `gh pr list --head polish/<slug> --json baseRefName,url`
 - Report the PR URL.
 
 ## Constraints
