@@ -3,7 +3,7 @@ name: list-projects
 description: List all projects in an Obsidian vault's Projects folder, with status and count summary. Sub-skill used by vaultkit:load-project.
 ---
 
-# vaultkit:list-projects
+# list-projects
 
 Lists all projects in an Obsidian vault's `Projects/` folder, sorted by status, with a count summary.
 

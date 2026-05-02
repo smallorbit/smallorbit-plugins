@@ -63,20 +63,9 @@ If both `worktrees_to_remove` and `branches_to_delete` are empty arrays, report:
 
 And stop.
 
-### Step 4 — Present plan and confirm
+### Step 4 — Proceed
 
-Summarize what will happen:
-
-```
-Worktrees to remove: <count>
-  - /path/to/worktree-agent-42
-  ...
-Branches to delete: <count>
-  - worktree-agent-42
-  ...
-```
-
-Proceed immediately (no confirmation prompt needed for this automated cleanup step).
+No confirmation prompt needed for this automated cleanup step.
 
 ### Step 5 — Perform removal
 
@@ -122,11 +111,3 @@ If `caller_branch_restored` is `false` and there were no errors, warn:
 
 > `<caller_branch>` was removed as part of cleanup — no branch to restore to.
 
-## Constraints
-
-- Never remove the main working directory — only non-main worktrees
-- Never abort on a single worktree removal failure — always continue and report failures at the end
-- If any orphaned branch is still checked out by an active worktree, stop and report — do not attempt deletion
-- Always run `git worktree prune` both before the removal loop and after removals to clear stale references (handled inside the scripts)
-- Use `git worktree remove <path> -f -f` (double-force) to handle agent-locked worktrees (handled inside remove.sh)
-- Always attempt to restore the caller's branch after cleanup; warn instead of erroring if the branch no longer exists
