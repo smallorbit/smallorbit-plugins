@@ -60,7 +60,7 @@ find "$REPO_ROOT/plugins" -maxdepth 3 -name "plugin.json" -path "*/.claude-plugi
       elif [[ "$suggested_bump" != "major" ]] && echo "$line" | grep -qE '^feat[:(]'; then
         suggested_bump="minor"
       fi
-    done < <(git log "${log_range_args[@]}" --format="%s%n%b" 2>/dev/null)
+    done < <(git log --format="%s%n%b" "${log_range_args[@]}" 2>/dev/null)
 
     jq -n \
       --arg plugin "$plugin_name" \
