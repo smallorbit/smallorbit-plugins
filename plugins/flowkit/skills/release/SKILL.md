@@ -137,7 +137,7 @@ If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
 ### 5. Build release summary and create a PR from SOURCE → main
 
-Compute the git log range between the source branch and main, then derive version bumps and grouped changes from that range.
+Compute the git log range between the source branch and main, then derive version bumps, synthesized release notes, and grouped changes from that range.
 
 ```bash
 RELEASE_DATE=$(date +%Y-%m-%d)
@@ -178,17 +178,59 @@ printf '%s\n' "$PLUGINS" | while read PLUGIN; do
   fi
 done
 
-# Commits with no recognised scope (chore, docs without scope, etc.)
+# Unscoped commits: filter out mechanical chore/docs entries — they don't
+# belong in release notes and account for nearly all "other" noise. Unscoped
+# commits with feat/fix/refactor/perf type are inlined after the last plugin
+# group without an **other** header; the header adds visual weight without
+# information value and the commits speak for themselves.
 SCOPED_PATTERN=$(printf '%s\n' "$PLUGINS" | tr '\n' '|' | sed 's/|$//')
-UNSCOPED_COMMITS=$(printf '%s\n' "$ALL_COMMITS" \
+MEANINGFUL_UNSCOPED=$(printf '%s\n' "$ALL_COMMITS" \
   | grep -ivE "\($SCOPED_PATTERN\)" \
+  | grep -iE "^[a-f0-9]+ (feat|fix|refactor|perf)" \
   | sed 's/^[a-f0-9]* /- /' \
   || true)
-if [ -n "$UNSCOPED_COMMITS" ]; then
-  printf '\n**other**\n%s\n' "$UNSCOPED_COMMITS" >> "$GROUPED_CHANGES_FILE"
+if [ -n "$MEANINGFUL_UNSCOPED" ]; then
+  printf '\n%s\n' "$MEANINGFUL_UNSCOPED" >> "$GROUPED_CHANGES_FILE"
 fi
 
 GROUPED_CHANGES=$(cat "$GROUPED_CHANGES_FILE"); rm -f "$GROUPED_CHANGES_FILE"
+
+# --- synthesized release notes ---
+# Fetch merged-PR titles and the first sentence of each PR's ## Summary section
+# since the last release tag. Group per plugin using the same scope list as
+# ### Changes. Render as human-readable bullets — one bullet per PR, phrased
+# from the PR title with the Summary's first sentence appended if it adds
+# context beyond the title. This is the canonical "what shipped" view;
+# ### Changes remains the raw commit log for completeness.
+RELEASE_NOTES_FILE=$(mktemp)
+if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
+  MERGED_PR_DATA=$(gh pr list --base develop --state merged \
+    --json title,body,mergedAt \
+    | jq --arg td "$TAG_DATE" -r \
+        '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601))
+               | [.title,
+                  (.body // "" | gsub("\r";"")
+                    | capture("(?i)## Summary\n+(?P<s>[^\n]+)").s // "")]
+                 | @tsv')
+
+  printf '%s\n' "$PLUGINS" | while read PLUGIN; do
+    [ -z "$PLUGIN" ] && continue
+    PLUGIN_NOTES=$(printf '%s\n' "$MERGED_PR_DATA" \
+      | grep -iE "\($PLUGIN\)" \
+      | while IFS=$(printf '\t') read TITLE SUMMARY; do
+          if [ -n "$SUMMARY" ] && [ "$SUMMARY" != "$TITLE" ]; then
+            printf '- %s — %s\n' "$TITLE" "$SUMMARY"
+          else
+            printf '- %s\n' "$TITLE"
+          fi
+        done \
+      || true)
+    if [ -n "$PLUGIN_NOTES" ]; then
+      printf '\n**%s**\n%s\n' "$PLUGIN" "$PLUGIN_NOTES" >> "$RELEASE_NOTES_FILE"
+    fi
+  done
+fi
+RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE"); rm -f "$RELEASE_NOTES_FILE"
 
 # --- narrative summary ---
 # Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
@@ -203,7 +245,7 @@ Example: "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow t
 # <!-- include: plugins/_shared/pr-body.md -->
 # The body shape below follows the canonical PR body spec defined in
 # plugins/_shared/pr-body.md: Summary → Release summary → Version bumps →
-# Changes → issue-reference footer. Keep that order.
+# Release notes → Changes → issue-reference footer. Keep that order.
 PR_BODY="## Summary
 
 $NARRATIVE_SUMMARY
@@ -217,6 +259,13 @@ if [ -n "$VERSION_BUMPS" ]; then
 
 ### Version bumps
 $VERSION_BUMPS"
+fi
+
+if [ -n "$RELEASE_NOTES" ]; then
+  PR_BODY="$PR_BODY
+
+### Release notes
+$RELEASE_NOTES"
 fi
 
 if [ -n "$GROUPED_CHANGES" ]; then
