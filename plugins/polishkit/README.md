@@ -83,6 +83,8 @@ claude --plugin-dir /path/to/polishkit
 
 ## Pairing with Other Plugins
 
+Polishkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Polishkit improves quality; [speckit](../speckit) defines the next work; [swarmkit](../swarmkit) executes it:
 
 ```

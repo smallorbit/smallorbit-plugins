@@ -242,6 +242,8 @@ The nudge is **never automatic** — every default-branch change requires explic
 
 ## Pairing with Other Plugins
 
+Flowkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Flowkit handles the shipping half of the development loop. Use it with speckit and swarmkit for the full planning-to-production cycle:
 
 ```

@@ -95,6 +95,8 @@ Editing flows through `vaultkit:file-edit` to preserve birth time — important 
 
 ## Pairing with Other Plugins
 
+Vaultkit works on its own. The companion plugins referenced below are siblings in the [smallorbit-plugins](../../README.md#available-plugins) marketplace — install them separately to use the composed workflows.
+
 Vaultkit captures what happens during and after a session into a durable Obsidian second brain.
 
 **With [sessionkit](../sessionkit)**
