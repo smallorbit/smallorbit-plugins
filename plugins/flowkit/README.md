@@ -55,6 +55,7 @@ These are called by the skills above — you don't invoke them directly.
 | **git-sync-main** | release, hotfix | Checkout `main` and pull latest from origin. |
 | **git-sync-develop** | sync, release, hotfix | Checkout `develop` and pull latest from origin. |
 | **pr-base-scope** | swarm | Set/unset `claude.flowkit.prBase` git config for scoped PR targeting. |
+| **with-clean-workspace** | merge-pr, release | Auto-stash dirty workspace around implicit post-merge pull. |
 
 ## Typical Workflows
 
