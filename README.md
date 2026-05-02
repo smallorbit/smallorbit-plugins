@@ -23,7 +23,7 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | **[speckit](./plugins/speckit/)** | `/plugin install speckit@smallorbit-plugins` | Define and capture work through interviews and issue filing |
 | **[swarmkit](./plugins/swarmkit/)** | `/plugin install swarmkit@smallorbit-plugins` | Resolve GitHub issues with parallel worktree agents. Optional automatic review/fix layer via `/swarm-plus`. _Recommends elevated session permissions — see the plugin's [Permissions](./plugins/swarmkit/README.md#permissions) section._ See [METHODOLOGY.md](./plugins/swarmkit/METHODOLOGY.md) for the stacked agent/PR workflow in depth. |
 | **[squadkit](./plugins/squadkit/)** | `/plugin install squadkit@smallorbit-plugins` | Multi-agent team coordination with the `roles → squads → crews` vocabulary. Spawn role-aware crews (team-lead, architect, builder, reviewer, tester, explorer, designer) — `kind: execution` for code on a `feature/<slug>-<issue>` branch, or `kind: discovery` for read-only research producing issue blueprint comments. |
-| **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Critique code quality, sweep for cruft, and eliminate dead code |
+| **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Critique code quality, sweep for cruft, eliminate dead code, and apply cross-cutting fixes |
 | **[flowkit](./plugins/flowkit/)** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
 | **[sessionkit](./plugins/sessionkit/)** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, and meta-learning |
 
@@ -139,7 +139,7 @@ The development-lifecycle plugins form a complete loop from idea to release:
 
 **swarmkit** runs a built-in `simplify-loop` after each agent finishes — iterative `/simplify` passes that tighten the code before opening the PR. This is a lightweight pre-PR sanity check, not a code review.
 
-**polishkit** sits between `/swarm` and `/release` as a quality gate: use `/critique` to assess elegance and craft, `/tidy-codebase` to sweep for stale files and cruft, and `/dead-code` to eliminate unused exports before shipping.
+**polishkit** sits between `/swarm` and `/release` as a quality gate: use `/critique` to assess elegance and craft, `/tidy-codebase` to sweep for stale files and cruft, `/dead-code` to eliminate unused exports, and `/buff` to buff out cross-cutting code-quality issues (reuse, quality, efficiency) across a path or themed scope before shipping.
 
 **sessionkit** acts as connective tissue throughout: use `/handoff` to preserve state across agent context limits, `/skillit` to capture reusable patterns after a swarm, and `/suggest-permissions` to reduce approval friction over time.
 
