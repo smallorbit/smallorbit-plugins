@@ -17,7 +17,7 @@
     {
       "name": "sessionkit",
       "source": "./plugins/sessionkit",
-      "description": "Session continuity and meta-learning for Claude Code. Hand off context between sessions, resume seamlessly, plan through structured interviews, discover reusable skills, and reduce permission noise."
+      "description": "Session continuity, planning, and meta-learning for Claude Code. Hand off context between sessions, resume seamlessly, map work-in-flight into an approved task chain and drive it to completion, discover reusable skills, and reduce permission noise."
     },
     {
       "name": "speckit",

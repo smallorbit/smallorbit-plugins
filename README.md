@@ -25,7 +25,7 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | **[squadkit](./plugins/squadkit/)** | `/plugin install squadkit@smallorbit-plugins` | Multi-agent team coordination with the `roles → squads → crews` vocabulary. Spawn role-aware crews (team-lead, architect, builder, reviewer, tester, explorer, designer) — `kind: execution` for code on a `feature/<slug>-<issue>` branch, or `kind: discovery` for read-only research producing issue blueprint comments. |
 | **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Appraise code quality, sweep dead code and cruft, and apply cross-cutting fixes |
 | **[flowkit](./plugins/flowkit/)** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
-| **[sessionkit](./plugins/sessionkit/)** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, and meta-learning |
+| **[sessionkit](./plugins/sessionkit/)** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, planning, and meta-learning. Map work-in-flight into an approved task chain with `/roadmap` and drive it to completion with `/drive`. |
 
 ### Utilities & Productivity
 
