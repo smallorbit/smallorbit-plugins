@@ -163,6 +163,24 @@ git config claude.flowkit.prBase main
 git config --unset claude.flowkit.prBase
 ```
 
+### Release scope grouping
+
+`/release` groups `### Release notes` bullets by conventional-commit scope. By default, scopes are auto-detected from the commit range being released — `/release` extracts the `type(scope):` tokens from `git log origin/main..origin/$SOURCE`, normalizes sub-scopes (`flowkit:open-pr` → `flowkit`), and uses the deduplicated set. No configuration needed; it adapts to whatever scopes the repo actually uses.
+
+To pin an explicit scope list (e.g. to enforce naming, exclude noisy one-off scopes, or guarantee a stable rendering order), drop a `.flowkit/scopes.txt` file at the repo root:
+
+```
+# .flowkit/scopes.txt — one scope per line, blank lines and # comments ignored
+cmdk
+cache
+library
+visualizer
+providers
+queue
+```
+
+When the file is present, `/release` uses it verbatim and skips auto-detection. Use the same token you put in commit messages and PR titles.
+
 ### Migrating from `claude.prBase`
 
 The legacy key `claude.prBase` is still read as a fallback so existing setups don't break. When flowkit falls back to the legacy key, it emits a one-line deprecation notice with the exact commands below. Migrate at your convenience:
