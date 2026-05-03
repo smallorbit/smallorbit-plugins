@@ -1,0 +1,223 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+---
+
+<BaseLayout
+  title="About · smallorbit-plugins"
+  description="smallorbit builds Claude Code plugins that turn the AI development lifecycle — plan, execute, polish, ship — into a complete loop with a human in every handoff."
+>
+  <article class="about">
+    <header class="about__header">
+      <p class="about__eyebrow">about smallorbit</p>
+      <h1 class="about__title">
+        From idea to release.<br />
+        <span class="about__title-italic">With you in the loop.</span>
+      </h1>
+      <p class="about__lede">
+        smallorbit builds Claude Code plugins that turn the AI development lifecycle
+        into a complete loop — plan, execute, polish, ship — with a human checkpoint
+        at every handoff.
+      </p>
+    </header>
+
+    <section class="about__section">
+      <h2>Why these kits exist</h2>
+      <p>
+        AI-assisted development is fast, but speed without a loop is just chaos.
+        Each kit in the smallorbit family handles one phase of the cycle, hands
+        off cleanly to the next, and pauses where a human decision belongs:
+        approving a spec, reviewing a stack of PRs, triaging polish findings,
+        signing off on a release.
+      </p>
+      <p>
+        Together they make the loop legible. You always know which phase you're
+        in, what the agent just did, and where you have to weigh in.
+      </p>
+    </section>
+
+    <section class="about__section">
+      <h2>The kit ecosystem</h2>
+      <ul class="about__kit-list">
+        <li>
+          <a href={`${baseHref}kits/speckit/`}><strong>speckit</strong></a>
+          — plan it. Interview a feature into existence and file an epic plus
+          child issues, all from a slash command.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/swarmkit/`}><strong>swarmkit</strong></a>
+          — execute it. Spawn isolated worktree agents in parallel, open a
+          stacked PR per issue, merge bottom-up.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/squadkit/`}><strong>squadkit</strong></a>
+          — orchestrate it. Multi-agent crews built from a small
+          roles → squads → crews vocabulary, for execution or read-only discovery.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/polishkit/`}><strong>polishkit</strong></a>
+          — polish it. Appraise craft, sweep dead code and stale artifacts, and
+          polish cross-cutting issues in one pass.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/flowkit/`}><strong>flowkit</strong></a>
+          — ship it. Branch, commit, PR, merge, cut releases, and tag — the full
+          develop → main lifecycle behind one set of slash commands.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/sessionkit/`}><strong>sessionkit</strong></a>
+          — throughout. Hand off context, resume seamlessly, plan work in flight,
+          and capture reusable patterns from every session.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/vaultkit/`}><strong>vaultkit</strong></a>
+          — capture it. Read, search, edit, and capture into an Obsidian vault,
+          all via the Obsidian CLI.
+        </li>
+        <li>
+          <a href={`${baseHref}kits/hookify/`}><strong>hookify</strong></a>
+          — guard it. Turn observed friction into Claude Code hooks that prevent
+          the same mistake twice.
+        </li>
+      </ul>
+    </section>
+
+    <section class="about__section">
+      <h2>How they compose</h2>
+      <p>
+        The development-lifecycle kits form a complete loop:
+        <code>/spec</code> plans, <code>/swarm</code> executes,
+        <code>/appraise</code> and <code>/sweep</code> polish, and
+        <code>/release</code> ships. <code>/handoff</code> and
+        <code>/pickup</code> sit underneath all of them so context survives
+        between sessions.
+      </p>
+      <p>
+        You can adopt them piecemeal — most teams start with speckit and
+        swarmkit, then layer flowkit on top once they want a proper release
+        pipeline. The kits are designed to be useful on their own and stronger
+        together.
+      </p>
+    </section>
+
+    <section class="about__section">
+      <h2>The principle</h2>
+      <p>
+        We don't believe in autonomous AI that ships code at you while you
+        watch. We believe in AI that does the legwork at every phase and stops
+        for the decisions only you can make. That's what "with you in the loop"
+        means — the loop is yours, the kits just keep it spinning.
+      </p>
+    </section>
+
+    <section class="about__section">
+      <h2>Stay in touch</h2>
+      <p>
+        The full source — plugins, skills, and this site — lives on
+        <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer">
+          GitHub</a>. New kits and essays land in the
+        <a href={`${baseHref}blog/`}>blog</a>.
+      </p>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .about {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 3rem 1.25rem 5rem;
+  }
+
+  .about__header {
+    margin-bottom: 3rem;
+  }
+
+  .about__eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .about__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin: 0 0 1.5rem;
+    letter-spacing: -0.015em;
+  }
+
+  .about__title-italic {
+    color: var(--color-accent);
+    font-style: italic;
+  }
+
+  .about__lede {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .about__section {
+    margin-bottom: 2.5rem;
+  }
+
+  .about__section h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.6rem;
+    color: var(--text-strong);
+    margin: 0 0 1rem;
+    letter-spacing: -0.005em;
+  }
+
+  .about__section p {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text);
+    margin: 0 0 1.25rem;
+  }
+
+  .about__section code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    padding: 0.1rem 0.35rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    color: var(--text-strong);
+  }
+
+  .about__kit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .about__kit-list li {
+    padding-left: 1rem;
+    border-left: 2px solid var(--border);
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .about__kit-list a {
+    color: var(--text-strong);
+  }
+
+  .about__kit-list a:hover {
+    color: var(--color-accent);
+  }
+</style>

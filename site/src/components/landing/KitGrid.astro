@@ -1,0 +1,213 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+
+type KitEntry = CollectionEntry<'kits'>;
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+const KIT_ORDER = [
+  'speckit',
+  'swarmkit',
+  'polishkit',
+  'flowkit',
+  'sessionkit',
+  'squadkit',
+  'vaultkit',
+  'hookify',
+];
+
+const stripExt = (id: string): string => id.replace(/\.(md|mdx)$/, '');
+
+const orderIndex = (id: string): number => {
+  const idx = KIT_ORDER.indexOf(stripExt(id));
+  return idx === -1 ? 999 : idx;
+};
+
+const kits = (await getCollection('kits')).sort(
+  (a: KitEntry, b: KitEntry) => orderIndex(a.id) - orderIndex(b.id)
+);
+---
+
+<section id="plugins" class="kit-grid" aria-labelledby="plugins-title">
+  <div class="kit-grid__container">
+    <span class="kit-grid__eyebrow">the kits</span>
+    <h2 id="plugins-title" class="kit-grid__title">Tools for the whole lifecycle.</h2>
+    <p class="kit-grid__lede">
+      Each kit is built for a specific phase. Pick the suite or just what you need.
+    </p>
+
+    <div class="kit-grid__list">
+      {
+        kits.map((kit) => (
+          <article
+            class="kit-card"
+            data-kit={stripExt(kit.id)}
+            style={`--kit-accent: ${kit.data.accentColor};`}
+          >
+            <div class="kit-card__head">
+              <a class="kit-card__id" href={`${baseHref}kits/${stripExt(kit.id)}/`}>
+                <span class="kit-card__name">{kit.data.name}</span>
+                <span class="kit-card__role">{kit.data.role}</span>
+              </a>
+              <a
+                class="kit-card__readme"
+                href={`https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/${stripExt(kit.id)}`}
+                rel="noopener noreferrer"
+              >
+                README ↗
+              </a>
+            </div>
+            <p class="kit-card__desc">{kit.data.oneLiner}</p>
+            {kit.data.commands.length > 0 && (
+              <ul class="kit-card__commands">
+                {kit.data.commands.slice(0, 5).map((cmd: string) => (
+                  <li>
+                    <code>{cmd}</code>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .kit-grid {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-page);
+  }
+
+  .kit-grid__container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 4.5rem 1.25rem;
+  }
+
+  .kit-grid__eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .kit-grid__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    line-height: 1.15;
+    color: var(--text-strong);
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  .kit-grid__lede {
+    max-width: 60ch;
+    color: var(--text-muted);
+    margin: 0 0 2.5rem;
+    font-size: 1.05rem;
+  }
+
+  .kit-grid__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .kit-card {
+    --kit-accent: var(--color-accent);
+    position: relative;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--kit-accent);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .kit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -16px rgba(26, 22, 18, 0.18);
+  }
+
+  .kit-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .kit-card__id {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .kit-card__id:hover .kit-card__name {
+    color: var(--kit-accent);
+  }
+
+  .kit-card__name {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-strong);
+    transition: color 0.15s ease;
+  }
+
+  .kit-card__role {
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .kit-card__readme {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .kit-card__readme:hover {
+    color: var(--kit-accent);
+  }
+
+  .kit-card__desc {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .kit-card__commands {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .kit-card__commands li code {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.15rem 0.45rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    color: var(--text-strong);
+  }
+</style>

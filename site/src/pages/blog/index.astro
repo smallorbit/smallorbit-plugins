@@ -1,0 +1,220 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+type PostEntry = CollectionEntry<'posts'>;
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+const allPosts = await getCollection('posts', ({ data }: PostEntry) => {
+  return !data.draft || import.meta.env.DEV;
+});
+
+const posts = allPosts.sort(
+  (a: PostEntry, b: PostEntry) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
+const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
+
+const accentFor = (kit: string | undefined): string =>
+  kit ? `var(--${kit}, var(--color-accent))` : 'var(--color-accent)';
+---
+
+<BaseLayout
+  title="Blog · smallorbit-plugins"
+  description="Essays and kit deep-dives on planning, parallel execution, and shipping with Claude Code."
+>
+  <section class="blog-index">
+    <header class="blog-index__header">
+      <span class="blog-index__eyebrow">the blog</span>
+      <h1 class="blog-index__title">From the lab.</h1>
+      <p class="blog-index__lede">
+        Essays on plan, execute, and ship — and the kits that make the loop work.
+      </p>
+    </header>
+
+    {
+      posts.length === 0 ? (
+        <p class="blog-index__empty">No posts yet. Check back soon.</p>
+      ) : (
+        <ul class="blog-index__list">
+          {posts.map((post) => (
+            <li
+              class="post-card"
+              style={`--post-accent: ${accentFor(post.data.kit)};`}
+            >
+              <a class="post-card__link" href={`${baseHref}blog/${slugFor(post.id)}/`}>
+                <div class="post-card__meta">
+                  <time datetime={post.data.date.toISOString()}>
+                    {dateFormatter.format(post.data.date)}
+                  </time>
+                  {post.data.kit && (
+                    <span class="post-card__kit">{post.data.kit}</span>
+                  )}
+                  {post.data.draft && (
+                    <span class="post-card__draft">Draft</span>
+                  )}
+                </div>
+                <h2 class="post-card__title">{post.data.title}</h2>
+                {post.data.subtitle && (
+                  <p class="post-card__subtitle">{post.data.subtitle}</p>
+                )}
+                {post.data.readTime && (
+                  <p class="post-card__readtime">{post.data.readTime} min read</p>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</BaseLayout>
+
+<style>
+  .blog-index {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 4rem 1.25rem 5rem;
+  }
+
+  .blog-index__header {
+    margin-bottom: 3rem;
+  }
+
+  .blog-index__eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .blog-index__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin: 0 0 1rem;
+    letter-spacing: -0.015em;
+  }
+
+  .blog-index__lede {
+    color: var(--text-muted);
+    max-width: 60ch;
+    font-size: 1.1rem;
+    margin: 0;
+  }
+
+  .blog-index__empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .blog-index__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .post-card {
+    --post-accent: var(--color-accent);
+    border-top: 1px solid var(--border);
+  }
+
+  .post-card:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .post-card__link {
+    display: block;
+    padding: 2rem 0;
+    text-decoration: none;
+    color: inherit;
+    transition: padding-left 0.15s ease;
+    border-left: 0 solid var(--post-accent);
+  }
+
+  .post-card__link:visited {
+    color: inherit;
+  }
+
+  .post-card__link:hover {
+    padding-left: 1rem;
+    border-left-width: 3px;
+  }
+
+  .post-card__link:hover .post-card__title {
+    color: var(--post-accent);
+  }
+
+  .post-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .post-card__kit {
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--post-accent);
+    border-radius: var(--r-xs);
+    background: var(--bg-veil);
+    text-transform: lowercase;
+    color: var(--text-strong);
+  }
+
+  .post-card__draft {
+    padding: 0.1rem 0.5rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-xs);
+    color: var(--polishkit);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.7rem;
+  }
+
+  .post-card__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.2;
+    color: var(--text-strong);
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.005em;
+    transition: color 0.15s ease;
+  }
+
+  .post-card__subtitle {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .post-card__readtime {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin: 0;
+  }
+</style>

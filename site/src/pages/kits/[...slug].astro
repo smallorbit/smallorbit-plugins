@@ -1,0 +1,320 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+type KitEntry = CollectionEntry<'kits'>;
+type PostEntry = CollectionEntry<'posts'>;
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+export async function getStaticPaths() {
+  const kits = await getCollection('kits');
+  const allPosts = await getCollection('posts', ({ data }: PostEntry) => {
+    return !data.draft || import.meta.env.DEV;
+  });
+
+  const stripExt = (id: string): string => id.replace(/\.(md|mdx)$/, '');
+
+  return kits.map((kit: KitEntry) => {
+    const kitSlug = stripExt(kit.id);
+    const posts = allPosts
+      .filter((post: PostEntry) => post.data.kit === kitSlug)
+      .sort(
+        (a: PostEntry, b: PostEntry) => b.data.date.valueOf() - a.data.date.valueOf()
+      );
+
+    return {
+      params: { slug: kitSlug },
+      props: { kit, posts },
+    };
+  });
+}
+
+interface Props {
+  kit: KitEntry;
+  posts: PostEntry[];
+}
+
+const { kit, posts } = Astro.props;
+const accent = kit.data.accentColor;
+const kitSlug = kit.id.replace(/\.(md|mdx)$/, '');
+
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
+const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
+---
+
+<BaseLayout
+  title={`${kit.data.name} · smallorbit-plugins`}
+  description={kit.data.oneLiner}
+>
+  <article class="kit-page" style={`--kit-accent: ${accent};`}>
+    <header class="kit-page__header">
+      <p class="kit-page__eyebrow">the kits</p>
+      <h1 class="kit-page__title">{kit.data.name}</h1>
+      <p class="kit-page__role">{kit.data.role}</p>
+      <p class="kit-page__lede">{kit.data.oneLiner}</p>
+
+      <div class="kit-page__cta">
+        <a
+          class="kit-page__readme"
+          href={`https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/${kitSlug}`}
+          rel="noopener noreferrer"
+        >
+          Read the README ↗
+        </a>
+        <code class="kit-page__install">/plugin install {kitSlug}@smallorbit-plugins</code>
+      </div>
+    </header>
+
+    <section class="kit-page__summary">
+      <h2 class="kit-page__h2">What it does</h2>
+      <p>{kit.data.summary}</p>
+    </section>
+
+    {
+      kit.data.commands.length > 0 && (
+        <section class="kit-page__commands">
+          <h2 class="kit-page__h2">Commands</h2>
+          <ul>
+            {kit.data.commands.map((cmd: string) => (
+              <li>
+                <code>{cmd}</code>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="kit-page__posts">
+      <h2 class="kit-page__h2">From the blog</h2>
+      {
+        posts.length === 0 ? (
+          <p class="kit-page__empty">
+            No posts tagged <code>{kitSlug}</code> yet. Check the
+            <a href={`${baseHref}blog/`}> blog index</a> for the latest writing.
+          </p>
+        ) : (
+          <ul class="kit-page__post-list">
+            {posts.map((post) => (
+              <li class="kit-post">
+                <a class="kit-post__link" href={`${baseHref}blog/${slugFor(post.id)}/`}>
+                  <span class="kit-post__date">
+                    {dateFormatter.format(post.data.date)}
+                  </span>
+                  <span class="kit-post__title">{post.data.title}</span>
+                  {post.data.draft && <span class="kit-post__draft">Draft</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .kit-page {
+    --kit-accent: var(--color-accent);
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3.5rem 1.25rem 5rem;
+  }
+
+  .kit-page__header {
+    border-left: 4px solid var(--kit-accent);
+    padding-left: 1.25rem;
+    margin-bottom: 3rem;
+  }
+
+  .kit-page__eyebrow {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 0.75rem;
+  }
+
+  .kit-page__title {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(2.2rem, 4.5vw, 3.2rem);
+    line-height: 1.1;
+    color: var(--kit-accent);
+    margin: 0 0 0.5rem;
+  }
+
+  .kit-page__role {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    margin: 0 0 1.25rem;
+  }
+
+  .kit-page__lede {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text);
+    margin: 0 0 1.5rem;
+  }
+
+  .kit-page__cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .kit-page__readme {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--kit-accent);
+    border-radius: var(--r-md);
+    color: var(--kit-accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .kit-page__readme:hover {
+    background: var(--kit-accent);
+    color: var(--bg-page);
+  }
+
+  .kit-page__install {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    color: var(--text-strong);
+  }
+
+  .kit-page__h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.5rem;
+    color: var(--text-strong);
+    margin: 0 0 1rem;
+  }
+
+  .kit-page__summary,
+  .kit-page__commands,
+  .kit-page__posts {
+    margin-bottom: 2.5rem;
+  }
+
+  .kit-page__summary p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--text);
+    margin: 0;
+  }
+
+  .kit-page__commands ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .kit-page__commands code {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--kit-accent);
+    border-radius: var(--r-xs);
+    color: var(--text-strong);
+  }
+
+  .kit-page__empty {
+    color: var(--text-muted);
+  }
+
+  .kit-page__empty code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    padding: 0.1rem 0.3rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+  }
+
+  .kit-page__post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .kit-post {
+    border-top: 1px solid var(--border);
+  }
+
+  .kit-post:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kit-post__link {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1rem 0;
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.15s ease;
+  }
+
+  .kit-post__link:hover {
+    color: var(--kit-accent);
+  }
+
+  .kit-post__date {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    min-width: 7rem;
+  }
+
+  .kit-post__title {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: var(--text-strong);
+  }
+
+  .kit-post__link:hover .kit-post__title {
+    color: var(--kit-accent);
+  }
+
+  .kit-post__draft {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--polishkit);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-xs);
+    padding: 0.05rem 0.4rem;
+  }
+</style>
