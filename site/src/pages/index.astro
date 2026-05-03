@@ -1,0 +1,67 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+---
+
+<BaseLayout
+  title="smallorbit-plugins"
+  description="Plan, execute, and ship — Claude Code plugin essays and kit deep-dives from smallorbit."
+>
+  <section class="placeholder">
+    <p class="placeholder__eyebrow">smallorbit-plugins</p>
+    <h1 class="placeholder__title">Plan, execute, and ship.</h1>
+    <p class="placeholder__lede">
+      A new home for the smallorbit Claude Code plugin family. The full landing
+      and blog are en route.
+    </p>
+    <p class="placeholder__cta">
+      <a href={`${baseHref}blog/`}>Read the blog</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer">View on GitHub</a>
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  .placeholder {
+    max-width: 70ch;
+    margin: 0 auto;
+    padding: 6rem 1.25rem 4rem;
+  }
+
+  .placeholder__eyebrow {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.25rem;
+  }
+
+  .placeholder__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin: 0 0 1.5rem;
+  }
+
+  .placeholder__lede {
+    font-size: 1.125rem;
+    color: var(--text);
+    margin: 0 0 2rem;
+  }
+
+  .placeholder__cta {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+</style>
