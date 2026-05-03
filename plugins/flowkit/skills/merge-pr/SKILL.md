@@ -48,11 +48,16 @@ HEAD_BRANCH=$(gh pr view "$PR_NUM" --json headRefName --jq '.headRefName')
 `gh pr merge --delete-branch` deletes the local branch after the remote merge. Git refuses to delete a branch that is currently checked out in a worktree, so any worktree (typically a swarmkit `.claude/worktrees/agent-N` produced by `/swarmkit:swarm-plus`) holding `HEAD_BRANCH` must be removed first.
 
 ```bash
-BLOCKING_WORKTREE=$(git worktree list --porcelain \
-  | awk -v target="refs/heads/$HEAD_BRANCH" '
-      /^worktree / { wt = $2 }
-      $0 == "branch " target { print wt }
-    ')
+# Returns the worktree path currently checked out on the given branch, or empty.
+_find_worktree_for_branch() {
+  git worktree list --porcelain \
+    | awk -v target="refs/heads/$1" '
+        /^worktree / { wt = $2 }
+        $0 == "branch " target { print wt }
+      '
+}
+
+BLOCKING_WORKTREE=$(_find_worktree_for_branch "$HEAD_BRANCH")
 
 if [ -n "$BLOCKING_WORKTREE" ]; then
   git worktree remove --force "$BLOCKING_WORKTREE"
@@ -71,7 +76,7 @@ If `git worktree remove` fails, abort with:
 
 ### 5. Squash-merge and delete the remote branch
 
-`gh pr merge --squash --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` sub-skill so any dirty state is auto-stashed and restored:
+`gh pr merge --squash --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. The block below mirrors the stash-guard logic from `flowkit:with-clean-workspace` — auto-stashing dirty state before the merge and restoring it after:
 
 ```bash
 DIRTY=false
@@ -110,7 +115,8 @@ fi
 if [ "$LOCAL_DELETE_FAILED" = "true" ]; then
   echo "WARNING: PR #$PR_NUM merged remotely but the local branch \`$HEAD_BRANCH\` could not be deleted." >&2
   echo "To clean up manually:" >&2
-  echo "  git worktree list --porcelain | awk -v t=\"refs/heads/$HEAD_BRANCH\" '/^worktree /{wt=\$2} \$0==\"branch \"t{print wt}' | xargs -r git worktree remove --force" >&2
+  LEFTOVER=$(_find_worktree_for_branch "$HEAD_BRANCH")
+  [ -n "$LEFTOVER" ] && echo "  git worktree remove --force $LEFTOVER" >&2
   echo "  git branch -D $HEAD_BRANCH" >&2
 fi
 
