@@ -8,7 +8,6 @@ export const KIT_SLUGS = [
   'flowkit',
   'sessionkit',
   'vaultkit',
-  'hookify',
   'general',
 ] as const;
 
@@ -20,7 +19,6 @@ export const KIT_ONLY_SLUGS = [
   'flowkit',
   'sessionkit',
   'vaultkit',
-  'hookify',
 ] as const;
 
 export const TAG_VOCAB = [
