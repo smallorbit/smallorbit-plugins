@@ -1,0 +1,135 @@
+---
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero__inner">
+    <span class="hero__prompt">
+      ~/smallorbit-plugins<span class="hero__cursor" aria-hidden="true">▋</span>
+    </span>
+    <h1 id="hero-title" class="hero__title">
+      From idea to release.<br />
+      <span class="hero__title-line-two">With you in the loop.</span>
+    </h1>
+    <p class="hero__sub">
+      Claude Code plugins for plan, execute, and ship —
+      each keeping you at the handoffs that matter.
+    </p>
+    <div class="hero__actions">
+      <a href="#install" class="hero__cta">
+        Get started
+        <span class="hero__cta-glyph" aria-hidden="true">→</span>
+      </a>
+      <span class="hero__secondary">or <a href="#lifecycle">see the flow</a></span>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(
+        ellipse at 50% 0%,
+        rgba(79, 70, 229, 0.06) 0%,
+        rgba(79, 70, 229, 0) 60%
+      ),
+      var(--bg-page);
+    overflow: hidden;
+  }
+
+  .hero__inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 5rem 1.25rem 4.5rem;
+    text-align: center;
+  }
+
+  .hero__prompt {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 1.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .hero__cursor {
+    display: inline-block;
+    margin-left: 0.15rem;
+    color: var(--color-accent);
+    animation: hero-blink 1s steps(2, end) infinite;
+  }
+
+  @keyframes hero-blink {
+    50% { opacity: 0; }
+  }
+
+  .hero__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    line-height: 1.05;
+    color: var(--text-strong);
+    margin: 0 0 1.5rem;
+    letter-spacing: -0.015em;
+  }
+
+  .hero__title-line-two {
+    color: var(--color-accent);
+    font-style: italic;
+  }
+
+  .hero__sub {
+    max-width: 56ch;
+    margin: 0 auto 2.25rem;
+    font-size: 1.125rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .hero__actions {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+  }
+
+  .hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.25rem;
+    background: var(--text-strong);
+    color: var(--bg-page);
+    border-radius: var(--r-md);
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .hero__cta:hover {
+    color: var(--bg-page);
+    background: var(--color-accent);
+    transform: translateY(-1px);
+  }
+
+  .hero__cta:visited {
+    color: var(--bg-page);
+  }
+
+  .hero__cta-glyph {
+    transition: transform 0.15s ease;
+  }
+
+  .hero__cta:hover .hero__cta-glyph {
+    transform: translateX(2px);
+  }
+
+  .hero__secondary a {
+    color: var(--link);
+  }
+</style>
