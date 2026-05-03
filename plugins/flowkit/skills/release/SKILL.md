@@ -161,7 +161,7 @@ if [ -f "$SCOPES_FILE" ]; then
 else
   PLUGINS=$(git log origin/main..origin/"$SOURCE" --format=%s \
     | grep -oE '^[a-z]+\([^)]+\)' \
-    | sed -E 's/^[a-z]+\(([^):]+).*/\1/' \
+    | sed -E 's/^[a-z]+\(([^):/]+).*/\1/' \
     | sort -u \
     || true)
 fi
@@ -185,7 +185,7 @@ if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
   printf '%s\n' "$PLUGINS" | while read PLUGIN; do
     [ -z "$PLUGIN" ] && continue
     PLUGIN_NOTES=$(printf '%s\n' "$MERGED_PR_DATA" \
-      | grep -iE '\('"$PLUGIN"'[:)]' \
+      | grep -iE '\('"$PLUGIN"'[:/)]' \
       | while IFS=$(printf '\t') read TITLE SUMMARY; do
           if [ -n "$SUMMARY" ] && [ "$SUMMARY" != "$TITLE" ]; then
             printf '- %s — %s\n' "$TITLE" "$SUMMARY"
