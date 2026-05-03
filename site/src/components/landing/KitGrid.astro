@@ -15,7 +15,6 @@ const KIT_ORDER = [
   'sessionkit',
   'squadkit',
   'vaultkit',
-  'hookify',
 ];
 
 const stripExt = (id: string): string => id.replace(/\.(md|mdx)$/, '');
@@ -44,7 +43,6 @@ const kits = (await getCollection('kits')).sort(
           <article
             class="kit-card"
             data-kit={stripExt(kit.id)}
-            style={`--kit-accent: ${kit.data.accentColor};`}
           >
             <div class="kit-card__head">
               <a class="kit-card__id" href={`${baseHref}kits/${stripExt(kit.id)}/`}>
@@ -134,6 +132,14 @@ const kits = (await getCollection('kits')).sort(
     gap: 1rem;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
+
+  .kit-card[data-kit='speckit'] { --kit-accent: var(--speckit); }
+  .kit-card[data-kit='swarmkit'] { --kit-accent: var(--swarmkit); }
+  .kit-card[data-kit='polishkit'] { --kit-accent: var(--polishkit); }
+  .kit-card[data-kit='flowkit'] { --kit-accent: var(--flowkit); }
+  .kit-card[data-kit='sessionkit'] { --kit-accent: var(--sessionkit); }
+  .kit-card[data-kit='vaultkit'] { --kit-accent: var(--vaultkit); }
+  .kit-card[data-kit='squadkit'] { --kit-accent: var(--squadkit); }
 
   .kit-card:hover {
     transform: translateY(-2px);

@@ -1,7 +1,6 @@
 ---
 name: sessionkit
 role: Throughout — session continuity, planning, and meta-learning
-accentColor: "var(--sessionkit)"
 oneLiner: Hand off context, resume seamlessly, plan work-in-flight to "shipped", and capture reusable patterns from your sessions.
 commands:
   - /sessionkit:handoff
