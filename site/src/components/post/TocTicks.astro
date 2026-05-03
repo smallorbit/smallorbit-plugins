@@ -107,6 +107,7 @@ const { contentSelector = '.post__body', headingSelector = 'h2, h3' } = Astro.pr
   (function () {
     const list = document.querySelector('.toc-ticks__list');
     if (!list) return;
+    if (list.childElementCount > 0) return;
 
     const contentSelector = list.getAttribute('data-content-selector') || '.post__body';
     const headingSelector = list.getAttribute('data-heading-selector') || 'h2, h3';
