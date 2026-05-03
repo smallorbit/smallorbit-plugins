@@ -1,9 +1,13 @@
 ---
+import TopNav from '../components/nav/TopNav.astro';
+
 interface Props {
   title?: string;
   description?: string;
   ogImage?: string;
   ogType?: 'website' | 'article';
+  showTopNav?: boolean;
+  active?: 'blog' | 'kits' | 'about';
 }
 
 const {
@@ -11,6 +15,8 @@ const {
   description = 'Plan, execute, and ship — Claude Code plugin essays and kit deep-dives from smallorbit.',
   ogImage,
   ogType = 'website',
+  showTopNav = true,
+  active,
 } = Astro.props;
 
 const siteOrigin = Astro.site?.toString().replace(/\/$/, '') ?? 'https://smallorbit.github.io';
@@ -165,49 +171,6 @@ const rssUrl = `${siteOrigin}${baseHref}rss.xml`;
         }
       }
 
-      .site-header {
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-page);
-      }
-
-      .site-header__inner {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 1rem 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1.5rem;
-      }
-
-      .site-header__wordmark {
-        font-family: var(--sans);
-        font-weight: 600;
-        font-size: 1rem;
-        color: var(--text-strong);
-        text-decoration: none;
-      }
-
-      .site-header__wordmark:hover {
-        color: var(--text-strong);
-      }
-
-      .site-header__nav {
-        display: flex;
-        gap: 1.25rem;
-        align-items: center;
-        font-size: 0.95rem;
-      }
-
-      .site-header__nav a {
-        color: var(--text);
-        text-decoration: none;
-      }
-
-      .site-header__nav a:hover {
-        color: var(--text-strong);
-      }
-
       main {
         flex: 1 0 auto;
         width: 100%;
@@ -251,17 +214,7 @@ const rssUrl = `${siteOrigin}${baseHref}rss.xml`;
     <slot name="head" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="site-header__inner">
-        <a class="site-header__wordmark" href={baseHref}>smallorbit-plugins</a>
-        <nav class="site-header__nav" aria-label="Primary">
-          <a href={baseHref}>Home</a>
-          <a href={`${baseHref}blog/`}>Blog</a>
-          <a href={`${baseHref}about/`}>About</a>
-          <a href={githubRepoUrl} rel="noopener noreferrer">GitHub</a>
-        </nav>
-      </div>
-    </header>
+    {showTopNav && <TopNav active={active} />}
 
     <main>
       <slot />
