@@ -1,0 +1,322 @@
+---
+const lifecycleKits = ['speckit', 'swarmkit', 'polishkit', 'flowkit', 'sessionkit', 'squadkit'];
+const utilityKits = ['vaultkit'];
+---
+
+<section id="install" class="install" aria-labelledby="install-title">
+  <div class="install__container">
+    <span class="install__eyebrow">getting started</span>
+    <h2 id="install-title" class="install__title">Install and run.</h2>
+    <p class="install__intro">
+      Add the marketplace, then install the plugins you want. Everything below runs in a Claude Code session.
+    </p>
+
+    <a
+      class="install__teaser"
+      href="https://github.com/smallorbit/smallorbit-plugins#getting-started"
+      rel="noopener noreferrer"
+    >
+      <div class="install__teaser-body">
+        <h3 class="install__teaser-title">New here? Start with the walkthrough.</h3>
+        <p class="install__teaser-pitch">
+          A five-minute tour from <code>/spec</code> to a shipped release — prereqs, install, and your first swarm.
+        </p>
+      </div>
+      <span class="install__teaser-cta">Read it<span aria-hidden="true">↗</span></span>
+    </a>
+
+    <ol class="install__steps">
+      <li class="install__step">
+        <div class="install__step-n">01</div>
+        <div class="install__step-body">
+          <div class="install__step-head">
+            <h3 class="install__step-title">Add the marketplace</h3>
+            <span class="install__step-sub">one-time setup &middot; syncs plugin index</span>
+          </div>
+          <div class="install__commands">
+            <div class="install__cmd" data-copy="/plugin marketplace add smallorbit/smallorbit-plugins">
+              <pre><code>/plugin marketplace add smallorbit/smallorbit-plugins</code></pre>
+              <button type="button" class="install__copy-btn" aria-label="Copy marketplace install command">copy</button>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li class="install__step">
+        <div class="install__step-n">02</div>
+        <div class="install__step-body">
+          <div class="install__step-head">
+            <h3 class="install__step-title">Install the plugins</h3>
+            <span class="install__step-sub">pick the suite or just what you need</span>
+          </div>
+          <div class="install__commands">
+            <div class="install__sublabel">Development lifecycle</div>
+            {
+              lifecycleKits.map((kit) => {
+                const cmd = `/plugin install ${kit}@smallorbit-plugins`;
+                return (
+                  <div class="install__cmd" data-copy={cmd}>
+                    <pre><code>{cmd}</code></pre>
+                    <button type="button" class="install__copy-btn" aria-label={`Copy ${kit} install command`}>copy</button>
+                  </div>
+                );
+              })
+            }
+            <div class="install__sublabel">Utilities &amp; productivity</div>
+            {
+              utilityKits.map((kit) => {
+                const cmd = `/plugin install ${kit}@smallorbit-plugins`;
+                return (
+                  <div class="install__cmd" data-copy={cmd}>
+                    <pre><code>{cmd}</code></pre>
+                    <button type="button" class="install__copy-btn" aria-label={`Copy ${kit} install command`}>copy</button>
+                  </div>
+                );
+              })
+            }
+          </div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<script is:inline>
+  (function () {
+    const setup = () => {
+      document.querySelectorAll('.install__cmd').forEach((wrapper) => {
+        const btn = wrapper.querySelector('.install__copy-btn');
+        if (!btn || btn.dataset.bound === 'true') return;
+        btn.dataset.bound = 'true';
+        btn.addEventListener('click', async () => {
+          const text = wrapper.getAttribute('data-copy') ?? '';
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'copied';
+            btn.dataset.copied = 'true';
+            setTimeout(() => {
+              btn.textContent = 'copy';
+              btn.dataset.copied = 'false';
+            }, 1600);
+          } catch (err) {
+            btn.textContent = 'failed';
+          }
+        });
+      });
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>
+
+<style>
+  .install {
+    background: var(--bg-page);
+  }
+
+  .install__container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 4.5rem 1.25rem;
+  }
+
+  .install__eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .install__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    line-height: 1.15;
+    color: var(--text-strong);
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  .install__intro {
+    color: var(--text-muted);
+    max-width: 60ch;
+    margin: 0 0 2rem;
+    font-size: 1.05rem;
+  }
+
+  .install__teaser {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    margin: 0 0 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .install__teaser:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-1px);
+  }
+
+  .install__teaser-title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.15rem;
+    color: var(--text-strong);
+    margin: 0 0 0.25rem;
+  }
+
+  .install__teaser-pitch {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .install__teaser-pitch code {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.1rem 0.3rem;
+    background: var(--bg-veil);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+  }
+
+  .install__teaser-cta {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--color-accent);
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .install__steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .install__step {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+  }
+
+  .install__step-n {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-accent);
+  }
+
+  .install__step-body {
+    min-width: 0;
+  }
+
+  .install__step-head {
+    margin-bottom: 1rem;
+  }
+
+  .install__step-title {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-strong);
+    margin: 0 0 0.15rem;
+  }
+
+  .install__step-sub {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .install__commands {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .install__sublabel {
+    margin-top: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .install__sublabel:first-child {
+    margin-top: 0;
+  }
+
+  .install__cmd {
+    position: relative;
+  }
+
+  .install__cmd pre {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    padding-right: 4rem;
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    overflow-x: auto;
+    color: var(--text-strong);
+  }
+
+  .install__cmd code {
+    font-family: inherit;
+  }
+
+  .install__copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .install__copy-btn:hover {
+    color: var(--text-strong);
+    border-color: var(--border-strong);
+  }
+
+  .install__copy-btn[data-copied='true'] {
+    color: var(--swarmkit);
+  }
+
+  @media (max-width: 600px) {
+    .install__step {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
