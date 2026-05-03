@@ -417,9 +417,45 @@ git ls-remote --heads origin "rc/$TODAY*" \
     done
 ```
 
-### 11. Sync develop
+### 11. Back-merge main into develop
 
-Follow the `git-sync-develop` sub-skill. Because the release PR was merged with a merge commit (not squashed), `git merge origin/main` on develop will correctly resolve without divergence — no force-push is needed.
+Bring develop's tip up to main so the next release cycle starts from parity. Use a real merge commit (not a fast-forward / squash) so the release merge from step 6 stays visible in develop's history.
+
+```bash
+git fetch origin
+git checkout develop
+git pull --ff-only origin develop
+git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/main
+```
+
+Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — direct pushes succeed when develop is unprotected and fall through to a merge-strategy back-merge PR when it isn't:
+
+```bash
+PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
+PR_BODY="## Summary
+
+Back-merge release \`$TAG\` from main into develop.
+
+## Test plan
+
+- [ ] Confirm \`git log origin/main..origin/develop\` is empty after merge."
+
+RESULT=$(bash "$PUSH_OR_PR_DIR/scripts/push_or_pr.sh" \
+  --prefix "chore/sync-develop" \
+  --title "chore(develop): back-merge release $TAG from main" \
+  --body "$PR_BODY" \
+  --base "develop")
+
+PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
+NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
+PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
+```
+
+Branch on `$PUSH_RESULT`:
+
+- `direct` — develop now matches main on origin. Done.
+- `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the release merge commit's history). The local working tree is left on `$NEW_BRANCH` — switch back to develop and pull after the merge.
+- `noop` — develop is already at or ahead of main on origin. Skip the publish and continue.
 
 ### 12. Report
 

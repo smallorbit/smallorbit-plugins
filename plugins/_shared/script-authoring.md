@@ -38,6 +38,25 @@ export SKILL_DIR="<absolute path from the 'Base directory for this skill:' heade
 
 Use `"$SKILL_DIR/scripts/<name>.sh"` for every invocation. Never hardcode `plugins/<plugin>/...` — that path only resolves in repos that vendor the plugin directly.
 
+### Cross-skill invocation
+
+The default expectation is that a script is invoked **only by its owner skill**, where `$SKILL_DIR` aligns and the standard `"$SKILL_DIR/scripts/<name>.sh"` form works. Some sub-skills (e.g. `flowkit:push-or-pr`) are intentionally shared across multiple callers; those callers cannot use their own `$SKILL_DIR` to address the script. Two resolution patterns cover the cases that come up in this repo:
+
+- **Sibling-skill caller** (caller and target are in the same plugin) — derive the target's `SKILL_DIR` from the caller's:
+
+  ```bash
+  TARGET_SKILL_DIR="$(dirname "$SKILL_DIR")/<target-skill>"
+  bash "$TARGET_SKILL_DIR/scripts/<name>.sh" ...
+  ```
+
+- **Project-local caller** (e.g. a skill under `.claude/skills/` reaching into a vendored `plugins/<plugin>/skills/<skill>/`) — hardcode the repo-relative path. This is the one case where the "never hardcode `plugins/<plugin>/...`" rule does not apply, because project-local skills only ever run in repos that vendor the target plugin:
+
+  ```bash
+  bash plugins/<plugin>/skills/<target-skill>/scripts/<name>.sh ...
+  ```
+
+Either way, document the cross-skill dependency in the target's SKILL.md so callers know how to invoke it. The allowlist implications are addressed under [`.claude/settings.json` allowlist](#claudesettingsjson-allowlist) below.
+
 ## JSON output convention
 
 On success a script exits 0 and emits a **bare payload** JSON object on stdout. No envelope wrapper — the payload is the output:
@@ -123,3 +142,25 @@ The harness requires explicit permission before executing each script path. Add 
 ```
 
 Because `$SKILL_DIR` resolves at runtime, use the literal token `$SKILL_DIR` in the allowlist string — Claude Code expands environment variables in permission patterns. Add one entry per script, in the same PR that introduces the script. Do not batch allowlist entries ahead of the scripts they cover.
+
+### Allowlist for cross-skill scripts
+
+The harness expands `$SKILL_DIR` in allowlist patterns against the **calling skill's** runtime `$SKILL_DIR`. That means `Bash($SKILL_DIR/scripts/<name>.sh:*)` only matches when the script is invoked by its owner — for cross-skill scripts (see [Cross-skill invocation](#cross-skill-invocation) above), that pattern silently fails to match every external caller.
+
+Use these two matchers instead:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(plugins/<plugin>/skills/<target-skill>/scripts/<name>.sh:*)",
+      "Bash(*/plugins/<plugin>/skills/<target-skill>/scripts/<name>.sh:*)"
+    ]
+  }
+}
+```
+
+- The first matches project-local callers that invoke via the repo-relative path.
+- The second is a leading-glob suffix matcher that catches callers from other plugins' skills, where the script is invoked via an absolute path that varies by install location (plugin marketplace cache, vendored copy, etc.).
+
+Both are additions on top of the standard `$SKILL_DIR` form; if the script is also invoked by its owner, keep that entry too. The path itself acts as the discriminator — the script's plugin-namespaced location is distinctive enough that the suffix glob does not over-match.
