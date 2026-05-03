@@ -38,7 +38,6 @@ interface Props {
 }
 
 const { kit, posts } = Astro.props;
-const accent = kit.data.accentColor;
 const kitSlug = kit.id.replace(/\.(md|mdx)$/, '');
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -55,7 +54,7 @@ const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
   description={kit.data.oneLiner}
   active="kits"
 >
-  <article class="kit-page" style={`--kit-accent: ${accent};`}>
+  <article class="kit-page" data-kit={kitSlug}>
     <header class="kit-page__header">
       <p class="kit-page__eyebrow">the kits</p>
       <h1 class="kit-page__title">{kit.data.name}</h1>
@@ -129,6 +128,14 @@ const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
     margin: 0 auto;
     padding: 3.5rem 1.25rem 5rem;
   }
+
+  .kit-page[data-kit='speckit'] { --kit-accent: var(--speckit); }
+  .kit-page[data-kit='swarmkit'] { --kit-accent: var(--swarmkit); }
+  .kit-page[data-kit='polishkit'] { --kit-accent: var(--polishkit); }
+  .kit-page[data-kit='flowkit'] { --kit-accent: var(--flowkit); }
+  .kit-page[data-kit='sessionkit'] { --kit-accent: var(--sessionkit); }
+  .kit-page[data-kit='vaultkit'] { --kit-accent: var(--vaultkit); }
+  .kit-page[data-kit='squadkit'] { --kit-accent: var(--squadkit); }
 
   .kit-page__header {
     border-left: 4px solid var(--kit-accent);

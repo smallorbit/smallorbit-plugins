@@ -1,7 +1,6 @@
 ---
 name: flowkit
 role: Git workflow automation — branching, PRs, releases, and hotfixes
-accentColor: "var(--flowkit)"
 oneLiner: Ship features faster with opinionated Git flow built for Claude Code.
 commands:
   - /flowkit:create-branch

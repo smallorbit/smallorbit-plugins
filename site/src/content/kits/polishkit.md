@@ -1,7 +1,6 @@
 ---
 name: polishkit
 role: Polish it — appraise craft, sweep cruft, polish cross-cutting issues
-accentColor: "var(--polishkit)"
 oneLiner: Codebase quality toolkit — score craft across 5 dimensions, sweep dead code and stale artifacts, polish cross-cutting fixes in one PR.
 commands:
   - /polishkit:appraise

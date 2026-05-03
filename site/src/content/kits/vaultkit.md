@@ -1,7 +1,6 @@
 ---
 name: vaultkit
 role: Capture it — Obsidian vault skills for notes, projects, and archives
-accentColor: "var(--vaultkit)"
 oneLiner: Read, search, edit, and capture into an Obsidian vault — projects, decisions, and conversation archives, all via the Obsidian CLI.
 commands:
   - /vaultkit:obsidian

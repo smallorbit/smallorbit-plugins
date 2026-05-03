@@ -1,7 +1,6 @@
 ---
 name: speckit
 role: Plan it — interview-driven planning and issue capture
-accentColor: "var(--speckit)"
 oneLiner: Define and capture work as GitHub issues — interview a feature into existence, bulk-convert findings, or quickly file a single issue.
 commands:
   - /speckit:interview

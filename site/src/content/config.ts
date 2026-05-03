@@ -57,7 +57,6 @@ const kits = defineCollection({
   schema: z.object({
     name: z.string(),
     role: z.string(),
-    accentColor: z.string(),
     oneLiner: z.string(),
     commands: z.array(z.string()).default([]),
     summary: z.string(),
