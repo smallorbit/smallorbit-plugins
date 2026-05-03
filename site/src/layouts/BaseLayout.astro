@@ -3,7 +3,7 @@ import TopNav from '../components/nav/TopNav.astro';
 import '../styles/tokens.css';
 import '../styles/reset.css';
 import '../styles/typography.css';
-import '../styles/landing.css';
+import '../styles/base.css';
 
 interface Props {
   title?: string;
@@ -65,6 +65,10 @@ const rssUrl = `${siteOrigin}${baseHref}rss.xml`;
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Mona+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
     <slot name="head" />
   </head>
