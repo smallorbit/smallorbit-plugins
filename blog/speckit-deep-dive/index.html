@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.18.1"><title>Speckit: from one-liner to dispatchable epic</title><meta name="description" content="How the simple-vs-full classifier, four silent merge rules, and the epic:<slug> contract turn a vague idea into a labelled issue set the rest of the toolchain reads."><link rel="canonical" href="https://smallorbit.github.io/smallorbit-plugins/blog/speckit-deep-dive/"><meta property="og:type" content="article"><meta property="og:title" content="Speckit: from one-liner to dispatchable epic"><meta property="og:description" content="How the simple-vs-full classifier, four silent merge rules, and the epic:<slug> contract turn a vague idea into a labelled issue set the rest of the toolchain reads."><meta property="og:url" content="https://smallorbit.github.io/smallorbit-plugins/blog/speckit-deep-dive/"><meta property="og:image" content="https://smallorbit.github.io/smallorbit-plugins/og/speckit-deep-dive.png"><meta property="og:site_name" content="smallorbit-plugins"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Speckit: from one-liner to dispatchable epic"><meta name="twitter:description" content="How the simple-vs-full classifier, four silent merge rules, and the epic:<slug> contract turn a vague idea into a labelled issue set the rest of the toolchain reads."><meta name="twitter:image" content="https://smallorbit.github.io/smallorbit-plugins/og/speckit-deep-dive.png"><link rel="alternate" type="application/rss+xml" title="smallorbit-plugins blog" href="https://smallorbit.github.io/smallorbit-plugins/rss.xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Mona+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>.site-header[data-astro-cid-6324dzri]{border-bottom:1px solid var(--border);background:var(--bg-page)}.site-header__inner[data-astro-cid-6324dzri]{max-width:1080px;margin:0 auto;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1.5rem}.site-header__wordmark[data-astro-cid-6324dzri]{font-family:var(--sans);font-weight:600;font-size:1rem;color:var(--text-strong);text-decoration:none}.site-header__wordmark[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri]{display:flex;gap:1.25rem;align-items:center;font-size:.95rem}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]{color:var(--text);text-decoration:none;padding-bottom:2px;border-bottom:2px solid transparent}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri].is-active{color:var(--text-strong);border-bottom-color:var(--text-strong)}:root{--bg-page: #f8f6f1;--bg-raised: #ffffff;--bg-veil: #ede9e3;--text-strong: #1a1612;--text: #2e2a25;--text-muted: #737069;--text-dim: #8c8882;--color-bg: var(--bg-page);--color-text: var(--text);--color-accent: #4f46e5;--speckit: #7c3aed;--swarmkit: #166534;--polishkit: #b45309;--flowkit: #2563eb;--sessionkit: #a21caf;--vaultkit: #0f766e;--squadkit: #be123c;--link: #4f46e5;--link-hover: #3730a3;--link-visited: #475569;--border: #d4cfc8;--border-strong: #a8a29c;--r-xs: 4px;--r-sm: 6px;--r-md: 10px;--r-lg: 14px;--r-xl: 22px;--serif: "Fraunces", "Iowan Old Style", "Times New Roman", serif;--sans: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;--mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;--measure: 70ch}*,*:before,*:after{box-sizing:border-box}img,svg{max-width:100%;height:auto;display:block}:focus-visible{outline:2px solid var(--link);outline-offset:2px;border-radius:var(--r-xs)}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}html{background:var(--bg-page);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}body{margin:0;min-height:100vh;display:flex;flex-direction:column}a{color:var(--link);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{color:var(--link-hover)}a:visited{color:var(--link-visited)}main{flex:1 0 auto;width:100%}.site-footer{border-top:1px solid var(--border);background:var(--bg-page);margin-top:4rem}.site-footer__inner{max-width:1080px;margin:0 auto;padding:2rem 1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.5rem;font-size:.9rem;color:var(--text-muted)}.site-footer__links{display:flex;gap:1.25rem;flex-wrap:wrap}.site-footer__links a{color:var(--text);text-decoration:none}.site-footer__links a:hover{color:var(--text-strong);text-decoration:underline}
+</style>
+<link rel="stylesheet" href="/smallorbit-plugins/_astro/_slug_.DEniwu8Y.css"></head> <body> <header class="site-header" data-astro-cid-6324dzri> <div class="site-header__inner" data-astro-cid-6324dzri> <a class="site-header__wordmark" href="/smallorbit-plugins/" data-astro-cid-6324dzri>smallorbit-plugins</a> <nav class="site-header__nav" aria-label="Primary" data-astro-cid-6324dzri> <a href="/smallorbit-plugins/" data-astro-cid-6324dzri>Home</a> <a href="/smallorbit-plugins/blog/" class="is-active" aria-current="page" data-astro-cid-6324dzri>
+Blog
+</a> <a href="/smallorbit-plugins/about/" data-astro-cid-6324dzri>
+About
+</a> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer" data-astro-cid-6324dzri>GitHub</a> </nav> </div> </header>  <main>  <article class="post" style="--post-accent: var(--speckit, var(--color-accent));"> <header class="post__header"> <p class="post__kit">speckit</p> <h1 class="post__title">Speckit: from one-liner to dispatchable epic</h1> <p class="post__subtitle">How the simple-vs-full classifier, four silent merge rules, and the epic:&lt;slug&gt; contract turn a vague idea into a labelled issue set the rest of the toolchain reads.</p>  <div class="byline" data-astro-cid-kez4mygi> <div class="byline__avatar" aria-hidden="true" data-astro-cid-kez4mygi>S</div> <div class="byline__meta" data-astro-cid-kez4mygi> <div class="byline__author" data-astro-cid-kez4mygi>smallorbit</div> <div class="byline__details" data-astro-cid-kez4mygi> <time datetime="2026-05-03T00:00:00.000Z" data-astro-cid-kez4mygi>May 3, 2026</time>  <span class="byline__sep" aria-hidden="true" data-astro-cid-kez4mygi>&middot;</span> <span data-astro-cid-kez4mygi>11 min read</span>  </div> </div> </div>  <details class="audio-player" data-astro-cid-a4emertt> <summary class="audio-player__summary" data-astro-cid-a4emertt> <span class="audio-player__icon" aria-hidden="true" data-astro-cid-a4emertt>&#9658;</span> <span class="audio-player__label" data-astro-cid-a4emertt>Audio version</span>  </summary> <div class="audio-player__body" data-astro-cid-a4emertt> <p class="audio-player__placeholder" data-astro-cid-a4emertt>
+Audio voiceover coming soon.
+</p> </div> </details>  </header> <div class="post__body">  <p>Most “AI ticket writers” do one thing: take a prompt, emit one issue. That works until the prompt is <code>add tags to notes</code> — at which point a single ticket is wrong (the work spans four files), but four hand-written tickets are wronger (you’d file three docs tasks and forget the schema migration).</p>
+<p><code>speckit</code> solves a smaller problem than “AI ticket writer”. It interviews the idea, decides whether the result wants to be one issue or a labelled epic, silently merges over-decomposed fragments, and ends with a GitHub label that every other kit in the suite reads as a contract.</p>
+<p>This is what each of those decisions looks like up close.</p>
+<h2 id="section-1--the-simple-vs-full-classifier">Section 1 — The simple-vs-full classifier</h2>
+<p><code>speckit</code> ships four user-facing skills:</p>
+<ul>
+<li><code>/speckit:interview</code> — runs the structured interview standalone and emits a plan in plain Markdown.</li>
+<li><code>/speckit:spec</code> — the workhorse. Interviews you, builds a plan, files a GitHub epic plus child issues with consistent labels.</li>
+<li><code>/speckit:catalog</code> — bulk-converts pre-existing findings (a code review, a polishkit appraisal, a file of notes) into prioritised, labelled issues.</li>
+<li><code>/speckit:issue</code> — the quick path. Drafts and files a single issue from a one-line description, with duplicate detection.</li>
+</ul>
+<p>The interesting choice lives inside <code>/speckit:spec</code>. Before any interview begins, <code>/spec</code> does a quick codebase scan and classifies the request as <strong>simple</strong> or <strong>full</strong>. The simple-path heuristic is two AND-gated tests, taken straight from <code>plugins/speckit/skills/spec/SKILL.md</code>:</p>
+<ul>
+<li><strong>Single conceptual change</strong> — one cohesive behaviour, fix, or tweak. Not a bundle of independent changes hiding behind a shared theme.</li>
+<li><strong>Single file, or tightly co-located files in one skill/module directory</strong> — the work touches one file, or a small number of files inside one skill/module directory (e.g. <code>plugins/foo/skills/bar/*</code>).</li>
+</ul>
+<p>If both pass, you get the simple path: one lightweight interview round (1–3 questions), a single-task plan, and one standalone issue with no epic wiring at all. If either fails, you get the full path: the multi-round <code>speckit:interview</code> sub-skill, the silent consolidation pass (Section 2), and an epic plus child issues.</p>
+<p><strong>Takeaway:</strong> The classifier is an opinion about cost. A trivial change inflated into a multi-task epic is overhead masquerading as planning. Skipping the inflation is the entire point of the simple path.</p>
+<p>The classifier narrates inline when it’s confident. You’ll see something like:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>This looks like a single-file, single-concept change — running simple path</span></span></code></pre>
+<p>It only fires an <code>AskUserQuestion</code> routing prompt when the heuristic is genuinely ambiguous — typically a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope so file count is borderline.</p>
+<p>The plan-approval gate at the end of every run is also the escape hatch. A simple-path plan offers <code>Run full interview instead</code>. A full-path plan offers <code>Condense to single issue</code>. The classifier is doing first-cut routing, not committing you for the run.</p>
+<p>Here’s a real simple-path invocation against a single skill file:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">/speckit:spec</span><span style="color:#032F62"> drop</span><span style="color:#032F62"> the</span><span style="color:#032F62"> docs</span><span style="color:#032F62"> row</span><span style="color:#032F62"> from</span><span style="color:#032F62"> the</span><span style="color:#032F62"> tasks</span><span style="color:#032F62"> table</span><span style="color:#032F62"> when</span><span style="color:#032F62"> the</span><span style="color:#032F62"> plan</span><span style="color:#032F62"> is</span><span style="color:#032F62"> a</span><span style="color:#032F62"> pure</span><span style="color:#032F62"> refactor</span></span></code></pre>
+<p>The classifier sees one cohesive behaviour change and one file (<code>plugins/speckit/skills/interview/SKILL.md</code>). Both heuristic tests pass. It narrates the routing, runs one short <code>AskUserQuestion</code> round to tighten scope, and presents a one-task plan with the simple-path approval options:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Approve this plan and file the issue?</span></span>
+<span class="line"><span>  [ Approve and file ] [ Run full interview instead ] [ Adjust ] [ Cancel ]</span></span></code></pre>
+<p>On approval, <code>/spec</code> hands the single task to <code>/speckit:catalog</code> with <strong>no <code>--epic</code> flag</strong>. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue’s acceptance criteria). The team-readiness assessment is skipped — single-issue plans are never team-suitable.</p>
+<p>A request like <code>add tags to notes</code>, by contrast, fails the simple-path test on both axes (multiple conceptual changes; multiple files). It falls through to the full path:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">/speckit:spec</span><span style="color:#032F62"> add</span><span style="color:#032F62"> tags</span><span style="color:#032F62"> to</span><span style="color:#032F62"> notes</span></span></code></pre>
+<p>Five minutes of interview later, the result is an epic plus four children:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Filed epic: #101 Epic: Add tags to notes             label: epic:tags-notes</span></span>
+<span class="line"><span>Filed children:</span></span>
+<span class="line"><span>  #102 Extend Note schema with tags field            priority:high   type:feature</span></span>
+<span class="line"><span>  #103 Add tag input to NoteEditor                   priority:high   type:feature</span></span>
+<span class="line"><span>  #104 Render tag chips on note cards                priority:medium type:feature</span></span>
+<span class="line"><span>  #105 Filter notes by tag from the sidebar          priority:medium type:feature</span></span></code></pre>
+<p><strong>Takeaway:</strong> Use <code>/speckit:issue</code> when you already know exactly what to file. Use <code>/speckit:interview</code> to think out loud (no GitHub side-effects). Use <code>/speckit:spec</code> when you want the result to feed a swarm. Use <code>/speckit:catalog</code> when you have findings to bulk-load.</p>
+<h2 id="section-2--consolidation-signals">Section 2 — Consolidation signals</h2>
+<p>The full-path interview ends with a candidate task table. Before the plan is presented for approval, <code>speckit:interview</code> runs a <strong>silent consolidation pass</strong> that merges over-decomposed tasks. The user sees only the consolidated result.</p>
+<p>The four merge signals, taken verbatim from <code>plugins/speckit/skills/interview/SKILL.md</code>:</p>
+<ol>
+<li><strong>Same file + same logical change</strong> — both tasks touch only the same single file and address related changes to the same function, section, or config block.</li>
+<li><strong>Strict ordering, no standalone value</strong> — one task cannot ship without the other and provides no independent acceptance criteria (e.g. “wire up the X added in task A”).</li>
+<li><strong>Soft cap on epic size</strong> — after applying signals 1 and 2, if the consolidated task count is still greater than 4, run a second merge pass under looser interpretations of signals 1 and 2. The cap is a prompt to re-examine, not a hard limit.</li>
+<li><strong>Docs-only tail merge</strong> — if the auto-appended “Update documentation” task is the only remaining non-implementation task and the impl task(s) cover the same surface that docs would cover, fold docs into impl.</li>
+</ol>
+<p>Each signal is doing different work. Signal 1 catches duplication that snuck in because the interview asked separate questions about the same file. Signal 2 catches the “Add config option” / “Wire config option into handler” split that LLMs love to produce — the second task has no acceptance criteria the first doesn’t already imply. Signal 3 is the over-decomposition safety valve. Signal 4 prevents the auto-appended docs row from looking like work when it’s really just a checkbox on the impl row.</p>
+<p><strong>Takeaway:</strong> Consolidation is silent because the user shouldn’t have to understand the merge rules to get a clean plan. The rules exist so the approval surface stays small.</p>
+<p>When two tasks merge, the merge rules apply deterministically (also from the SKILL.md):</p>
+<ul>
+<li><strong>Priority</strong> — take the higher value (<code>high &gt; medium &gt; low</code>).</li>
+<li><strong>Category</strong> — take the higher-impact value (<code>bug &gt; refactor &gt; enhancement &gt; test &gt; docs</code>).</li>
+<li><strong>Description</strong> — preserve both originals as sub-bullets so no work item is lost.</li>
+<li><strong>Dependencies</strong> — remap: if task C depended on B, and A+B merged into A’, then C now depends on A’.</li>
+</ul>
+<p>That dependency remap matters more than it sounds. It’s why consolidation can be silent: downstream tasks don’t develop dangling references when their predecessor disappears into a merge.</p>
+<p>A worked before/after, lifted from the canonical example in <code>plugins/speckit/skills/interview/SKILL.md</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>BEFORE — three candidate tasks, signal 2 is about to fire on tasks 1 &amp; 2</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>| # | Title                                  | Depends On |</span></span>
+<span class="line"><span>|---|----------------------------------------|------------|</span></span>
+<span class="line"><span>| 1 | Add `autoRetry` config option          | —          |</span></span>
+<span class="line"><span>| 2 | Wire `autoRetry` into request handler  | 1          |</span></span>
+<span class="line"><span>| 3 | Add retry integration tests            | 2          |</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>AFTER — tasks 1+2 merge; task 3 remaps to depend on the merged result</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>| # | Title                                  | Depends On |</span></span>
+<span class="line"><span>|---|----------------------------------------|------------|</span></span>
+<span class="line"><span>| 1 | Add and wire `autoRetry` config option | —          |</span></span>
+<span class="line"><span>| 2 | Add retry integration tests            | 1          |</span></span></code></pre>
+<p>Task 2’s “wire it up” framing was the giveaway: it has no standalone acceptance criteria and cannot ship without task 1. After the merge, the description preserves both originals as sub-bullets — nothing was thrown away — but the approval surface is one task shorter. Task 3’s <code>Depends On</code> is automatically rewritten to point at the merged task.</p>
+<p><strong>Takeaway:</strong> Tasks that legitimately stand alone — different files, different surfaces, independent acceptance criteria — are never forced together. Consolidation eliminates redundancy, not distinction.</p>
+<h2 id="section-3--epic-labels-as-a-contract">Section 3 — Epic labels as a contract</h2>
+<p>When the full-path plan ships, every issue carries the same <code>epic:&lt;slug&gt;</code> label. That label is the contract.</p>
+<p>The slug is derived from the working epic title using the rules in <code>plugins/speckit/README.md</code>:</p>
+<ul>
+<li>Lowercase, kebab-case (words separated by single hyphens).</li>
+<li>Strip filler words: <code>the</code>, <code>a</code>, <code>an</code>, <code>enhance</code>, <code>add</code>, <code>update</code>, <code>to</code>, <code>for</code>, <code>of</code>, <code>in</code>.</li>
+<li>Cap the slug at 30 characters after the <code>epic:</code> prefix (the prefix doesn’t count).</li>
+</ul>
+<p>So <code>Add dark mode support</code> becomes <code>epic:dark-mode-support</code>. <code>Update the CSV export pipeline</code> becomes <code>epic:csv-export-pipeline</code>. Filler is gone, length is bounded, and the original title is recoverable from the label’s description (every <code>epic:&lt;slug&gt;</code> label is created with the description <code>Belongs to epic: &lt;epic title&gt;</code> and the shared color <code>#5319e7</code>).</p>
+<p>The slug is a proposal. Before any issues are filed, <code>/spec</code> shows the full plan with an editable line:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Epic label: epic:dark-mode-support</span></span></code></pre>
+<p>You can rename it before approval. After approval, the slug is the <strong>single source of truth</strong> — it flows verbatim into both the catalog handoff (applied to every child issue) and the epic tracking issue (applied as a label on the parent).</p>
+<p>If the label already exists in the repo, <code>/spec</code> doesn’t silently reuse it. It surfaces a warning and asks via <code>AskUserQuestion</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Label epic:dark-mode-support already exists in this repo.</span></span>
+<span class="line"><span>  [ Reuse existing label ] [ Pick a different slug ] [ Cancel ]</span></span></code></pre>
+<p>That gate is deliberate. The whole reason the label exists is so other kits can re-find the epic by name. Two epics sharing a slug would collapse them into a single filterable bucket — a silent failure that nothing downstream could detect.</p>
+<p><strong>Takeaway:</strong> The slug is a public name in the repo’s namespace. <code>speckit</code> treats it like one.</p>
+<p>Once filed, the label powers three workflows that nothing else has to coordinate.</p>
+<p><strong>Filter.</strong> Every child of the epic is a single <code>gh</code> query away:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">gh</span><span style="color:#032F62"> issue</span><span style="color:#032F62"> list</span><span style="color:#005CC5"> -l</span><span style="color:#032F62"> epic:dark-mode-support</span><span style="color:#005CC5"> --state</span><span style="color:#032F62"> open</span></span></code></pre>
+<p>That’s the entire scope of the epic at a glance. It’s also the query a code reviewer runs before opening a PR for any single child — you check what else is in flight under the same label, not what else is open in the repo.</p>
+<p><strong>Dispatch.</strong> The same label is the swarmkit handshake. When you fan out the epic, you don’t pass swarmkit a mental model of the work — you pass it the label:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">/swarmkit:swarm</span><span style="color:#005CC5"> 102</span><span style="color:#005CC5"> 103</span><span style="color:#005CC5"> 104</span><span style="color:#005CC5"> 105</span></span></code></pre>
+<p><code>/swarmkit:swarm</code> reads each issue, sees the shared <code>epic:dark-mode-support</code> label, and treats them as a coordinated stack rather than four unrelated jobs. The retargeting logic, the merge ordering, and the worktree provisioning all key off that shared label. Two days later, in a fresh session with no memory of the original interview, the swarm can still pick up the work — because the label survived the session boundary and the interview did not.</p>
+<p><strong>Release closing.</strong> When <code>/flowkit:release</code> promotes the RC to <code>main</code>, it closes referenced issues by walking the merged commits and matching <code>Closes #N</code> footers. The epic tracking issue itself is filed with a child checklist (<code>#102</code>, <code>#103</code>, <code>#104</code>, <code>#105</code>); GitHub auto-closes the parent when every child closes. The <code>epic:&lt;slug&gt;</code> label becomes the post-release filter (<code>gh issue list -l epic:dark-mode-support --state closed</code>) that confirms the epic shipped clean. Nothing in the release flow needed to know what <code>dark-mode-support</code> meant — it just needed the label to be consistent.</p>
+<p><strong>Takeaway:</strong> The contract is the label, not the interview. The interview’s conclusions are gone the moment <code>/spec</code> returns; the labels carry forward.</p>
+<p>A worked end-to-end example, with all three workflows in play:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D"># Day 1 — plan and file</span></span>
+<span class="line"><span style="color:#6F42C1">/speckit:spec</span><span style="color:#032F62"> add</span><span style="color:#032F62"> dark</span><span style="color:#032F62"> mode</span><span style="color:#032F62"> support</span></span>
+<span class="line"><span style="color:#6A737D"># (interview, four-task plan, approve, four children + epic filed under epic:dark-mode-support)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Day 2 — fresh session, swarm the children</span></span>
+<span class="line"><span style="color:#6F42C1">gh</span><span style="color:#032F62"> issue</span><span style="color:#032F62"> list</span><span style="color:#005CC5"> -l</span><span style="color:#032F62"> epic:dark-mode-support</span><span style="color:#005CC5"> --state</span><span style="color:#032F62"> open</span></span>
+<span class="line"><span style="color:#6F42C1">/swarmkit:swarm</span><span style="color:#005CC5"> 102</span><span style="color:#005CC5"> 103</span><span style="color:#005CC5"> 104</span><span style="color:#005CC5"> 105</span></span>
+<span class="line"><span style="color:#6A737D"># (four agents, four stacked PRs, all retargeted to develop)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Day 3 — ship</span></span>
+<span class="line"><span style="color:#6F42C1">/flowkit:ship</span></span>
+<span class="line"><span style="color:#6A737D"># (merge-stack → cut → release. Children close on merge; epic auto-closes when all children close.)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Confirm</span></span>
+<span class="line"><span style="color:#6F42C1">gh</span><span style="color:#032F62"> issue</span><span style="color:#032F62"> list</span><span style="color:#005CC5"> -l</span><span style="color:#032F62"> epic:dark-mode-support</span><span style="color:#005CC5"> --state</span><span style="color:#032F62"> closed</span></span></code></pre>
+<p>The label is the only thing each step had to agree on. There’s no shared state file, no configuration, no in-memory plan being passed around. The interview happened on day 1; days 2 and 3 read the same label and acted on it independently.</p>
+<p><strong>Takeaway:</strong> Designing the handshake as a GitHub label (instead of a project file or a database row) is what makes the kits compose. Every tool that speaks GitHub already speaks the contract.</p>
+<h2 id="closing">Closing</h2>
+<p><code>speckit</code> isn’t “Claude writes you tickets”. It’s a small set of decisions about when not to over-decompose (the simple-path classifier), when to merge fragments that look like separate tasks (the four consolidation signals), and how to preserve the result so the rest of the toolchain can act on it (the <code>epic:&lt;slug&gt;</code> contract). Each of those decisions exists because the alternative — over-fragmented backlogs, redundant tasks, ad-hoc planning state that dies with the session — is the failure mode that the kit is built to avoid.</p>
+<p><strong>Takeaway recap.</strong></p>
+<ul>
+<li>The simple-vs-full classifier is an opinion about cost. Trivial work doesn’t deserve an epic.</li>
+<li>The four merge signals run silently because the user shouldn’t have to learn them to get a clean plan.</li>
+<li>The <code>epic:&lt;slug&gt;</code> label is the contract every other kit reads. The interview is gone; the label remains.</li>
+</ul>
+<p>If you’ve read the <a href="/blog/from-idea-to-release-with-smallorbit-plugins/">pillar post</a>, you’ve already seen the next move: the swarm. The same label <code>speckit</code> filed becomes the input that <code>swarmkit</code> fans out into stacked PRs. That’s the next deep-dive — how <code>/swarmkit:swarm</code> turns one label into N agents and one merge-safe stack of PRs.</p>  </div> <footer class="post__footer"> <aside class="inline-subscribe" data-todo="integrations-issue" data-astro-cid-2ues256z> <div class="inline-subscribe__copy" data-astro-cid-2ues256z> <h3 class="inline-subscribe__heading" data-astro-cid-2ues256z>Subscribe to smallorbit</h3> <p class="inline-subscribe__blurb" data-astro-cid-2ues256z>New posts on Claude Code plugins and shipping discipline, straight to your inbox.</p> </div> <form class="inline-subscribe__form" aria-label="Subscribe (placeholder until newsletter integration ships)" data-astro-cid-2ues256z> <label class="inline-subscribe__label" for="inline-subscribe-email" data-astro-cid-2ues256z>Email</label> <input id="inline-subscribe-email" type="email" placeholder="you@example.com" autocomplete="email" disabled data-astro-cid-2ues256z> <button type="submit" disabled data-astro-cid-2ues256z>Subscribe</button> </form> <p class="inline-subscribe__note" data-astro-cid-2ues256z>
+Placeholder &mdash; wired up once the newsletter integration ships.
+</p> </aside>  </footer> </article> <aside class="toc-ticks" aria-label="On this page" data-astro-cid-z6ev6ea4> <div class="toc-ticks__inner" data-astro-cid-z6ev6ea4> <p class="toc-ticks__label" data-astro-cid-z6ev6ea4>On this page</p> <ul class="toc-ticks__list" data-content-selector=".post__body" data-heading-selector="h2, h3" data-astro-cid-z6ev6ea4></ul> </div> </aside>  <script>
+  (function () {
+    const list = document.querySelector('.toc-ticks__list');
+    if (!list) return;
+    if (list.childElementCount > 0) return;
+
+    const contentSelector = list.getAttribute('data-content-selector') || '.post__body';
+    const headingSelector = list.getAttribute('data-heading-selector') || 'h2, h3';
+    const root = document.querySelector(contentSelector);
+    if (!root) return;
+
+    const headings = Array.from(root.querySelectorAll(headingSelector));
+    if (headings.length === 0) return;
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+    const itemMap = new Map();
+
+    headings.forEach((heading) => {
+      if (!heading.id) {
+        heading.id = slugify(heading.textContent || '');
+      }
+      const li = document.createElement('li');
+      li.setAttribute('data-level', heading.tagName.charAt(1));
+      li.setAttribute('data-target', heading.id);
+
+      const tick = document.createElement('span');
+      tick.className = 'toc-ticks__tick';
+      tick.setAttribute('aria-hidden', 'true');
+
+      const link = document.createElement('a');
+      link.href = '#' + heading.id;
+      link.textContent = heading.textContent || '';
+
+      li.appendChild(tick);
+      li.appendChild(link);
+      list.appendChild(li);
+      itemMap.set(heading.id, li);
+    });
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const visible = new Set();
+
+    const updateActive = () => {
+      itemMap.forEach((li, id) => {
+        if (visible.has(id)) {
+          li.classList.add('is-visible');
+        } else {
+          li.classList.remove('is-visible');
+        }
+        li.classList.remove('is-active');
+      });
+      const visibleIds = Array.from(visible);
+      if (visibleIds.length > 0) {
+        const firstId = visibleIds[0];
+        const firstLi = itemMap.get(firstId);
+        if (firstLi) firstLi.classList.add('is-active');
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.add(entry.target.id);
+          } else {
+            visible.delete(entry.target.id);
+          }
+        });
+        updateActive();
+      },
+      { rootMargin: '0px 0px -60% 0px', threshold: 0 }
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+
+    if (reduceMotion) {
+      list.querySelectorAll('a').forEach((a) => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = a.getAttribute('href')?.slice(1);
+          if (!id) return;
+          const target = document.getElementById(id);
+          if (target) target.scrollIntoView({ behavior: 'auto' });
+        });
+      });
+    }
+  })();
+</script>  </main> <footer class="site-footer"> <div class="site-footer__inner"> <span>&copy; 2026 smallorbit &middot; Plan, execute, and ship.</span> <div class="site-footer__links"> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer">GitHub</a> <a href="https://claude.com/claude-code" rel="noopener noreferrer">Claude Code</a> <a href="https://smallorbit.github.io/smallorbit-plugins/rss.xml">RSS</a> </div> </div> </footer> </body></html> <script>
+  (function () {
+    const setup = () => {
+      document.querySelectorAll('.post__body pre').forEach((pre) => {
+        if (pre.querySelector('.code-copy-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'code-copy-btn';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', 'Copy code to clipboard');
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code');
+          if (!code) return;
+          const text = code.innerText;
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied';
+            btn.dataset.copied = 'true';
+            setTimeout(() => {
+              btn.textContent = 'Copy';
+              btn.dataset.copied = 'false';
+            }, 1600);
+          } catch (err) {
+            btn.textContent = 'Failed';
+          }
+        });
+        pre.appendChild(btn);
+      });
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>

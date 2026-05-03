@@ -1,0 +1,311 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.18.1"><title>flowkit: runtime staging detection, two preview-epic models, and CalVer with a .N hotfix suffix</title><meta name="description" content="Three small opinions doing most of the load-bearing work in the kit that ships your code."><link rel="canonical" href="https://smallorbit.github.io/smallorbit-plugins/blog/flowkit-deep-dive/"><meta property="og:type" content="article"><meta property="og:title" content="flowkit: runtime staging detection, two preview-epic models, and CalVer with a .N hotfix suffix"><meta property="og:description" content="Three small opinions doing most of the load-bearing work in the kit that ships your code."><meta property="og:url" content="https://smallorbit.github.io/smallorbit-plugins/blog/flowkit-deep-dive/"><meta property="og:image" content="https://smallorbit.github.io/smallorbit-plugins/og/flowkit-deep-dive.png"><meta property="og:site_name" content="smallorbit-plugins"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="flowkit: runtime staging detection, two preview-epic models, and CalVer with a .N hotfix suffix"><meta name="twitter:description" content="Three small opinions doing most of the load-bearing work in the kit that ships your code."><meta name="twitter:image" content="https://smallorbit.github.io/smallorbit-plugins/og/flowkit-deep-dive.png"><link rel="alternate" type="application/rss+xml" title="smallorbit-plugins blog" href="https://smallorbit.github.io/smallorbit-plugins/rss.xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Mona+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>.site-header[data-astro-cid-6324dzri]{border-bottom:1px solid var(--border);background:var(--bg-page)}.site-header__inner[data-astro-cid-6324dzri]{max-width:1080px;margin:0 auto;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1.5rem}.site-header__wordmark[data-astro-cid-6324dzri]{font-family:var(--sans);font-weight:600;font-size:1rem;color:var(--text-strong);text-decoration:none}.site-header__wordmark[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri]{display:flex;gap:1.25rem;align-items:center;font-size:.95rem}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]{color:var(--text);text-decoration:none;padding-bottom:2px;border-bottom:2px solid transparent}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri].is-active{color:var(--text-strong);border-bottom-color:var(--text-strong)}:root{--bg-page: #f8f6f1;--bg-raised: #ffffff;--bg-veil: #ede9e3;--text-strong: #1a1612;--text: #2e2a25;--text-muted: #737069;--text-dim: #8c8882;--color-bg: var(--bg-page);--color-text: var(--text);--color-accent: #4f46e5;--speckit: #7c3aed;--swarmkit: #166534;--polishkit: #b45309;--flowkit: #2563eb;--sessionkit: #a21caf;--vaultkit: #0f766e;--squadkit: #be123c;--link: #4f46e5;--link-hover: #3730a3;--link-visited: #475569;--border: #d4cfc8;--border-strong: #a8a29c;--r-xs: 4px;--r-sm: 6px;--r-md: 10px;--r-lg: 14px;--r-xl: 22px;--serif: "Fraunces", "Iowan Old Style", "Times New Roman", serif;--sans: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;--mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;--measure: 70ch}*,*:before,*:after{box-sizing:border-box}img,svg{max-width:100%;height:auto;display:block}:focus-visible{outline:2px solid var(--link);outline-offset:2px;border-radius:var(--r-xs)}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}html{background:var(--bg-page);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}body{margin:0;min-height:100vh;display:flex;flex-direction:column}a{color:var(--link);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{color:var(--link-hover)}a:visited{color:var(--link-visited)}main{flex:1 0 auto;width:100%}.site-footer{border-top:1px solid var(--border);background:var(--bg-page);margin-top:4rem}.site-footer__inner{max-width:1080px;margin:0 auto;padding:2rem 1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.5rem;font-size:.9rem;color:var(--text-muted)}.site-footer__links{display:flex;gap:1.25rem;flex-wrap:wrap}.site-footer__links a{color:var(--text);text-decoration:none}.site-footer__links a:hover{color:var(--text-strong);text-decoration:underline}
+</style>
+<link rel="stylesheet" href="/smallorbit-plugins/_astro/_slug_.DEniwu8Y.css"></head> <body> <header class="site-header" data-astro-cid-6324dzri> <div class="site-header__inner" data-astro-cid-6324dzri> <a class="site-header__wordmark" href="/smallorbit-plugins/" data-astro-cid-6324dzri>smallorbit-plugins</a> <nav class="site-header__nav" aria-label="Primary" data-astro-cid-6324dzri> <a href="/smallorbit-plugins/" data-astro-cid-6324dzri>Home</a> <a href="/smallorbit-plugins/blog/" class="is-active" aria-current="page" data-astro-cid-6324dzri>
+Blog
+</a> <a href="/smallorbit-plugins/about/" data-astro-cid-6324dzri>
+About
+</a> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer" data-astro-cid-6324dzri>GitHub</a> </nav> </div> </header>  <main>  <article class="post" style="--post-accent: var(--flowkit, var(--color-accent));"> <header class="post__header"> <p class="post__kit">flowkit</p> <h1 class="post__title">flowkit: runtime staging detection, two preview-epic models, and CalVer with a .N hotfix suffix</h1> <p class="post__subtitle">Three small opinions doing most of the load-bearing work in the kit that ships your code.</p>  <div class="byline" data-astro-cid-kez4mygi> <div class="byline__avatar" aria-hidden="true" data-astro-cid-kez4mygi>S</div> <div class="byline__meta" data-astro-cid-kez4mygi> <div class="byline__author" data-astro-cid-kez4mygi>smallorbit</div> <div class="byline__details" data-astro-cid-kez4mygi> <time datetime="2026-05-03T00:00:00.000Z" data-astro-cid-kez4mygi>May 3, 2026</time>  <span class="byline__sep" aria-hidden="true" data-astro-cid-kez4mygi>&middot;</span> <span data-astro-cid-kez4mygi>13 min read</span>  </div> </div> </div>  <details class="audio-player" data-astro-cid-a4emertt> <summary class="audio-player__summary" data-astro-cid-a4emertt> <span class="audio-player__icon" aria-hidden="true" data-astro-cid-a4emertt>&#9658;</span> <span class="audio-player__label" data-astro-cid-a4emertt>Audio version</span>  </summary> <div class="audio-player__body" data-astro-cid-a4emertt> <p class="audio-player__placeholder" data-astro-cid-a4emertt>
+Audio voiceover coming soon.
+</p> </div> </details>  </header> <div class="post__body">  <p>flowkit ships your code. That sounds like the boring half of a development loop until you’ve spent a Friday afternoon trying to back out a release because your config file said “staging” and your branches said otherwise, or trying to reason about which <code>v1.4.7</code> is the one in production after three back-to-back hotfixes.</p>
+<p>This deep-dive walks the three opinions that do most of the load-bearing work inside flowkit: the kit detects staging by probing branches at runtime instead of reading config; <code>/preview-epic</code> ships two distinct verify models because there are two distinct ways to assemble an epic; and the version scheme is CalVer with a <code>.N</code> hotfix suffix, deliberately, for a plugin marketplace where SemVer’s promises don’t apply.</p>
+<h2 id="runtime-staging-detection-branch-presence-is-the-only-signal">Runtime staging detection: branch presence is the only signal</h2>
+<p>The skill that exposes this most cleanly is <code>/cut</code>. From the SKILL:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> ls-remote</span><span style="color:#005CC5"> --exit-code</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> staging</span><span style="color:#24292E"> &amp;</span><span style="color:#D73A49">&gt;</span><span style="color:#24292E">/dev/null &amp;&amp; STAGING_EXISTS</span><span style="color:#D73A49">=</span><span style="color:#032F62">true</span><span style="color:#D73A49"> ||</span><span style="color:#24292E"> STAGING_EXISTS</span><span style="color:#D73A49">=</span><span style="color:#032F62">false</span></span></code></pre>
+<p>That single probe is the entire staging-detection mechanism. No config file. No environment variable. No setup wizard. The branch’s presence on <code>origin</code> is the sole signal.</p>
+<p>The same probe runs in five different skills — <code>/cut</code>, <code>/stage</code>, <code>/release</code>, <code>/pipeline-status</code>, and <code>/hotfix</code> — and each one branches on the result the same way:</p>
+<ul>
+<li><strong>Staging exists</strong> → <code>/cut</code> pushes the RC to <code>staging</code> (via <code>/stage</code>); <code>/release</code> merges <code>staging</code> → <code>main</code>.</li>
+<li><strong>Staging absent</strong> → the RC merges directly to <code>main</code>. The intermediate hop simply doesn’t happen.</li>
+</ul>
+<p>To add a staging environment to a project, you create the branch:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> checkout</span><span style="color:#005CC5"> -b</span><span style="color:#032F62"> staging</span><span style="color:#032F62"> main</span><span style="color:#24292E"> &amp;&amp; </span><span style="color:#6F42C1">git</span><span style="color:#032F62"> push</span><span style="color:#005CC5"> -u</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> staging</span></span></code></pre>
+<p>From that moment on, every flowkit release skill picks it up automatically. To remove staging, delete the branch. There is no other knob. The <code>/stage</code> skill is explicit about handling the absent case as a non-error:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> ls-remote</span><span style="color:#005CC5"> --exit-code</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> staging</span><span style="color:#24292E"> &amp;</span><span style="color:#D73A49">&gt;</span><span style="color:#24292E">/dev/null </span><span style="color:#D73A49">||</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#005CC5">  echo</span><span style="color:#032F62"> &quot;No staging branch on origin — skipping.&quot;</span></span>
+<span class="line"><span style="color:#005CC5">  exit</span><span style="color:#005CC5"> 0</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>It’s a graceful no-op, not an error. Repos without a staging branch use <code>rc → main</code> directly.</p>
+<p><strong>Takeaway:</strong> Configuration that lives in the repo’s actual state — does this branch exist? — is harder to forget, easier to migrate, and impossible to have in two minds about.</p>
+<p>The alternative would be a config file (<code>.flowkit/staging.json</code> or similar) saying <code>&quot;useStaging&quot;: true</code>. That alternative has three failure modes that probing branches doesn’t:</p>
+<ul>
+<li>The config can drift from reality (file says yes, branch doesn’t exist; file says no, branch exists and people are deploying to it).</li>
+<li>The config has to be set up in every new repo before flowkit works.</li>
+<li>The config has to be migrated when the convention changes — and “the convention changes” is the thing that happens, every time.</li>
+</ul>
+<p>Probing avoids all three. The only way the probe can be wrong is if <code>origin/staging</code> is in a state nobody intends, and that’s a problem you want to surface immediately, not paper over.</p>
+<p>There’s a small follow-on: because the probe is the contract, <em>any</em> tool downstream of flowkit can apply the same rule and stay consistent. CI, deploy scripts, dashboards. The shared signal is <code>origin/staging exists?</code> — not <code>which version of which config file does each surface have access to?</code>.</p>
+<p><strong>Takeaway:</strong> Five skills, one probe, one branch. If you want staging, you create the branch. If you don’t, you don’t. Everything else follows from that.</p>
+<h2 id="preview-epic-model-a-vs-model-b">/preview-epic: Model A vs Model B</h2>
+<p><code>/preview-epic</code> is the lifeline for multi-PR features. Each child PR’s CI is green against its own base, but the union may not compile or pass tests. <code>/preview-epic</code> answers “does the integrated state actually work?” before you find out the hard way at merge time.</p>
+<p>The interesting design choice is that the kit ships <em>two</em> preview models, and the dispatcher picks between them based on what it sees on the remote. Both models share an entry point (<code>/preview-epic</code>); both produce the same shape of output (typecheck / test / lint outcomes plus a stack composition). They differ in how the integrated state is assembled.</p>
+<h3 id="model-a--stacked-prs-octopus-merge-into-a-throwaway-preview">Model A — stacked PRs (octopus merge into a throwaway preview)</h3>
+<p>Model A is for epics where every contribution is still an <em>open</em> PR, with each PR’s <code>baseRefName</code> pointing at the previous PR’s <code>headRefName</code>, ultimately rooting at the base branch. This is the swarmkit shape — <code>/swarm</code> produces a stack of open PRs that haven’t merged yet.</p>
+<p>The integrated state has to be synthesized locally. From <code>flowkit:preview-epic-stacked</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> fetch</span><span style="color:#032F62"> origin</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> checkout</span><span style="color:#005CC5"> -b</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$PREVIEW_BRANCH</span><span style="color:#032F62">&quot;</span><span style="color:#032F62"> &quot;origin/</span><span style="color:#24292E">$BASE_BRANCH</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Try octopus first — combines every head in one commit</span></span>
+<span class="line"><span style="color:#24292E">HEADS</span><span style="color:#D73A49">=</span><span style="color:#24292E">$(</span><span style="color:#005CC5">printf</span><span style="color:#032F62"> &#39;origin/%s &#39;</span><span style="color:#032F62"> &quot;${</span><span style="color:#24292E">STACK_HEADS</span><span style="color:#032F62">[</span><span style="color:#D73A49">@</span><span style="color:#032F62">]}&quot;</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">if</span><span style="color:#6F42C1"> git</span><span style="color:#032F62"> merge</span><span style="color:#005CC5"> --no-ff</span><span style="color:#005CC5"> -m</span><span style="color:#032F62"> &quot;preview: epic ${</span><span style="color:#24292E">PREVIEW_BRANCH</span><span style="color:#032F62">}&quot;</span><span style="color:#24292E"> $HEADS; </span><span style="color:#D73A49">then</span></span>
+<span class="line"><span style="color:#24292E">  STRATEGY</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;octopus&quot;</span></span>
+<span class="line"><span style="color:#D73A49">else</span></span>
+<span class="line"><span style="color:#6F42C1">  git</span><span style="color:#032F62"> merge</span><span style="color:#005CC5"> --abort</span></span>
+<span class="line"><span style="color:#24292E">  STRATEGY</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;sequential&quot;</span></span>
+<span class="line"><span style="color:#D73A49">fi</span></span></code></pre>
+<p>Octopus merge succeeds only if every branch merges cleanly together. When it fails, the sub-skill falls back to a sequential merge — one head at a time in stack order, root to leaf, halting on the first conflict and reporting which PR introduced it.</p>
+<p>The preview branch is local-only. Nothing is pushed. The branch name (<code>preview/&lt;root-num&gt;-&lt;root-slug&gt;</code>) is collision-checked against any existing local branch and disambiguated with <code>-2</code>, <code>-3</code>, etc. After the merge succeeds, the verify commands resolved from <code>.squadkit/config.json</code> (or, for any missing command, asked of the user via <code>AskUserQuestion</code>) run against the synthesized tree:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#24292E">[[ </span><span style="color:#D73A49">-n</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$INSTALL</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">   ]] &amp;&amp; </span><span style="color:#005CC5">eval</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$INSTALL</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#24292E">[[ </span><span style="color:#D73A49">-n</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$TYPECHECK</span><span style="color:#032F62">&quot;</span><span style="color:#24292E"> ]] &amp;&amp; </span><span style="color:#005CC5">eval</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$TYPECHECK</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#24292E">[[ </span><span style="color:#D73A49">-n</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$TEST</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">      ]] &amp;&amp; </span><span style="color:#005CC5">eval</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$TEST</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#24292E">[[ </span><span style="color:#D73A49">-n</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$LINT</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">      ]] &amp;&amp; </span><span style="color:#005CC5">eval</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$LINT</span><span style="color:#032F62">&quot;</span></span></code></pre>
+<p>When all green, the suggested next step is <code>swarmkit:merge-stack</code>. When the merge or verify fails, the report names the offending PR and stops.</p>
+<p><strong>Takeaway:</strong> Model A synthesizes. The integrated state doesn’t exist anywhere on the remote — you build it locally to ask the question.</p>
+<h3 id="model-b--direct-merge-to-epic-verify-on-the-epic-head">Model B — direct-merge-to-epic (verify on the epic HEAD)</h3>
+<p>Model B is for epics where a long-lived <code>feature/&lt;slug&gt;-&lt;issue&gt;</code> branch exists, and child PRs squash-merge <em>into the epic branch</em> and close. The epic HEAD already <em>is</em> the integrated state. Nothing to synthesize. Just fetch and verify:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> fetch</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;:&quot;refs/remotes/origin/</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">if</span><span style="color:#6F42C1"> git</span><span style="color:#032F62"> show-ref</span><span style="color:#005CC5"> --verify</span><span style="color:#005CC5"> --quiet</span><span style="color:#032F62"> &quot;refs/heads/</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">; </span><span style="color:#D73A49">then</span></span>
+<span class="line"><span style="color:#6F42C1">  git</span><span style="color:#032F62"> checkout</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#6F42C1">  git</span><span style="color:#032F62"> pull</span><span style="color:#005CC5"> --ff-only</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#D73A49">else</span></span>
+<span class="line"><span style="color:#6F42C1">  git</span><span style="color:#032F62"> checkout</span><span style="color:#005CC5"> -b</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span><span style="color:#032F62"> &quot;origin/</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#D73A49">fi</span></span></code></pre>
+<p>Then run the same verify commands. When all green, the suggested next step is <code>gh pr create --base &quot;$BASE_BRANCH&quot; --head &quot;$EPIC_BRANCH&quot;</code> — the final epic-to-base PR.</p>
+<p><strong>Takeaway:</strong> Model B doesn’t synthesize. The integrated state already exists on the long-lived feature branch — you just fetch it and run verify against the HEAD.</p>
+<h3 id="how-the-dispatcher-picks">How the dispatcher picks</h3>
+<p><code>/preview-epic</code> itself is a dispatcher. From <code>flowkit:preview-epic</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#24292E">OPEN_AGAINST_EPIC</span><span style="color:#D73A49">=</span><span style="color:#24292E">$(</span><span style="color:#6F42C1">gh</span><span style="color:#032F62"> pr</span><span style="color:#032F62"> list</span><span style="color:#005CC5"> --state</span><span style="color:#032F62"> open</span><span style="color:#005CC5"> --base</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span><span style="color:#005CC5"> --limit</span><span style="color:#005CC5"> 200</span><span style="color:#005CC5"> --json</span><span style="color:#032F62"> number</span><span style="color:#005CC5"> --jq</span><span style="color:#032F62"> &#39;length&#39;</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> [[ </span><span style="color:#032F62">&quot;</span><span style="color:#24292E">$OPEN_AGAINST_EPIC</span><span style="color:#032F62">&quot;</span><span style="color:#D73A49"> -gt</span><span style="color:#005CC5"> 0</span><span style="color:#24292E"> ]]; </span><span style="color:#D73A49">then</span></span>
+<span class="line"><span style="color:#24292E">  MODEL</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;A&quot;</span></span>
+<span class="line"><span style="color:#D73A49">elif</span><span style="color:#6F42C1"> git</span><span style="color:#032F62"> ls-remote</span><span style="color:#005CC5"> --exit-code</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$EPIC_BRANCH</span><span style="color:#032F62">&quot;</span><span style="color:#D73A49"> &gt;</span><span style="color:#032F62">/dev/null</span><span style="color:#D73A49"> 2&gt;&amp;1</span><span style="color:#24292E">; </span><span style="color:#D73A49">then</span></span>
+<span class="line"><span style="color:#24292E">  MODEL</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;B&quot;</span></span>
+<span class="line"><span style="color:#D73A49">else</span></span>
+<span class="line"><span style="color:#24292E">  MODEL</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;none&quot;</span></span>
+<span class="line"><span style="color:#D73A49">fi</span></span></code></pre>
+<p>The decision is purely structural. If there are open PRs targeting the epic branch, Model A applies — there’s a stack to synthesize. If there are zero open PRs but the epic branch exists on <code>origin</code> (typically with squash-merged contributions accumulated), Model B applies. If neither, there’s nothing to preview and the dispatcher stops.</p>
+<p>The dispatcher then invokes the matching sub-skill via the <code>Skill</code> tool, passing structured arguments:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Skill(&quot;flowkit:preview-epic-stacked&quot;, &quot;--base develop --epic feature/payments-42 123&quot;)</span></span>
+<span class="line"><span>Skill(&quot;flowkit:preview-epic-direct&quot;,  &quot;--base develop --epic feature/payments-42&quot;)</span></span></code></pre>
+<p><strong>Takeaway:</strong> Two models, one dispatcher, structural detection. You never have to remember which model your epic uses — the kit looks at the remote and picks.</p>
+<p>A small but important detail: the dispatcher never edits PR metadata. It inspects, classifies, dispatches. PR retargeting is <code>swarmkit:merge-stack</code>’s job, and there’s no overlap. From the SKILL: “No PR retargeting. This skill inspects PR metadata but never edits it. Use <code>swarmkit:merge-stack</code> for retargeting.”</p>
+<h2 id="calver-plus-the-n-hotfix-suffix">CalVer plus the <code>.N</code> hotfix suffix</h2>
+<p>flowkit uses CalVer — releases tag as <code>vYYYY.M.D</code>. From the README:</p>
+<blockquote>
+<p>Production releases are tagged with a calendar-versioned tag (e.g., <code>v2026.4.16</code>). Multiple releases on the same day append a counter (e.g., <code>v2026.4.16-2</code>).</p>
+</blockquote>
+<p>The hotfix story extends the same shape:</p>
+<blockquote>
+<p>First hotfix on 2026-04-16: tag <code>v2026.4.16</code> + companion <code>hotfix/v2026.4.16</code>. A second hotfix the same day: <code>v2026.4.16.1</code> + companion <code>hotfix/v2026.4.16.1</code>.</p>
+</blockquote>
+<p>Two design decisions are stacked here. Each one is small. Together they avoid the common SemVer-on-a-marketplace failure modes.</p>
+<h3 id="why-calver-instead-of-semver">Why CalVer instead of SemVer</h3>
+<p>CalVer reads as time. <code>v2026.4.16</code> says “this is what shipped on April 16th, 2026.” That’s what the version is <em>for</em> on a plugin marketplace.</p>
+<p>SemVer reads as a contract. <code>v1.4.7</code> says “1.4.x is API-compatible with 1.4.6 and 1.5.0 may break things.” That contract is load-bearing when downstream consumers rely on the API surface and need to know whether a bump is safe to apply automatically. It is <em>not</em> load-bearing for a marketplace where:</p>
+<ul>
+<li>Each kit is independent — bumping <code>swarmkit</code> doesn’t compose with bumping <code>flowkit</code>.</li>
+<li>Users update them on their own cadence — there’s no <code>npm install --save-exact</code> story to protect.</li>
+<li>There’s no semantic-break promise to keep — the kit’s interface to its user is slash commands, and slash commands evolve in ways that don’t fit “MAJOR / MINOR / PATCH.”</li>
+</ul>
+<p>CalVer encodes the only information the marketplace consumer actually needs from the version string: when did this ship, and is it newer than the version I have. SemVer would encode information that doesn’t apply — and worse, would imply a contract the marketplace cannot enforce.</p>
+<p><strong>Takeaway:</strong> Use SemVer when you have a contract. Use CalVer when you have a release calendar.</p>
+<h3 id="why-the-n-hotfix-suffix">Why the <code>.N</code> hotfix suffix</h3>
+<p>A naive hotfix scheme would either reuse the day’s tag (which loses history) or jump to the next day (which lies about when the fix shipped). The <code>.N</code> suffix avoids both:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>v2026.4.16        # planned release on April 16</span></span>
+<span class="line"><span>v2026.4.16-2      # second planned release the same day</span></span>
+<span class="line"><span>v2026.4.16.1      # first hotfix on top of v2026.4.16</span></span>
+<span class="line"><span>v2026.4.16.2      # second hotfix</span></span></code></pre>
+<p>The <code>.N</code> suffix sorts naturally alongside scheduled releases in the tag history. <code>git tag --list &#39;v2026.4.16*&#39;</code> returns every tag from that day in lexical order, hotfixes interleaved with planned releases. That’s the order they shipped in, and the order you want to see them in when you’re tracing what was deployed when.</p>
+<p>The companion <code>hotfix/</code> tag does a different job. From <code>/hotfix</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#24292E">COMPANION</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;hotfix/</span><span style="color:#24292E">$TAG</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> tag</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$COMPANION</span><span style="color:#032F62">&quot;</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$TAG</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> push</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> &quot;</span><span style="color:#24292E">$COMPANION</span><span style="color:#032F62">&quot;</span></span></code></pre>
+<p>The companion tag points to the same commit as the canonical version tag, but lives in a different namespace. <code>git tag --list &#39;hotfix/*&#39;</code> returns every hotfix in the repo’s history without you having to remember which date carried one. The version namespace stays clean (no naming pollution from emergency releases); the hotfix namespace stays discoverable.</p>
+<p>The <code>/hotfix</code> skill itself encodes the rest of the emergency-release flow. From the SKILL:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D"># 1. Sync main</span></span>
+<span class="line"><span style="color:#6A737D"># 2. Create the hotfix branch from origin/main</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> checkout</span><span style="color:#005CC5"> -b</span><span style="color:#032F62"> &quot;hotfix/$(</span><span style="color:#6F42C1">date</span><span style="color:#032F62"> +%Y-%m-%d)-&lt;slug&gt;&quot;</span><span style="color:#032F62"> origin/main</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># 3. Wait for the user to apply the fix</span></span>
+<span class="line"><span style="color:#6A737D"># 4. Commit</span></span>
+<span class="line"><span style="color:#6A737D"># 5. Detect staging (so the back-merge knows what to do)</span></span>
+<span class="line"><span style="color:#6A737D"># 6. Scope the PR base to main (claude.flowkit.prBase = main)</span></span>
+<span class="line"><span style="color:#6A737D"># 7. Open the PR targeting main</span></span>
+<span class="line"><span style="color:#6A737D"># 8. Merge the PR into main</span></span>
+<span class="line"><span style="color:#6A737D"># 9. Unset the PR base scope</span></span>
+<span class="line"><span style="color:#6A737D"># 10. Tag — increment-on-collision, plus companion hotfix/ tag</span></span>
+<span class="line"><span style="color:#6A737D"># 11. Close referenced issues explicitly (idempotent)</span></span>
+<span class="line"><span style="color:#6A737D"># 12. Back-merge main into develop (preserves the merge commit&#39;s history)</span></span>
+<span class="line"><span style="color:#6A737D"># 13. Sync develop</span></span></code></pre>
+<p>Two steps deserve a closer look. Step 10 picks the next available <code>.N</code> automatically:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#24292E">BASE_TAG</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;v$(</span><span style="color:#6F42C1">date</span><span style="color:#032F62"> +%Y.%-m.%-d)&quot;</span></span>
+<span class="line"><span style="color:#24292E">N</span><span style="color:#D73A49">=</span><span style="color:#032F62">1</span></span>
+<span class="line"><span style="color:#24292E">TAG</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">$BASE_TAG</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#D73A49">while</span><span style="color:#6F42C1"> git</span><span style="color:#032F62"> ls-remote</span><span style="color:#005CC5"> --exit-code</span><span style="color:#032F62"> origin</span><span style="color:#032F62"> &quot;refs/tags/</span><span style="color:#24292E">$TAG</span><span style="color:#032F62">&quot;</span><span style="color:#24292E"> &amp;</span><span style="color:#D73A49">&gt;</span><span style="color:#24292E">/dev/null; </span><span style="color:#D73A49">do</span></span>
+<span class="line"><span style="color:#24292E">  TAG</span><span style="color:#D73A49">=</span><span style="color:#032F62">&quot;</span><span style="color:#24292E">$BASE_TAG</span><span style="color:#032F62">.</span><span style="color:#24292E">$N</span><span style="color:#032F62">&quot;</span></span>
+<span class="line"><span style="color:#24292E">  N</span><span style="color:#D73A49">=</span><span style="color:#24292E">$((</span><span style="color:#6F42C1">N</span><span style="color:#032F62"> +</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#D73A49">done</span></span></code></pre>
+<p>You don’t think about the version string. You ship the fix; the version string takes care of itself. The first hotfix on April 16 is <code>v2026.4.16.1</code> if <code>v2026.4.16</code> already exists, or <code>v2026.4.16</code> if it doesn’t (in which case the planned release of the day takes the next slot when it cuts).</p>
+<p>Step 12 uses <code>git merge --no-ff</code> — a real merge commit, not a fast-forward — so the release merge history stays visible in <code>develop</code> after the back-merge:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> merge</span><span style="color:#005CC5"> --no-ff</span><span style="color:#005CC5"> -m</span><span style="color:#032F62"> &quot;chore(develop): back-merge hotfix from main&quot;</span><span style="color:#032F62"> origin/main</span></span></code></pre>
+<p>A fast-forward back-merge would produce a clean linear history, but at the cost of erasing the fact that <em>this commit was a hotfix</em>. The <code>--no-ff</code> is deliberate — the history is the audit trail.</p>
+<p><strong>Takeaway:</strong> The <code>.N</code> suffix lets hotfixes coexist with planned releases in the same namespace, in the right order. The companion <code>hotfix/</code> tag keeps the fixes discoverable without polluting the version namespace. Neither piece is automatic in plain <code>git</code>; both are baked into the kit so you don’t have to remember.</p>
+<h2 id="putting-it-together">Putting it together</h2>
+<p>The shape of a flowkit release, end to end:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D"># After a swarm:</span></span>
+<span class="line"><span style="color:#6F42C1">/ship</span><span style="color:#6A737D">                            # merge-stack → cut → release, in one command</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Standard release without a swarm:</span></span>
+<span class="line"><span style="color:#6F42C1">/cut</span><span style="color:#6A737D">                             # rc/YYYY-MM-DD.N from develop;</span></span>
+<span class="line"><span style="color:#6A737D">                                 # auto-stages if origin/staging exists</span></span>
+<span class="line"><span style="color:#6F42C1">/release</span><span style="color:#6A737D">                         # detect staging at runtime,</span></span>
+<span class="line"><span style="color:#6A737D">                                 # merge to main, tag vYYYY.M.D,</span></span>
+<span class="line"><span style="color:#6A737D">                                 # close issues, clean up RC branches</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Emergency:</span></span>
+<span class="line"><span style="color:#6F42C1">/hotfix</span><span style="color:#032F62"> &quot;fix login crash&quot;</span><span style="color:#6A737D">        # off main, fix, PR, tag (.N if needed),</span></span>
+<span class="line"><span style="color:#6A737D">                                 # back-merge into develop</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D"># Multi-PR feature in flight:</span></span>
+<span class="line"><span style="color:#6F42C1">/cut-epic</span><span style="color:#D73A49"> &lt;</span><span style="color:#032F62">issu</span><span style="color:#24292E">e</span><span style="color:#D73A49">&gt;</span><span style="color:#6A737D">                # long-lived feature/&lt;slug&gt;-&lt;issue&gt; branch</span></span>
+<span class="line"><span style="color:#6F42C1">/preview-epic</span><span style="color:#6A737D">                    # auto-detect Model A or Model B,</span></span>
+<span class="line"><span style="color:#6A737D">                                 # run verify against the integrated state</span></span></code></pre>
+<p>Three opinions are doing the load-bearing work:</p>
+<ul>
+<li><strong>Runtime staging detection.</strong> A single <code>git ls-remote</code> probe replaces a config file, an env var, and a setup wizard. Branch presence is the only signal.</li>
+<li><strong>Two preview-epic models, one dispatcher.</strong> Stacked PRs synthesize an integrated state via octopus merge; long-lived epic branches verify directly on HEAD. Structural detection picks between them.</li>
+<li><strong>CalVer with a <code>.N</code> hotfix suffix.</strong> Time, not contract. Hotfixes interleave with planned releases in the same namespace, with a companion <code>hotfix/</code> tag in a separate namespace for discoverability.</li>
+</ul>
+<p>What flowkit is <em>not</em>: a thin wrapper over <code>git</code>. There are 22 skills in the kit and most of them are sub-skills the user-facing ones compose on. The opinions are the surface; the wiring is the depth.</p>
+<p><strong>Takeaway:</strong> flowkit is opinionated about staging, preview, and version strings, and the opinions are load-bearing. They look small individually. They add up to a release flow you can actually trust on a Friday.</p>
+<p>For the swarm that produces the work flowkit ships, see the <a href="/blog/swarmkit-deep-dive">swarmkit deep-dive</a>. For the quality gate that sits between merge and ship, see the <a href="/blog/polishkit-deep-dive">polishkit deep-dive</a>.</p>  </div> <footer class="post__footer"> <aside class="inline-subscribe" data-todo="integrations-issue" data-astro-cid-2ues256z> <div class="inline-subscribe__copy" data-astro-cid-2ues256z> <h3 class="inline-subscribe__heading" data-astro-cid-2ues256z>Subscribe to smallorbit</h3> <p class="inline-subscribe__blurb" data-astro-cid-2ues256z>New posts on Claude Code plugins and shipping discipline, straight to your inbox.</p> </div> <form class="inline-subscribe__form" aria-label="Subscribe (placeholder until newsletter integration ships)" data-astro-cid-2ues256z> <label class="inline-subscribe__label" for="inline-subscribe-email" data-astro-cid-2ues256z>Email</label> <input id="inline-subscribe-email" type="email" placeholder="you@example.com" autocomplete="email" disabled data-astro-cid-2ues256z> <button type="submit" disabled data-astro-cid-2ues256z>Subscribe</button> </form> <p class="inline-subscribe__note" data-astro-cid-2ues256z>
+Placeholder &mdash; wired up once the newsletter integration ships.
+</p> </aside>  </footer> </article> <aside class="toc-ticks" aria-label="On this page" data-astro-cid-z6ev6ea4> <div class="toc-ticks__inner" data-astro-cid-z6ev6ea4> <p class="toc-ticks__label" data-astro-cid-z6ev6ea4>On this page</p> <ul class="toc-ticks__list" data-content-selector=".post__body" data-heading-selector="h2, h3" data-astro-cid-z6ev6ea4></ul> </div> </aside>  <script>
+  (function () {
+    const list = document.querySelector('.toc-ticks__list');
+    if (!list) return;
+    if (list.childElementCount > 0) return;
+
+    const contentSelector = list.getAttribute('data-content-selector') || '.post__body';
+    const headingSelector = list.getAttribute('data-heading-selector') || 'h2, h3';
+    const root = document.querySelector(contentSelector);
+    if (!root) return;
+
+    const headings = Array.from(root.querySelectorAll(headingSelector));
+    if (headings.length === 0) return;
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+    const itemMap = new Map();
+
+    headings.forEach((heading) => {
+      if (!heading.id) {
+        heading.id = slugify(heading.textContent || '');
+      }
+      const li = document.createElement('li');
+      li.setAttribute('data-level', heading.tagName.charAt(1));
+      li.setAttribute('data-target', heading.id);
+
+      const tick = document.createElement('span');
+      tick.className = 'toc-ticks__tick';
+      tick.setAttribute('aria-hidden', 'true');
+
+      const link = document.createElement('a');
+      link.href = '#' + heading.id;
+      link.textContent = heading.textContent || '';
+
+      li.appendChild(tick);
+      li.appendChild(link);
+      list.appendChild(li);
+      itemMap.set(heading.id, li);
+    });
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const visible = new Set();
+
+    const updateActive = () => {
+      itemMap.forEach((li, id) => {
+        if (visible.has(id)) {
+          li.classList.add('is-visible');
+        } else {
+          li.classList.remove('is-visible');
+        }
+        li.classList.remove('is-active');
+      });
+      const visibleIds = Array.from(visible);
+      if (visibleIds.length > 0) {
+        const firstId = visibleIds[0];
+        const firstLi = itemMap.get(firstId);
+        if (firstLi) firstLi.classList.add('is-active');
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.add(entry.target.id);
+          } else {
+            visible.delete(entry.target.id);
+          }
+        });
+        updateActive();
+      },
+      { rootMargin: '0px 0px -60% 0px', threshold: 0 }
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+
+    if (reduceMotion) {
+      list.querySelectorAll('a').forEach((a) => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = a.getAttribute('href')?.slice(1);
+          if (!id) return;
+          const target = document.getElementById(id);
+          if (target) target.scrollIntoView({ behavior: 'auto' });
+        });
+      });
+    }
+  })();
+</script>  </main> <footer class="site-footer"> <div class="site-footer__inner"> <span>&copy; 2026 smallorbit &middot; Plan, execute, and ship.</span> <div class="site-footer__links"> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer">GitHub</a> <a href="https://claude.com/claude-code" rel="noopener noreferrer">Claude Code</a> <a href="https://smallorbit.github.io/smallorbit-plugins/rss.xml">RSS</a> </div> </div> </footer> </body></html> <script>
+  (function () {
+    const setup = () => {
+      document.querySelectorAll('.post__body pre').forEach((pre) => {
+        if (pre.querySelector('.code-copy-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'code-copy-btn';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', 'Copy code to clipboard');
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code');
+          if (!code) return;
+          const text = code.innerText;
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied';
+            btn.dataset.copied = 'true';
+            setTimeout(() => {
+              btn.textContent = 'Copy';
+              btn.dataset.copied = 'false';
+            }, 1600);
+          } catch (err) {
+            btn.textContent = 'Failed';
+          }
+        });
+        pre.appendChild(btn);
+      });
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>

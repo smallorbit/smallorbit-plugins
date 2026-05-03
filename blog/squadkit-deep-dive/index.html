@@ -1,0 +1,253 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.18.1"><title>squadkit: roles, squads, and crews — multi-agent without the chaos</title><meta name="description" content="The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other."><link rel="canonical" href="https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/"><meta property="og:type" content="article"><meta property="og:title" content="squadkit: roles, squads, and crews — multi-agent without the chaos"><meta property="og:description" content="The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other."><meta property="og:url" content="https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/"><meta property="og:image" content="https://smallorbit.github.io/smallorbit-plugins/og/squadkit-deep-dive.png"><meta property="og:site_name" content="smallorbit-plugins"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="squadkit: roles, squads, and crews — multi-agent without the chaos"><meta name="twitter:description" content="The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other."><meta name="twitter:image" content="https://smallorbit.github.io/smallorbit-plugins/og/squadkit-deep-dive.png"><link rel="alternate" type="application/rss+xml" title="smallorbit-plugins blog" href="https://smallorbit.github.io/smallorbit-plugins/rss.xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Mona+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>.site-header[data-astro-cid-6324dzri]{border-bottom:1px solid var(--border);background:var(--bg-page)}.site-header__inner[data-astro-cid-6324dzri]{max-width:1080px;margin:0 auto;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1.5rem}.site-header__wordmark[data-astro-cid-6324dzri]{font-family:var(--sans);font-weight:600;font-size:1rem;color:var(--text-strong);text-decoration:none}.site-header__wordmark[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri]{display:flex;gap:1.25rem;align-items:center;font-size:.95rem}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]{color:var(--text);text-decoration:none;padding-bottom:2px;border-bottom:2px solid transparent}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri]:hover{color:var(--text-strong)}.site-header__nav[data-astro-cid-6324dzri] a[data-astro-cid-6324dzri].is-active{color:var(--text-strong);border-bottom-color:var(--text-strong)}:root{--bg-page: #f8f6f1;--bg-raised: #ffffff;--bg-veil: #ede9e3;--text-strong: #1a1612;--text: #2e2a25;--text-muted: #737069;--text-dim: #8c8882;--color-bg: var(--bg-page);--color-text: var(--text);--color-accent: #4f46e5;--speckit: #7c3aed;--swarmkit: #166534;--polishkit: #b45309;--flowkit: #2563eb;--sessionkit: #a21caf;--vaultkit: #0f766e;--squadkit: #be123c;--link: #4f46e5;--link-hover: #3730a3;--link-visited: #475569;--border: #d4cfc8;--border-strong: #a8a29c;--r-xs: 4px;--r-sm: 6px;--r-md: 10px;--r-lg: 14px;--r-xl: 22px;--serif: "Fraunces", "Iowan Old Style", "Times New Roman", serif;--sans: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;--mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;--measure: 70ch}*,*:before,*:after{box-sizing:border-box}img,svg{max-width:100%;height:auto;display:block}:focus-visible{outline:2px solid var(--link);outline-offset:2px;border-radius:var(--r-xs)}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}html{background:var(--bg-page);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}body{margin:0;min-height:100vh;display:flex;flex-direction:column}a{color:var(--link);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{color:var(--link-hover)}a:visited{color:var(--link-visited)}main{flex:1 0 auto;width:100%}.site-footer{border-top:1px solid var(--border);background:var(--bg-page);margin-top:4rem}.site-footer__inner{max-width:1080px;margin:0 auto;padding:2rem 1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.5rem;font-size:.9rem;color:var(--text-muted)}.site-footer__links{display:flex;gap:1.25rem;flex-wrap:wrap}.site-footer__links a{color:var(--text);text-decoration:none}.site-footer__links a:hover{color:var(--text-strong);text-decoration:underline}
+</style>
+<link rel="stylesheet" href="/smallorbit-plugins/_astro/_slug_.DEniwu8Y.css"></head> <body> <header class="site-header" data-astro-cid-6324dzri> <div class="site-header__inner" data-astro-cid-6324dzri> <a class="site-header__wordmark" href="/smallorbit-plugins/" data-astro-cid-6324dzri>smallorbit-plugins</a> <nav class="site-header__nav" aria-label="Primary" data-astro-cid-6324dzri> <a href="/smallorbit-plugins/" data-astro-cid-6324dzri>Home</a> <a href="/smallorbit-plugins/blog/" class="is-active" aria-current="page" data-astro-cid-6324dzri>
+Blog
+</a> <a href="/smallorbit-plugins/about/" data-astro-cid-6324dzri>
+About
+</a> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer" data-astro-cid-6324dzri>GitHub</a> </nav> </div> </header>  <main>  <article class="post" style="--post-accent: var(--squadkit, var(--color-accent));"> <header class="post__header"> <p class="post__kit">squadkit</p> <h1 class="post__title">squadkit: roles, squads, and crews — multi-agent without the chaos</h1> <p class="post__subtitle">The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other.</p>  <div class="byline" data-astro-cid-kez4mygi> <div class="byline__avatar" aria-hidden="true" data-astro-cid-kez4mygi>S</div> <div class="byline__meta" data-astro-cid-kez4mygi> <div class="byline__author" data-astro-cid-kez4mygi>smallorbit</div> <div class="byline__details" data-astro-cid-kez4mygi> <time datetime="2026-05-03T00:00:00.000Z" data-astro-cid-kez4mygi>May 3, 2026</time>  <span class="byline__sep" aria-hidden="true" data-astro-cid-kez4mygi>&middot;</span> <span data-astro-cid-kez4mygi>12 min read</span>  </div> </div> </div>  <details class="audio-player" data-astro-cid-a4emertt> <summary class="audio-player__summary" data-astro-cid-a4emertt> <span class="audio-player__icon" aria-hidden="true" data-astro-cid-a4emertt>&#9658;</span> <span class="audio-player__label" data-astro-cid-a4emertt>Audio version</span>  </summary> <div class="audio-player__body" data-astro-cid-a4emertt> <p class="audio-player__placeholder" data-astro-cid-a4emertt>
+Audio voiceover coming soon.
+</p> </div> </details>  </header> <div class="post__body">  <p>“Multi-agent” usually means an undefined pile of agents. squadkit names the pile.</p>
+<p>The premise: when a single problem needs more than one role in the room — an architect to draft, a builder (or three) to implement, a reviewer to gate, a tester to back the verify — you don’t want to re-decide who-does-what every time. You want a vocabulary, a roster shape, and a coordination protocol that’s been thought through once and reused. squadkit is that.</p>
+<p>This post walks the three design choices that make squadkit work in practice: the <strong>roles → squads → crews</strong> vocabulary that keeps the model legible, the <strong>orchestrator-is-lead</strong> pattern that dodges a class of phantom-agent bugs (and ships with a cooperative-shutdown handshake), and the <strong>per-builder detached-HEAD worktrees</strong> that prevent the branch-ref contention you hit the moment two builders try to share a feature branch.</p>
+<p>Every claim below is cited from <code>plugins/squadkit/README.md</code>, <code>plugins/squadkit/skills/spawn-team/SKILL.md</code>, or <code>plugins/squadkit/agents/team-lead.md</code>. No invented behaviour.</p>
+<h2 id="the-vocabulary-in-one-paragraph">The vocabulary, in one paragraph</h2>
+<p>The coordination model is intentionally small. Three terms, exact definitions from the README:</p>
+<ul>
+<li><strong>Role</strong> — a single agent with a focused contract. One role definition, one agent. The shipped role library has seven contracts under <code>plugins/squadkit/agents/</code>: <code>team-lead</code>, <code>architect</code>, <code>builder</code>, <code>reviewer</code>, <code>tester</code>, <code>explorer</code>, <code>designer</code>. Each carries a fixed model assignment that matches its cognitive load — orchestration and review run on opus, implementation and craft run on sonnet.</li>
+<li><strong>Squad</strong> — a role-cohesive group of agents collaborating on one slice of work. Three implementers fanning out across files in the same feature, for example.</li>
+<li><strong>Crew</strong> — a team-lead orchestrating one or more squads end-to-end. The crew is the unit you spawn with <code>/squadkit:spawn-team</code> and ship with.</li>
+</ul>
+<p><strong>Takeaway:</strong> Roles are reusable. Squads compose. Crews run. The vocabulary maps cleanly to how a real team is built — you don’t reach for a “role” when you mean “team,” and you don’t reach for “team” when you mean “agent.”</p>
+<p>The shipped crew profiles live in <code>plugins/squadkit/crews/</code> as YAML. Three starters:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A">name</span><span style="color:#24292E">: </span><span style="color:#032F62">all-rounder</span></span>
+<span class="line"><span style="color:#22863A">description</span><span style="color:#24292E">: </span><span style="color:#032F62">Full-spectrum crew for end-to-end feature work.</span></span>
+<span class="line"><span style="color:#22863A">members</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">team-lead</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">architect</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">builder</span></span>
+<span class="line"><span style="color:#22863A">    count</span><span style="color:#24292E">: </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">reviewer</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">tester</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">explorer</span></span>
+<span class="line"><span style="color:#24292E">  - </span><span style="color:#22863A">role</span><span style="color:#24292E">: </span><span style="color:#032F62">designer</span></span></code></pre>
+<p>Plus <code>design</code> (a <code>kind: discovery</code> crew of architect + designer + explorer for read-only research) and <code>qa</code> (team-lead, reviewer, tester, builder×1 for hardening sweeps). At spawn time you can override the roster with <code>--with &lt;role&gt;</code>, <code>--without &lt;role&gt;</code>, or <code>--builders &lt;N&gt;</code> (capped at 5).</p>
+<p>The two crew kinds split the world cleanly:</p>
+<ul>
+<li><strong><code>kind: execution</code></strong> (the default) — produces code. Provisions per-builder worktrees, supports <code>--epic</code> and <code>claude.flowkit.prBase</code> pinning, ships PRs.</li>
+<li><strong><code>kind: discovery</code></strong> — read-only investigative crew. Produces blueprints and GitHub issue comments, not code. Skips worktree provisioning, rejects <code>--epic</code>, skips <code>claude.flowkit.prBase</code> pinning. Requires <code>--brief</code>.</li>
+</ul>
+<p>That <code>kind:</code> field is doing more than a label’s worth of work. The whole worktree-provisioning, epic-cutting, PR-pinning machinery is gated on it. A discovery crew goes through a strictly different pre-flight than an execution crew. The README puts it plainly: <em>“Discovery crews skip worktree provisioning, epic-branch cutting, and <code>claude.flowkit.prBase</code> pinning.”</em></p>
+<p><strong>Takeaway:</strong> When you spawn a crew, its <code>kind:</code> is the most consequential decision in the YAML. Execution crews ship code on a <code>feature/&lt;slug&gt;-&lt;issue&gt;</code> branch cut from <code>develop</code>. Discovery crews stay on <code>develop</code> and produce comments. Two different machines, same vocabulary.</p>
+<h2 id="the-orchestrator-is-the-team-lead">The orchestrator IS the team-lead</h2>
+<p>This is the choice that earns squadkit’s reliability. There are seven role contracts shipped — but <code>/squadkit:spawn-team</code> only spawns six of them. The team-lead is never spawned as a separate agent. The session that ran <code>/squadkit:spawn-team</code> IS the lead.</p>
+<p>The README states it directly:</p>
+<blockquote>
+<p>The orchestrator (the session that ran <code>/squadkit:spawn-team</code>) IS the lead — squadkit never spawns a separate <code>team-lead</code> agent. The contract file is the operating manual that session loads.</p>
+</blockquote>
+<p>The <code>spawn-team</code> SKILL file expands on the rationale:</p>
+<blockquote>
+<p>The skill never spawns a separate <code>squadkit:team-lead</code> agent and never reserves a <code>team-lead</code> slot via <code>TeamCreate({agent_type: ...})</code> — both produce phantom roster entries that break sender attribution and routing.</p>
+</blockquote>
+<p><strong>Takeaway:</strong> Spawning a redundant team-lead agent is the obvious thing to do — and it’s the bug. The roster ends up with a phantom slot, peer addressing breaks, and you spend a session debugging why messages aren’t landing. Putting the lead inside the orchestrator removes the slot.</p>
+<p>Three concrete consequences flow from this choice:</p>
+<ul>
+<li><strong>No <code>agent_type</code> on <code>TeamCreate</code>.</strong> The skill calls <code>TeamCreate({team_name, description})</code> and stops. Passing <code>agent_type: &quot;team-lead&quot;</code> reserves a placeholder slot under that name with no live process behind it. When the actual member spawns later, the harness renames it to <code>&lt;role&gt;-2</code> because the slot is taken. The roster ends up with a ghost.</li>
+<li><strong>Idle-notification-as-ack instead of ping/ack.</strong> The orchestrator has no addressable name in the team’s <code>members[]</code>, so members can’t <code>SendMessage</code> it by name. Each spawned <code>Agent</code> emits an idle notification when its first turn ends; the orchestrator (always present) reads N idle notifications as proof the N members are alive. No explicit handshake required.</li>
+<li><strong>Phantom-slot sanity check at spawn.</strong> Right after <code>TeamCreate</code>, the skill scans for <code>members[]</code> entries with empty <code>tmuxPaneId</code>. If any are found, the skill halts and surfaces the phantom — never proceeds with a polluted roster.</li>
+</ul>
+<p>The <code>spawn-team</code> SKILL puts a probe step at 8.5 — after spawning members, before waiting on idle notifications, the orchestrator sends itself a sentinel <code>SendMessage</code> to a known-addressable target and asserts the harness’s delivered digest matches what was sent. This catches the silent failure mode where the orchestrator spawned missing one of the coordination tools its role contract requires (<code>SendMessage</code>, <code>TaskCreate</code>, <code>TaskList</code>, <code>TaskGet</code>, <code>Agent</code>). That turns a multi-turn diagnostic loop into a single clear failure at spawn time.</p>
+<h3 id="cooperative-shutdown-is-part-of-the-contract">Cooperative shutdown is part of the contract</h3>
+<p>Tearing a team down is a two-step handshake, not a unilateral kill. From <code>plugins/squadkit/agents/team-lead.md</code>:</p>
+<blockquote>
+<p>Teardown is a two-step handshake, not a unilateral kill. Before invoking <code>TeamDelete</code>, send a structured <code>shutdown_request</code> to every active member and wait for each to reply with <code>shutdown_response approve:true</code>. Only then call <code>TeamDelete</code>.</p>
+</blockquote>
+<p>The role contracts for architect, builder, designer, explorer, reviewer, and tester all instruct each member to reply with a structured <code>shutdown_response approve:true</code> before going idle. Without that approval, the harness leaves the iterm2 or tmux pane stranded — context and quota burn until the user manually closes the pane. A <code>TeamDelete</code> without prior approvals cleans the registry but does not terminate the underlying sessions.</p>
+<p><strong>Takeaway:</strong> Cooperative shutdown turns “tear down the team” from a registry-only operation into a real lifecycle event. The handshake is what keeps stranded panes off your machine after a long session.</p>
+<p>The README adds an override caveat worth flagging: if you author a project-local overlay at <code>.claude/agents/&lt;role&gt;.md</code>, preserve the cooperative-shutdown section verbatim. Stripping it leaves the lead unable to tear the team down cleanly — the registry says “team gone” but the panes are still alive.</p>
+<h2 id="per-builder-detached-head-worktrees">Per-builder detached-HEAD worktrees</h2>
+<p>The third design choice is the one that hits you the moment a crew has more than one builder. Multi-builder configs (&gt;1 builder) provision per-member worktrees under <code>.claude/worktrees/&lt;member&gt;/</code>. Each is created with <code>git worktree add --detach</code>. The <code>--detach</code> flag is non-negotiable.</p>
+<p>The reason is in <code>plugins/squadkit/skills/spawn-team/SKILL.md</code> step 7:</p>
+<blockquote>
+<p>Step 6 already checks the main worktree out onto <code>${WORK_BRANCH}</code>. A bare <code>git worktree add &lt;path&gt; &lt;work_branch&gt;</code> would refuse with <code>&#39;feature/&lt;slug&gt;-&lt;N&gt;&#39; is already used by worktree at &#39;&lt;main&gt;&#39;</code> because git holds branch refs to a single worktree at a time. Detached HEAD lets each builder start at the epic HEAD without contention; builders create per-issue branches (e.g. <code>worktree-agent-&lt;issue&gt;</code>) off the detached commit when they pick up a task.</p>
+</blockquote>
+<p>That’s the mechanism. The implication:</p>
+<p><strong>Takeaway:</strong> Branch refs are exclusive in git. Two worktrees can’t both be checked out on the same branch. Detached HEAD sidesteps the rule entirely — every builder starts at the same commit but holds no branch reference, so they can each create their own per-issue branch off that commit when they pick up a task.</p>
+<p>The flow is:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">mkdir</span><span style="color:#005CC5"> -p</span><span style="color:#032F62"> .claude/worktrees</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> worktree</span><span style="color:#032F62"> add</span><span style="color:#005CC5"> --detach</span><span style="color:#032F62"> &quot;.claude/worktrees/builder-1&quot;</span><span style="color:#032F62"> &quot;${</span><span style="color:#24292E">WORK_BRANCH</span><span style="color:#032F62">}&quot;</span></span>
+<span class="line"><span style="color:#6F42C1">git</span><span style="color:#032F62"> worktree</span><span style="color:#032F62"> add</span><span style="color:#005CC5"> --detach</span><span style="color:#032F62"> &quot;.claude/worktrees/builder-2&quot;</span><span style="color:#032F62"> &quot;${</span><span style="color:#24292E">WORK_BRANCH</span><span style="color:#032F62">}&quot;</span></span></code></pre>
+<p>Builders then create per-issue branches off the detached commit when they’re dispatched a task — typically named <code>worktree-agent-&lt;issue&gt;</code> so they sort cleanly alongside swarmkit’s branches.</p>
+<p>The kit also handles the messy real-world cases:</p>
+<ul>
+<li><strong>Stale-worktree detection.</strong> If <code>.claude/worktrees/builder-1</code> already exists on a non-matching branch from a prior session, <code>spawn-team</code> prompts (sweep / reuse / abort) before reusing. It refuses to silently inherit a half-merged feature branch from a previous team.</li>
+<li><strong>Pre-flight sweep.</strong> Before provisioning, the skill scans <code>.claude/worktrees/</code> for paths that don’t match the resolved roster (e.g. <code>tester</code> survives but is no longer in scope) and invokes <code>swarmkit:clean-worktrees</code> to clear them.</li>
+<li><strong>Env-file seeding.</strong> After each per-builder worktree is created, the skill auto-detects the repo’s gitignored env files (<code>.env.local</code>, <code>.env.test.local</code>, etc.) and copies them into the worktree. Builders can run the verify suite without manual setup. Override the auto-detection with <code>worktreeSeed</code> in <code>.squadkit/config.json</code> for projects that need non-env files copied too (certificates, config snippets).</li>
+<li><strong>Singleton-builder profiles share the workspace.</strong> When the resolved roster has exactly one builder, no worktree is created — the builder works in the main workspace. Saves a worktree when there’s no concurrency to manage.</li>
+</ul>
+<p><strong>Takeaway:</strong> The per-builder worktree model isn’t about isolation for its own sake. It’s about dodging a specific git failure mode (branch-ref contention) cleanly. The detached HEAD is the trick; everything else (seeding, sweep, stale detection) is the housekeeping that makes the trick safe across real working sessions.</p>
+<h3 id="why-the-auto-isolation-isnt-enough">Why the auto-isolation isn’t enough</h3>
+<p>The skill notes a harness constraint that explains the manual provisioning:</p>
+<blockquote>
+<p><code>Agent({isolation: &quot;worktree&quot;})</code> is unreliable when combined with <code>team_name</code>. The auto-isolation does not fire reliably for team-scoped spawns, so the skill always provisions worktrees manually via <code>git worktree add --detach</code> (see step 7) and passes the resolved absolute path into each spawned agent.</p>
+</blockquote>
+<p>The “do it yourself” path is more code but it’s reliable. squadkit will switch to the harness primitive when it stabilises — but until then, the manual <code>git worktree add --detach</code> path is the one that ships.</p>
+<h2 id="how-the-three-choices-compose">How the three choices compose</h2>
+<p>Run <code>/squadkit:spawn-team --profile all-rounder --epic notes-tags --issues 102-105</code> and the three design decisions stack visibly:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e;overflow-x:auto" tabindex="0" data-language="text"><code><span class="line"><span>Resolving team name → smallorbit-plugins-bravo</span></span>
+<span class="line"><span>Cutting feature/notes-tags-101 from origin/develop</span></span>
+<span class="line"><span>Pinning claude.flowkit.prBase = feature/notes-tags-101</span></span>
+<span class="line"><span>Provisioning .claude/worktrees/builder-1 (detached at feature/notes-tags-101)</span></span>
+<span class="line"><span>Provisioning .claude/worktrees/builder-2 (detached at feature/notes-tags-101)</span></span>
+<span class="line"><span>Seeded .env.local into both worktrees</span></span>
+<span class="line"><span>TeamCreate(team_name=smallorbit-plugins-bravo)        ← no agent_type</span></span>
+<span class="line"><span>Spawning architect, builder-1, builder-2, reviewer, tester, explorer, designer</span></span>
+<span class="line"><span>Probe → SendMessage to builder-1 [success, digests match]</span></span>
+<span class="line"><span>Waiting on 7 idle notifications…</span></span>
+<span class="line"><span>All members idle. Lead (this session) entering dispatch loop.</span></span></code></pre>
+<p>What you see:</p>
+<ul>
+<li><strong>Vocabulary at work.</strong> The crew profile is <code>all-rounder</code>. The roster is the resolved squad. The team name is <code>smallorbit-plugins-bravo</code> — the next available NATO phonetic letter under <code>~/.claude/teams/smallorbit-plugins-*</code>.</li>
+<li><strong>Orchestrator-is-lead at work.</strong> <code>TeamCreate</code> carries no <code>agent_type</code>. No team-lead spawn line. The probe at step 8.5 confirms the orchestrator’s coordination tools work end-to-end before idle-notification readiness.</li>
+<li><strong>Detached-HEAD worktrees at work.</strong> Both builders are detached at the epic HEAD. Neither holds a branch reference. They’re free to cut <code>worktree-agent-102</code> and <code>worktree-agent-103</code> off that commit when the lead dispatches them.</li>
+</ul>
+<p>The <code>SessionStart</code> hook (<code>plugins/squadkit/hooks/pickup-team-context.sh</code>) is the last piece. It fires on every Claude Code <code>SessionStart</code> event, scans <code>~/.claude/teams/*/config.json</code>, matches the current session by either the squadkit sibling file’s <code>repo_root</code> (the orchestrator-is-lead path) or by member <code>cwd</code>, and emits a single <code>systemMessage</code> reminder telling the matched session to load its role contract from disk. Both fresh <code>spawn-team</code> leads and <code>sessionkit:pickup</code>-resumed leads hit the same hook — so resuming a team after a context reset re-asserts the role context automatically.</p>
+<h2 id="the-narrow-surface-that-earns-the-kit">The narrow surface that earns the kit</h2>
+<p>Squadkit ships three skills today: <code>init</code>, <code>spawn-team</code>, and <code>agent-team-retro</code>. That’s it. No “team manager” UI, no orchestration framework, no DSL. The three design choices above carry the weight:</p>
+<ul>
+<li>The vocabulary makes the kit legible — you can read a crew profile and predict what’ll happen.</li>
+<li>Orchestrator-is-lead removes a phantom-agent class of bug and the cooperative-shutdown handshake keeps panes from stranding.</li>
+<li>Per-builder detached-HEAD worktrees dodge git’s branch-ref exclusivity cleanly, with the housekeeping (seeding, sweep, stale detection) to make the dodge safe in practice.</li>
+</ul>
+<p><strong>Takeaway:</strong> Multi-agent coordination doesn’t have to be a framework. squadkit is three good decisions, three skills, seven role contracts, and a hook. The discipline lives in the contracts; the skills enforce them at spawn time.</p>
+<p>If you’ve felt the friction of running multiple agents in parallel — branch contention, stranded panes, lost messages — the squadkit pattern is worth a closer look. Read the role contracts under <code>plugins/squadkit/agents/</code>, run <code>/squadkit:init</code> to bootstrap your repo’s verify and base-branch commands, and spawn an <code>all-rounder</code> against a real epic. The worst outcome is you learn what coordination overhead actually costs in your codebase.</p>
+<p>Forward pointer: the vaultkit deep-dive completes the trio. Where sessionkit handles continuity in the codebase and squadkit handles coordination across agents, vaultkit handles the layer above the code — durable capture into Obsidian, with birth-time preservation for the metadata Obsidian actually uses, and a thin <code>/jot</code> surface that makes capturing decisions friction-free.</p>  </div> <footer class="post__footer"> <aside class="inline-subscribe" data-todo="integrations-issue" data-astro-cid-2ues256z> <div class="inline-subscribe__copy" data-astro-cid-2ues256z> <h3 class="inline-subscribe__heading" data-astro-cid-2ues256z>Subscribe to smallorbit</h3> <p class="inline-subscribe__blurb" data-astro-cid-2ues256z>New posts on Claude Code plugins and shipping discipline, straight to your inbox.</p> </div> <form class="inline-subscribe__form" aria-label="Subscribe (placeholder until newsletter integration ships)" data-astro-cid-2ues256z> <label class="inline-subscribe__label" for="inline-subscribe-email" data-astro-cid-2ues256z>Email</label> <input id="inline-subscribe-email" type="email" placeholder="you@example.com" autocomplete="email" disabled data-astro-cid-2ues256z> <button type="submit" disabled data-astro-cid-2ues256z>Subscribe</button> </form> <p class="inline-subscribe__note" data-astro-cid-2ues256z>
+Placeholder &mdash; wired up once the newsletter integration ships.
+</p> </aside>  </footer> </article> <aside class="toc-ticks" aria-label="On this page" data-astro-cid-z6ev6ea4> <div class="toc-ticks__inner" data-astro-cid-z6ev6ea4> <p class="toc-ticks__label" data-astro-cid-z6ev6ea4>On this page</p> <ul class="toc-ticks__list" data-content-selector=".post__body" data-heading-selector="h2, h3" data-astro-cid-z6ev6ea4></ul> </div> </aside>  <script>
+  (function () {
+    const list = document.querySelector('.toc-ticks__list');
+    if (!list) return;
+    if (list.childElementCount > 0) return;
+
+    const contentSelector = list.getAttribute('data-content-selector') || '.post__body';
+    const headingSelector = list.getAttribute('data-heading-selector') || 'h2, h3';
+    const root = document.querySelector(contentSelector);
+    if (!root) return;
+
+    const headings = Array.from(root.querySelectorAll(headingSelector));
+    if (headings.length === 0) return;
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+    const itemMap = new Map();
+
+    headings.forEach((heading) => {
+      if (!heading.id) {
+        heading.id = slugify(heading.textContent || '');
+      }
+      const li = document.createElement('li');
+      li.setAttribute('data-level', heading.tagName.charAt(1));
+      li.setAttribute('data-target', heading.id);
+
+      const tick = document.createElement('span');
+      tick.className = 'toc-ticks__tick';
+      tick.setAttribute('aria-hidden', 'true');
+
+      const link = document.createElement('a');
+      link.href = '#' + heading.id;
+      link.textContent = heading.textContent || '';
+
+      li.appendChild(tick);
+      li.appendChild(link);
+      list.appendChild(li);
+      itemMap.set(heading.id, li);
+    });
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const visible = new Set();
+
+    const updateActive = () => {
+      itemMap.forEach((li, id) => {
+        if (visible.has(id)) {
+          li.classList.add('is-visible');
+        } else {
+          li.classList.remove('is-visible');
+        }
+        li.classList.remove('is-active');
+      });
+      const visibleIds = Array.from(visible);
+      if (visibleIds.length > 0) {
+        const firstId = visibleIds[0];
+        const firstLi = itemMap.get(firstId);
+        if (firstLi) firstLi.classList.add('is-active');
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.add(entry.target.id);
+          } else {
+            visible.delete(entry.target.id);
+          }
+        });
+        updateActive();
+      },
+      { rootMargin: '0px 0px -60% 0px', threshold: 0 }
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+
+    if (reduceMotion) {
+      list.querySelectorAll('a').forEach((a) => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = a.getAttribute('href')?.slice(1);
+          if (!id) return;
+          const target = document.getElementById(id);
+          if (target) target.scrollIntoView({ behavior: 'auto' });
+        });
+      });
+    }
+  })();
+</script>  </main> <footer class="site-footer"> <div class="site-footer__inner"> <span>&copy; 2026 smallorbit &middot; Plan, execute, and ship.</span> <div class="site-footer__links"> <a href="https://github.com/smallorbit/smallorbit-plugins" rel="noopener noreferrer">GitHub</a> <a href="https://claude.com/claude-code" rel="noopener noreferrer">Claude Code</a> <a href="https://smallorbit.github.io/smallorbit-plugins/rss.xml">RSS</a> </div> </div> </footer> </body></html> <script>
+  (function () {
+    const setup = () => {
+      document.querySelectorAll('.post__body pre').forEach((pre) => {
+        if (pre.querySelector('.code-copy-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'code-copy-btn';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', 'Copy code to clipboard');
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code');
+          if (!code) return;
+          const text = code.innerText;
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied';
+            btn.dataset.copied = 'true';
+            setTimeout(() => {
+              btn.textContent = 'Copy';
+              btn.dataset.copied = 'false';
+            }, 1600);
+          } catch (err) {
+            btn.textContent = 'Failed';
+          }
+        });
+        pre.appendChild(btn);
+      });
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>
