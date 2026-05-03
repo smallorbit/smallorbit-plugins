@@ -1,0 +1,89 @@
+---
+interface Props {
+  active?: 'blog' | 'kits' | 'about';
+}
+
+const { active } = Astro.props;
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+const githubRepoUrl = 'https://github.com/smallorbit/smallorbit-plugins';
+---
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="site-header__wordmark" href={baseHref}>smallorbit-plugins</a>
+    <nav class="site-header__nav" aria-label="Primary">
+      <a href={baseHref}>Home</a>
+      <a
+        href={`${baseHref}blog/`}
+        class:list={[{ 'is-active': active === 'blog' }]}
+        aria-current={active === 'blog' ? 'page' : undefined}
+      >
+        Blog
+      </a>
+      <a
+        href={`${baseHref}about/`}
+        class:list={[{ 'is-active': active === 'about' }]}
+        aria-current={active === 'about' ? 'page' : undefined}
+      >
+        About
+      </a>
+      <a href={githubRepoUrl} rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-page);
+  }
+
+  .site-header__inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+
+  .site-header__wordmark {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-strong);
+    text-decoration: none;
+  }
+
+  .site-header__wordmark:hover {
+    color: var(--text-strong);
+  }
+
+  .site-header__nav {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    font-size: 0.95rem;
+  }
+
+  .site-header__nav a {
+    color: var(--text);
+    text-decoration: none;
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+  }
+
+  .site-header__nav a:hover {
+    color: var(--text-strong);
+  }
+
+  .site-header__nav a.is-active {
+    color: var(--text-strong);
+    border-bottom-color: var(--text-strong);
+  }
+</style>
