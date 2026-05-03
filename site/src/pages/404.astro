@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+---
+
+<BaseLayout
+  title="Lost in space — smallorbit"
+  description="The page you're looking for has drifted off into the void. Find your way back home, to the blog, or to the kits."
+>
+  <article class="not-found">
+    <header class="not-found__header">
+      <p class="not-found__eyebrow">404 · lost in space</p>
+      <h1 class="not-found__title">
+        This page<br />
+        <span class="not-found__title-italic">drifted off-orbit.</span>
+      </h1>
+      <p class="not-found__lede">
+        We couldn't find what you were looking for. It may have moved, been
+        renamed, or never existed in this orbit. Try one of the routes below.
+      </p>
+    </header>
+
+    <ul class="not-found__links">
+      <li>
+        <a href={baseHref}><strong>Home</strong></a>
+        — back to the landing page.
+      </li>
+      <li>
+        <a href={`${baseHref}blog/`}><strong>Blog</strong></a>
+        — essays and kit deep-dives.
+      </li>
+      <li>
+        <a href={`${baseHref}kits/`}><strong>Kits</strong></a>
+        — the smallorbit plugin catalog.
+      </li>
+    </ul>
+  </article>
+</BaseLayout>
+
+<style>
+  .not-found {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 4rem 1.25rem 5rem;
+  }
+
+  .not-found__header {
+    margin-bottom: 2.5rem;
+  }
+
+  .not-found__eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .not-found__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin: 0 0 1.5rem;
+    letter-spacing: -0.015em;
+  }
+
+  .not-found__title-italic {
+    color: var(--color-accent);
+    font-style: italic;
+  }
+
+  .not-found__lede {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .not-found__links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .not-found__links li {
+    padding-left: 1rem;
+    border-left: 2px solid var(--border);
+    line-height: 1.55;
+    color: var(--text);
+  }
+
+  .not-found__links a {
+    color: var(--text-strong);
+  }
+
+  .not-found__links a:hover {
+    color: var(--color-accent);
+  }
+</style>
