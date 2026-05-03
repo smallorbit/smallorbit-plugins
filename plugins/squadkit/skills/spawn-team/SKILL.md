@@ -409,7 +409,7 @@ The `--mode` flag controls the permission `mode` passed to each `Agent({mode})` 
 
 **Rationale.** When the orchestrator runs in auto mode, sonnet-tier crew members prompt for permission approval on every tool call, defeating the autonomous-flow benefit of auto. Opus-tier members run cleanly under the same condition (see Harness constraints for the empirical observation). The `--mode auto` shortcut encodes this so teams stay autonomous end-to-end without per-spawn fiddling.
 
-Builders are exempt from the auto-mode opus override because builder workloads benefit less from the larger model and burn budget faster on long-running implementation work — if a builder needs opus, spawn the team explicitly with the `--mode auto` workflow accepted as opus-for-non-builders only.
+Builders are exempt from the auto-mode opus override because builder workloads benefit less from the larger model and burn budget faster on long-running implementation work. If a builder workload requires opus, override the role default explicitly — `--mode auto` only forces opus for non-builders.
 
 **Mode detection (operator responsibility).** The spawn skill cannot programmatically detect the parent orchestrator's permission mode — there is no `CLAUDE_PERMISSION_MODE` env var or persisted setting that reflects the active session's runtime mode. The operator (or the calling slash command / agent) is responsible for passing `--mode auto` or `--mode bypass` to match the orchestrator's session. Defaulting to `inherit` keeps existing call sites unchanged.
 

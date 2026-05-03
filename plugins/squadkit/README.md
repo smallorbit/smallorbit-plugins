@@ -124,6 +124,8 @@ members:
 | `--name <custom>` | auto | Override the team name; skips phonetic auto-naming. |
 | `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase` for the session. If omitted, the skill prompts. |
 | `--issues <range>` | none | Issue numbers / ranges to load as the team's initial backlog (swarmkit grammar: `1319,1329,1331` or `1319-1337`). Resolved via `swarmkit:gh-fetch-issues` and forwarded to the lead's first dispatch prompt as a structured backlog table. Trailing-narrative form (`to tackle issues 1319-1337`) is also accepted. |
+| `--brief <text\|@path>` | none | Mission brief embedded into the architect's spawn prompt. Inline text or `@path` to a file. **Required when the resolved profile has `kind: discovery`.** Optional and otherwise ignored when `kind: execution`. |
+| `--mode <inherit\|auto\|bypass>` | `inherit` | Permission mode for spawned members. `inherit`: no override; harness defaults apply. `auto`: pass `mode: "auto"` to every spawn AND force `model: "opus"` for non-builder roles (sonnet members prompt for permissions in auto mode). `bypass`: pass `mode: "bypassPermissions"`; model stays default. Pass when the orchestrator runs in `auto` or `bypassPermissions` so spawned members inherit the same authority. |
 
 ### Phonetic naming convention
 
