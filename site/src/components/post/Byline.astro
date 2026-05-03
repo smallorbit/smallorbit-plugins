@@ -1,0 +1,85 @@
+---
+interface Props {
+  author: string;
+  date: Date;
+  readTime?: number;
+}
+
+const { author, date, readTime } = Astro.props;
+
+const formattedDate = date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const initial = author.trim().charAt(0).toUpperCase() || 'S';
+---
+
+<div class="byline">
+  <div class="byline__avatar" aria-hidden="true">{initial}</div>
+  <div class="byline__meta">
+    <div class="byline__author">{author}</div>
+    <div class="byline__details">
+      <time datetime={date.toISOString()}>{formattedDate}</time>
+      {readTime !== undefined && (
+        <>
+          <span class="byline__sep" aria-hidden="true">&middot;</span>
+          <span>{readTime} min read</span>
+        </>
+      )}
+    </div>
+  </div>
+</div>
+
+<style>
+  .byline {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin: 1.5rem 0 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .byline__avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-veil);
+    color: var(--text-strong);
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .byline__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    line-height: 1.3;
+  }
+
+  .byline__author {
+    font-weight: 600;
+    color: var(--text-strong);
+    font-size: 0.95rem;
+  }
+
+  .byline__details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .byline__sep {
+    color: var(--text-dim);
+  }
+</style>

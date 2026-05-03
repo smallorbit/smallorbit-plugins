@@ -5,4 +5,10 @@ export default defineConfig({
   base: '/smallorbit-plugins',
   output: 'static',
   trailingSlash: 'always',
+  markdown: {
+    shikiConfig: {
+      theme: 'github-light',
+      wrap: false,
+    },
+  },
 });

@@ -1,0 +1,198 @@
+---
+interface Props {
+  contentSelector?: string;
+  headingSelector?: string;
+}
+
+const { contentSelector = '.post__body', headingSelector = 'h2, h3' } = Astro.props;
+---
+
+<aside class="toc-ticks" aria-label="On this page">
+  <div class="toc-ticks__inner">
+    <p class="toc-ticks__label">On this page</p>
+    <ul
+      class="toc-ticks__list"
+      data-content-selector={contentSelector}
+      data-heading-selector={headingSelector}
+    ></ul>
+  </div>
+</aside>
+
+<style>
+  .toc-ticks {
+    display: none;
+  }
+
+  @media (min-width: 1100px) {
+    .toc-ticks {
+      display: block;
+      position: fixed;
+      top: 50%;
+      right: 1.5rem;
+      transform: translateY(-50%);
+      max-height: 70vh;
+      overflow-y: auto;
+      z-index: 5;
+    }
+
+    .toc-ticks__inner {
+      padding: 0.75rem 1rem;
+    }
+
+    .toc-ticks__label {
+      margin: 0 0 0.625rem;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .toc-ticks__list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .toc-ticks__list :global(li) {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toc-ticks__list :global(.toc-ticks__tick) {
+      width: 18px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 2px;
+      transition: background 0.2s ease, width 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .toc-ticks__list :global(li[data-level='3'] .toc-ticks__tick) {
+      width: 12px;
+    }
+
+    .toc-ticks__list :global(li.is-visible .toc-ticks__tick) {
+      background: var(--text-muted);
+    }
+
+    .toc-ticks__list :global(li.is-active .toc-ticks__tick) {
+      background: var(--color-accent);
+      width: 24px;
+    }
+
+    .toc-ticks__list :global(a) {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      line-height: 1.3;
+      max-width: 16ch;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toc-ticks__list :global(li.is-active a) {
+      color: var(--text-strong);
+      font-weight: 500;
+    }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    const list = document.querySelector('.toc-ticks__list');
+    if (!list) return;
+
+    const contentSelector = list.getAttribute('data-content-selector') || '.post__body';
+    const headingSelector = list.getAttribute('data-heading-selector') || 'h2, h3';
+    const root = document.querySelector(contentSelector);
+    if (!root) return;
+
+    const headings = Array.from(root.querySelectorAll(headingSelector));
+    if (headings.length === 0) return;
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+    const itemMap = new Map();
+
+    headings.forEach((heading) => {
+      if (!heading.id) {
+        heading.id = slugify(heading.textContent || '');
+      }
+      const li = document.createElement('li');
+      li.setAttribute('data-level', heading.tagName.charAt(1));
+      li.setAttribute('data-target', heading.id);
+
+      const tick = document.createElement('span');
+      tick.className = 'toc-ticks__tick';
+      tick.setAttribute('aria-hidden', 'true');
+
+      const link = document.createElement('a');
+      link.href = '#' + heading.id;
+      link.textContent = heading.textContent || '';
+
+      li.appendChild(tick);
+      li.appendChild(link);
+      list.appendChild(li);
+      itemMap.set(heading.id, li);
+    });
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const visible = new Set();
+
+    const updateActive = () => {
+      itemMap.forEach((li, id) => {
+        if (visible.has(id)) {
+          li.classList.add('is-visible');
+        } else {
+          li.classList.remove('is-visible');
+        }
+        li.classList.remove('is-active');
+      });
+      const visibleIds = Array.from(visible);
+      if (visibleIds.length > 0) {
+        const firstId = visibleIds[0];
+        const firstLi = itemMap.get(firstId);
+        if (firstLi) firstLi.classList.add('is-active');
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.add(entry.target.id);
+          } else {
+            visible.delete(entry.target.id);
+          }
+        });
+        updateActive();
+      },
+      { rootMargin: '0px 0px -60% 0px', threshold: 0 }
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+
+    if (reduceMotion) {
+      list.querySelectorAll('a').forEach((a) => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = a.getAttribute('href')?.slice(1);
+          if (!id) return;
+          const target = document.getElementById(id);
+          if (target) target.scrollIntoView({ behavior: 'auto' });
+        });
+      });
+    }
+  })();
+</script>
