@@ -125,15 +125,35 @@ If a hotfix is targeting a repo where `main` is the GitHub default, the auto-clo
 
 ### 12. Back-merge main into develop
 
-Keep `develop` in sync with the hotfix:
+Keep `develop` in sync with the hotfix. Merge locally first:
 
 ```bash
 git fetch origin
 git checkout develop
-git pull origin develop
+git pull --ff-only origin develop
 git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
-git push origin develop
 ```
+
+Then publish via the [`flowkit:push-or-pr`](../push-or-pr/SKILL.md) sub-skill so the back-merge lands on develop whether or not develop is push-protected:
+
+```bash
+PREFIX="chore/sync-develop"
+PR_TITLE="chore(develop): back-merge hotfix from main"
+PR_BODY="## Summary
+
+Back-merge hotfix \`$TAG\` from main into develop.
+
+## Test plan
+
+- [ ] Confirm \`git log origin/main..origin/develop\` is empty after merge."
+BASE="develop"
+```
+
+After inlining the push-or-pr snippet, branch on `$PUSH_RESULT`:
+
+- `direct` — develop now matches main on origin.
+- `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the hotfix merge history).
+- `noop` — develop is already at or ahead of main on origin.
 
 ### 13. Sync develop
 

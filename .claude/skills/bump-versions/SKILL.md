@@ -93,22 +93,47 @@ Fall through to free-form prompting (asking the user to type patch/minor/major i
 
 For each plugin being bumped, read the current `plugin.json`, increment the version field, and write it back.
 
-### Step 4 — Commit plugin.json changes
+### Step 4 — Commit and publish plugin.json changes
 
-Stage and commit all updated `plugin.json` files to the current branch, then push:
+Stage and commit all updated `plugin.json` files to the current branch:
 
 ```bash
+BUMPED_LIST="<comma-separated list of plugin@new-version>"
 git add plugins/*/.claude-plugin/plugin.json
-git commit -m "chore(plugins): bump <list of plugin@version>"
-git push origin HEAD
+git commit -m "chore(plugins): bump $BUMPED_LIST"
 ```
 
 Use a single commit message listing all bumped plugins, e.g.:
 `chore(plugins): bump swarmkit@2.0.0, flowkit@1.3.0`
 
+Then publish the commit via the [`flowkit:push-or-pr`](../../../plugins/flowkit/skills/push-or-pr/SKILL.md) sub-skill so the bump lands on the protected branch even when direct pushes are rejected. Set `PREFIX`, `PR_TITLE`, and `PR_BODY` before inlining the snippet:
+
+```bash
+PREFIX="chore/bump-plugins"
+PR_TITLE="chore(plugins): bump $BUMPED_LIST"
+PR_BODY="## Summary
+
+Bump plugin.json versions for plugins changed since their last release.
+
+## Changes
+
+$(printf '%s\n' "$BUMPED_LIST" | tr ',' '\n' | sed 's/^[[:space:]]*/- /')
+
+## Test plan
+
+- [ ] Confirm each \`plugin.json\` version bump matches the per-plugin tag that will be created after merge."
+BASE="develop"
+```
+
+After inlining the push-or-pr snippet (steps 1–6 in that skill), branch on `$PUSH_RESULT`:
+
+- `direct` — the bump commit is on origin's protected branch. Continue to Step 5.
+- `pr` — push-or-pr opened `$PR_URL`. Self-review the PR, then merge it (`/flowkit:merge-pr` from `$NEW_BRANCH`). Once merged, switch to the protected branch and pull (`git checkout <branch> && git pull origin <branch>`), then continue to Step 5 — tags now point at the squash-merged commit, not the original feature-branch commit.
+- `noop` — nothing changed. Stop and report.
+
 ### Step 5 — Create git tags
 
-After the commit is pushed, create a tag for each bumped plugin pointing at that commit:
+After the bump commit is on origin's protected branch (either via direct push or via merged PR), create a tag for each bumped plugin pointing at the current branch tip:
 
 ```bash
 git tag {plugin-name}--v{new-version}
