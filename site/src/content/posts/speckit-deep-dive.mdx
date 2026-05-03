@@ -1,0 +1,213 @@
+---
+title: "Speckit: from one-liner to dispatchable epic"
+subtitle: "How the simple-vs-full classifier, four silent merge rules, and the epic:<slug> contract turn a vague idea into a labelled issue set the rest of the toolchain reads."
+kit: speckit
+date: 2026-05-03
+author: "smallorbit"
+readTime: 11
+tags: ["deep-dive", "workflow"]
+---
+
+Most "AI ticket writers" do one thing: take a prompt, emit one issue. That works until the prompt is `add tags to notes` — at which point a single ticket is wrong (the work spans four files), but four hand-written tickets are wronger (you'd file three docs tasks and forget the schema migration).
+
+`speckit` solves a smaller problem than "AI ticket writer". It interviews the idea, decides whether the result wants to be one issue or a labelled epic, silently merges over-decomposed fragments, and ends with a GitHub label that every other kit in the suite reads as a contract.
+
+This is what each of those decisions looks like up close.
+
+## Section 1 — The simple-vs-full classifier
+
+`speckit` ships four user-facing skills:
+
+- `/speckit:interview` — runs the structured interview standalone and emits a plan in plain Markdown.
+- `/speckit:spec` — the workhorse. Interviews you, builds a plan, files a GitHub epic plus child issues with consistent labels.
+- `/speckit:catalog` — bulk-converts pre-existing findings (a code review, a polishkit appraisal, a file of notes) into prioritised, labelled issues.
+- `/speckit:issue` — the quick path. Drafts and files a single issue from a one-line description, with duplicate detection.
+
+The interesting choice lives inside `/speckit:spec`. Before any interview begins, `/spec` does a quick codebase scan and classifies the request as **simple** or **full**. The simple-path heuristic is two AND-gated tests, taken straight from `plugins/speckit/skills/spec/SKILL.md`:
+
+- **Single conceptual change** — one cohesive behaviour, fix, or tweak. Not a bundle of independent changes hiding behind a shared theme.
+- **Single file, or tightly co-located files in one skill/module directory** — the work touches one file, or a small number of files inside one skill/module directory (e.g. `plugins/foo/skills/bar/*`).
+
+If both pass, you get the simple path: one lightweight interview round (1–3 questions), a single-task plan, and one standalone issue with no epic wiring at all. If either fails, you get the full path: the multi-round `speckit:interview` sub-skill, the silent consolidation pass (Section 2), and an epic plus child issues.
+
+**Takeaway:** The classifier is an opinion about cost. A trivial change inflated into a multi-task epic is overhead masquerading as planning. Skipping the inflation is the entire point of the simple path.
+
+The classifier narrates inline when it's confident. You'll see something like:
+
+```text
+This looks like a single-file, single-concept change — running simple path
+```
+
+It only fires an `AskUserQuestion` routing prompt when the heuristic is genuinely ambiguous — typically a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope so file count is borderline.
+
+The plan-approval gate at the end of every run is also the escape hatch. A simple-path plan offers `Run full interview instead`. A full-path plan offers `Condense to single issue`. The classifier is doing first-cut routing, not committing you for the run.
+
+Here's a real simple-path invocation against a single skill file:
+
+```bash
+/speckit:spec drop the docs row from the tasks table when the plan is a pure refactor
+```
+
+The classifier sees one cohesive behaviour change and one file (`plugins/speckit/skills/interview/SKILL.md`). Both heuristic tests pass. It narrates the routing, runs one short `AskUserQuestion` round to tighten scope, and presents a one-task plan with the simple-path approval options:
+
+```text
+Approve this plan and file the issue?
+  [ Approve and file ] [ Run full interview instead ] [ Adjust ] [ Cancel ]
+```
+
+On approval, `/spec` hands the single task to `/speckit:catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). The team-readiness assessment is skipped — single-issue plans are never team-suitable.
+
+A request like `add tags to notes`, by contrast, fails the simple-path test on both axes (multiple conceptual changes; multiple files). It falls through to the full path:
+
+```bash
+/speckit:spec add tags to notes
+```
+
+Five minutes of interview later, the result is an epic plus four children:
+
+```text
+Filed epic: #101 Epic: Add tags to notes             label: epic:tags-notes
+Filed children:
+  #102 Extend Note schema with tags field            priority:high   type:feature
+  #103 Add tag input to NoteEditor                   priority:high   type:feature
+  #104 Render tag chips on note cards                priority:medium type:feature
+  #105 Filter notes by tag from the sidebar          priority:medium type:feature
+```
+
+**Takeaway:** Use `/speckit:issue` when you already know exactly what to file. Use `/speckit:interview` to think out loud (no GitHub side-effects). Use `/speckit:spec` when you want the result to feed a swarm. Use `/speckit:catalog` when you have findings to bulk-load.
+
+## Section 2 — Consolidation signals
+
+The full-path interview ends with a candidate task table. Before the plan is presented for approval, `speckit:interview` runs a **silent consolidation pass** that merges over-decomposed tasks. The user sees only the consolidated result.
+
+The four merge signals, taken verbatim from `plugins/speckit/skills/interview/SKILL.md`:
+
+1. **Same file + same logical change** — both tasks touch only the same single file and address related changes to the same function, section, or config block.
+2. **Strict ordering, no standalone value** — one task cannot ship without the other and provides no independent acceptance criteria (e.g. "wire up the X added in task A").
+3. **Soft cap on epic size** — after applying signals 1 and 2, if the consolidated task count is still greater than 4, run a second merge pass under looser interpretations of signals 1 and 2. The cap is a prompt to re-examine, not a hard limit.
+4. **Docs-only tail merge** — if the auto-appended "Update documentation" task is the only remaining non-implementation task and the impl task(s) cover the same surface that docs would cover, fold docs into impl.
+
+Each signal is doing different work. Signal 1 catches duplication that snuck in because the interview asked separate questions about the same file. Signal 2 catches the "Add config option" / "Wire config option into handler" split that LLMs love to produce — the second task has no acceptance criteria the first doesn't already imply. Signal 3 is the over-decomposition safety valve. Signal 4 prevents the auto-appended docs row from looking like work when it's really just a checkbox on the impl row.
+
+**Takeaway:** Consolidation is silent because the user shouldn't have to understand the merge rules to get a clean plan. The rules exist so the approval surface stays small.
+
+When two tasks merge, the merge rules apply deterministically (also from the SKILL.md):
+
+- **Priority** — take the higher value (`high > medium > low`).
+- **Category** — take the higher-impact value (`bug > refactor > enhancement > test > docs`).
+- **Description** — preserve both originals as sub-bullets so no work item is lost.
+- **Dependencies** — remap: if task C depended on B, and A+B merged into A', then C now depends on A'.
+
+That dependency remap matters more than it sounds. It's why consolidation can be silent: downstream tasks don't develop dangling references when their predecessor disappears into a merge.
+
+A worked before/after, lifted from the canonical example in `plugins/speckit/skills/interview/SKILL.md`:
+
+```text
+BEFORE — three candidate tasks, signal 2 is about to fire on tasks 1 & 2
+
+| # | Title                                  | Depends On |
+|---|----------------------------------------|------------|
+| 1 | Add `autoRetry` config option          | —          |
+| 2 | Wire `autoRetry` into request handler  | 1          |
+| 3 | Add retry integration tests            | 2          |
+
+AFTER — tasks 1+2 merge; task 3 remaps to depend on the merged result
+
+| # | Title                                  | Depends On |
+|---|----------------------------------------|------------|
+| 1 | Add and wire `autoRetry` config option | —          |
+| 2 | Add retry integration tests            | 1          |
+```
+
+Task 2's "wire it up" framing was the giveaway: it has no standalone acceptance criteria and cannot ship without task 1. After the merge, the description preserves both originals as sub-bullets — nothing was thrown away — but the approval surface is one task shorter. Task 3's `Depends On` is automatically rewritten to point at the merged task.
+
+**Takeaway:** Tasks that legitimately stand alone — different files, different surfaces, independent acceptance criteria — are never forced together. Consolidation eliminates redundancy, not distinction.
+
+## Section 3 — Epic labels as a contract
+
+When the full-path plan ships, every issue carries the same `epic:<slug>` label. That label is the contract.
+
+The slug is derived from the working epic title using the rules in `plugins/speckit/README.md`:
+
+- Lowercase, kebab-case (words separated by single hyphens).
+- Strip filler words: `the`, `a`, `an`, `enhance`, `add`, `update`, `to`, `for`, `of`, `in`.
+- Cap the slug at 30 characters after the `epic:` prefix (the prefix doesn't count).
+
+So `Add dark mode support` becomes `epic:dark-mode-support`. `Update the CSV export pipeline` becomes `epic:csv-export-pipeline`. Filler is gone, length is bounded, and the original title is recoverable from the label's description (every `epic:<slug>` label is created with the description `Belongs to epic: <epic title>` and the shared color `#5319e7`).
+
+The slug is a proposal. Before any issues are filed, `/spec` shows the full plan with an editable line:
+
+```text
+Epic label: epic:dark-mode-support
+```
+
+You can rename it before approval. After approval, the slug is the **single source of truth** — it flows verbatim into both the catalog handoff (applied to every child issue) and the epic tracking issue (applied as a label on the parent).
+
+If the label already exists in the repo, `/spec` doesn't silently reuse it. It surfaces a warning and asks via `AskUserQuestion`:
+
+```text
+Label epic:dark-mode-support already exists in this repo.
+  [ Reuse existing label ] [ Pick a different slug ] [ Cancel ]
+```
+
+That gate is deliberate. The whole reason the label exists is so other kits can re-find the epic by name. Two epics sharing a slug would collapse them into a single filterable bucket — a silent failure that nothing downstream could detect.
+
+**Takeaway:** The slug is a public name in the repo's namespace. `speckit` treats it like one.
+
+Once filed, the label powers three workflows that nothing else has to coordinate.
+
+**Filter.** Every child of the epic is a single `gh` query away:
+
+```bash
+gh issue list -l epic:dark-mode-support --state open
+```
+
+That's the entire scope of the epic at a glance. It's also the query a code reviewer runs before opening a PR for any single child — you check what else is in flight under the same label, not what else is open in the repo.
+
+**Dispatch.** The same label is the swarmkit handshake. When you fan out the epic, you don't pass swarmkit a mental model of the work — you pass it the label:
+
+```bash
+/swarmkit:swarm 102 103 104 105
+```
+
+`/swarmkit:swarm` reads each issue, sees the shared `epic:dark-mode-support` label, and treats them as a coordinated stack rather than four unrelated jobs. The retargeting logic, the merge ordering, and the worktree provisioning all key off that shared label. Two days later, in a fresh session with no memory of the original interview, the swarm can still pick up the work — because the label survived the session boundary and the interview did not.
+
+**Release closing.** When `/flowkit:release` promotes the RC to `main`, it closes referenced issues by walking the merged commits and matching `Closes #N` footers. The epic tracking issue itself is filed with a child checklist (`#102`, `#103`, `#104`, `#105`); GitHub auto-closes the parent when every child closes. The `epic:<slug>` label becomes the post-release filter (`gh issue list -l epic:dark-mode-support --state closed`) that confirms the epic shipped clean. Nothing in the release flow needed to know what `dark-mode-support` meant — it just needed the label to be consistent.
+
+**Takeaway:** The contract is the label, not the interview. The interview's conclusions are gone the moment `/spec` returns; the labels carry forward.
+
+A worked end-to-end example, with all three workflows in play:
+
+```bash
+# Day 1 — plan and file
+/speckit:spec add dark mode support
+# (interview, four-task plan, approve, four children + epic filed under epic:dark-mode-support)
+
+# Day 2 — fresh session, swarm the children
+gh issue list -l epic:dark-mode-support --state open
+/swarmkit:swarm 102 103 104 105
+# (four agents, four stacked PRs, all retargeted to develop)
+
+# Day 3 — ship
+/flowkit:ship
+# (merge-stack → cut → release. Children close on merge; epic auto-closes when all children close.)
+
+# Confirm
+gh issue list -l epic:dark-mode-support --state closed
+```
+
+The label is the only thing each step had to agree on. There's no shared state file, no configuration, no in-memory plan being passed around. The interview happened on day 1; days 2 and 3 read the same label and acted on it independently.
+
+**Takeaway:** Designing the handshake as a GitHub label (instead of a project file or a database row) is what makes the kits compose. Every tool that speaks GitHub already speaks the contract.
+
+## Closing
+
+`speckit` isn't "Claude writes you tickets". It's a small set of decisions about when not to over-decompose (the simple-path classifier), when to merge fragments that look like separate tasks (the four consolidation signals), and how to preserve the result so the rest of the toolchain can act on it (the `epic:<slug>` contract). Each of those decisions exists because the alternative — over-fragmented backlogs, redundant tasks, ad-hoc planning state that dies with the session — is the failure mode that the kit is built to avoid.
+
+**Takeaway recap.**
+
+- The simple-vs-full classifier is an opinion about cost. Trivial work doesn't deserve an epic.
+- The four merge signals run silently because the user shouldn't have to learn them to get a clean plan.
+- The `epic:<slug>` label is the contract every other kit reads. The interview is gone; the label remains.
+
+If you've read the [pillar post](/blog/from-idea-to-release-with-smallorbit-plugins/), you've already seen the next move: the swarm. The same label `speckit` filed becomes the input that `swarmkit` fans out into stacked PRs. That's the next deep-dive — how `/swarmkit:swarm` turns one label into N agents and one merge-safe stack of PRs.
