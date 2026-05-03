@@ -16,6 +16,8 @@ const posts = defineCollection({
   }),
 });
 
+// Astro 5 reserves `slug` in `type: 'content'` collections (auto-derived from
+// the entry filename and exposed as `entry.id`). Consumers route on `entry.id`.
 const kits = defineCollection({
   type: 'content',
   schema: z.object({
