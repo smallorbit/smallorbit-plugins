@@ -149,17 +149,22 @@ VERSION_BUMPS=$(git log origin/main..origin/"$SOURCE" --oneline \
   || true)
 
 # --- scope list ---
-# Extract known plugin scopes; extend this list as new plugins are added.
-# Newline-delimited so we can iterate via `while read` — `for X in $VAR` does
-# not word-split unquoted variables in zsh and would silently process the
-# whole list as a single value.
-PLUGINS="flowkit
-speckit
-swarmkit
-sessionkit
-polishkit
-squadkit
-vaultkit"
+# Prefer .flowkit/scopes.txt at the repo root if the operator has pinned a
+# canonical list (one scope per line; blank lines and `#` comments ignored).
+# Otherwise auto-detect scopes from the release commit range: extract
+# conventional-commit `type(scope):` tokens, normalize sub-scopes
+# (`flowkit:open-pr` → `flowkit`), and dedupe. The skill adapts to whatever
+# scopes the consumer repo actually uses — no hardcoded list.
+SCOPES_FILE="$(git rev-parse --show-toplevel)/.flowkit/scopes.txt"
+if [ -f "$SCOPES_FILE" ]; then
+  PLUGINS=$(grep -v '^[[:space:]]*#' "$SCOPES_FILE" | grep -v '^[[:space:]]*$' || true)
+else
+  PLUGINS=$(git log origin/main..origin/"$SOURCE" --format=%s \
+    | grep -oE '^[a-z]+\([^)]+\)' \
+    | sed -E 's/^[a-z]+\(([^):]+).*/\1/' \
+    | sort -u \
+    || true)
+fi
 
 # --- synthesized release notes ---
 # Fetch merged-PR titles and the first sentence of each PR's ## Summary section
