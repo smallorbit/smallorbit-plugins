@@ -1,0 +1,180 @@
+---
+title: "sessionkit: continuity that survives a context reset"
+subtitle: "How HANDOFF.md round-trips your task list, why /skillit refuses duplicates, and what /retro routes where."
+kit: sessionkit
+date: 2026-05-03
+author: "smallorbit"
+readTime: 11
+tags: ["deep-dive", "tips", "workflow"]
+---
+
+Every kit in the suite handles "do the work." sessionkit handles what happens between.
+
+A real working day rarely fits inside a single session. The context window fills up. You stop for lunch and come back five hours later. You hand the work off to a teammate, or to a fresh agent, or to your future self after a weekend. Every one of those transitions burns coordination cost — restating the goal, re-reading the diff, re-deriving the gotchas you already paid for once. sessionkit's job is to make that cost trivial.
+
+This is a tour of three sessionkit surfaces that earn their keep on a real workday. The anatomy of `HANDOFF.md` and the task round-trip that pickup performs. The overlap check inside `/sessionkit:skillit` that refuses to propose duplicate skills. And `/sessionkit:retro` as a router — not a journal — that turns each finding into a one-keystroke action.
+
+Each section walks you through the contract sessionkit ships, with citations from the kit's own `SKILL.md` files so you can verify the behaviour against source.
+
+## HANDOFF.md is a contract, not a diary
+
+The premise is simple. `/sessionkit:handoff` writes one Markdown file at `.sessionkit/HANDOFF.md`. `/sessionkit:pickup` reads that file in a new session and rehydrates the agent. The interesting part is what the file actually contains and what survives the round-trip.
+
+**Takeaway:** The handoff document is the entire memory blob between sessions. Everything else — the in-flight tools, the open editor buffers, the unsaved scratchpad — is gone. The file is structured so the next agent can reconstruct enough state to make a real decision in two minutes.
+
+The section order is fixed:
+
+- `## Goal` — one bullet, one sentence. What this session is working toward.
+- `## Progress` — bullets only. What was completed, decided, or abandoned.
+- `## Git State` — branch, staged files, unstaged files, recent commits.
+- `## Remaining Work` — bullets in priority order.
+- `## Task List` — a fenced JSON block that captures the actual task graph.
+- `## Context` — bullets only. Decisions, gotchas, dead ends, external references.
+
+That order is not a stylistic choice — it's enforced by `plugins/sessionkit/skills/handoff/SKILL.md` under "Constraints," and `/sessionkit:pickup` parses positionally. Goal first because it answers "why are we even here." Context last because by the time the next agent reads it, they already know what we were doing and just need the gotchas.
+
+The file also carries an HTML-comment header on line 1:
+
+```text
+<!-- handoff-meta gitFingerprint=<sha> taskFingerprint=<sha> -->
+```
+
+That header is what enables delta mode. On the next `/sessionkit:handoff` run, the skill compares the prior `gitFingerprint` (HEAD sha plus a hash of the staged and unstaged file lists) against the current state. If git hasn't moved, the `## Git State` and `## Progress` sections are reused verbatim. Same for `taskFingerprint` over the Task List and Remaining Work sections. When both fingerprints match, four of the six sections come straight from the prior file and the synthesis sub-agent is skipped entirely.
+
+**Takeaway:** Run `/sessionkit:handoff` after every meaningful state change — opening a PR, completing a task, locking in a decision. Delta mode keeps the cost trivial. You don't have to wait for context pressure to capture state.
+
+### What survives the task round-trip
+
+The `## Task List` section is where the real engineering happens. `/sessionkit:handoff` snapshots every non-deleted task into a JSON array inside the fenced `json` block. `/sessionkit:pickup` reads that block in the next session and recreates the tasks with `TaskCreate`, then re-wires the dependency graph with `TaskUpdate`.
+
+The fields that survive the round-trip, per the table in `plugins/sessionkit/README.md`:
+
+- `id` — preserved in the snapshot so `blockedBy` edges can be rewired; the new session assigns a fresh id.
+- `subject` — the task title.
+- `description` — the full task description.
+- `activeForm` — the active-form view state.
+- `status` — original status (`pending` or `in_progress`); all recreated tasks start as `pending`.
+- `blockedBy` — dependency edges; remapped to new ids after all tasks are created.
+- `blocks` — listed in the snapshot for reference; not re-wired on pickup (the inverse of `blockedBy` is implicit and wiring both directions would double-write the graph).
+
+What does **not** survive: `owner` and `metadata`. And only `pending` or `in_progress` tasks are restored — `completed` ones appear in the orientation summary as history but are not recreated. This is deliberate. The task list is the active work plan, not the audit log; resurrecting completed tasks would just clutter the new session's queue.
+
+**Takeaway:** The task graph is the only structural state that survives a context reset. Conversation transcripts, scratchpad notes, even the orientation prose are reconstructed every time. The graph is the spine.
+
+The pickup pass is two-pass on purpose. Pass 1 calls `TaskCreate` for each `pending` or `in_progress` task and records an `oldId → newId` map. Pass 2 walks the same set, remaps each `blockedBy` array through the map, and calls `TaskUpdate` with `addBlockedBy` for the new task id. The handoff snapshot doesn't carry the new ids — those don't exist yet — so the rewire has to wait until every task is created.
+
+There's also a graceful back-compat clause. Legacy `HANDOFF.md` files written before task-list support existed (no `## Task List` section) are valid input. `/sessionkit:pickup` emits one warning line — `No task list snapshot — skipping hydration` — and continues with the orientation summary. That tiny touch matters: handoff files in the wild outlive their schema.
+
+### One subtle invariant
+
+The `## Goal` and `## Context` sections are always refreshed on a new `/sessionkit:handoff` run, even when both fingerprints match. Goal because it incorporates `$ARGUMENTS` when present (the freeform notes you fold in to steer the next agent). Context because the gotchas drift faster than the structural state — a decision made twenty minutes ago might be the most important thing the next agent reads.
+
+Everything else can be reused verbatim. That's the asymmetry that makes delta mode safe: structural state is content-addressed, narrative state is always fresh.
+
+## /skillit refuses to propose duplicates
+
+`/sessionkit:skillit` reflects on the current session and proposes new skills worth encoding. Most "agent reflection" tools are unbounded — they will happily generate the tenth variation of a skill you wrote three weeks ago. `skillit` won't.
+
+The contract from `plugins/sessionkit/skills/skillit/SKILL.md` is four steps. The third step is the one that earns the kit:
+
+```bash
+find ~/.claude/skills -name "SKILL.md" 2>/dev/null
+find .claude/skills -name "SKILL.md" 2>/dev/null
+find ~/.claude/commands -name "*.md" 2>/dev/null
+```
+
+`/skillit` scans the user-global skill library, the project-local skill library, and the legacy commands directory. It reads the `name` and `description` frontmatter of any candidates that look relevant, and surfaces close matches to you **before** proposing anything new.
+
+**Takeaway:** Capturing a reusable skill is easy. *Not* capturing one that already exists — that's the hard part. Without the overlap check, every session ends with a fresh skill proposal that overlaps the existing library at 80% and just hasn't been noticed.
+
+The presentation step is structured to make that explicit:
+
+- **What it would do** — one sentence.
+- **Why it's worth encoding** — what friction it removes.
+- **Overlap risk** — does it duplicate or extend an existing skill?
+
+The "extend an existing skill" branch is where overlap turns into a positive. If the conversation surfaced a pattern that's 60% covered by an existing skill plus a new wrinkle, `/skillit` offers to modify the existing skill rather than ship a near-duplicate. That keeps the library coherent over months.
+
+The constraints at the bottom of the SKILL file lock the discipline in:
+
+- *Always* check for existing skills before proposing something new.
+- *Never* create a skill file without user approval.
+- *Identify at least one candidate* before concluding — never report "nothing found."
+
+The first two are obvious. The third is doing more work than it looks. Without it, `/skillit` could just shrug and exit when the session was uneventful — and you'd never get the small wins (the recurring command sequence you didn't notice was a pattern). Forcing one candidate per run keeps the library growing.
+
+**Takeaway:** Run `/skillit` at the end of any session that involved a non-trivial workflow. The overlap check is what makes it safe to run often.
+
+## /retro is a router, not a journal
+
+The temptation in any retro tooling is to write a long markdown summary you'll never re-read. `/sessionkit:retro` does the opposite. It produces a short inline summary, then asks one question with a one-keystroke answer. Each finding has a delegation target — a downstream skill that owns the action.
+
+Per `plugins/sessionkit/skills/retro/SKILL.md`, the input surfaces are four:
+
+- **Conversation transcript** — repeated corrections, friction loops, mid-flight self-corrections.
+- **Task list** — `TaskList` plus per-task `TaskGet` to find stalls, scope revisions, completed-vs-cancelled patterns.
+- **Git activity within the session window** — `git log --since="8 hours ago"`, current branch, stashes, recent PRs.
+- **Hook and tool-denial events** — scanned from the most recent `~/.claude/projects/<encoded-cwd>/*.jsonl` files for `permission denied`, `tool denied`, or `hook blocked` patterns.
+
+That fourth surface is the one most retro tools miss. A `permission denied` you approved twice this session is a strong signal — the next session will burn the same approval friction unless you ship a permission tweak now.
+
+**Takeaway:** Retro isn't lessons-learned theatre. Every signal has a downstream action; the retro's job is to route, not narrate.
+
+The synthesis step organizes findings into three buckets — **What went well**, **What didn't go well**, **Recommended actions** — and the third bucket is where the routing happens. The mapping table in the SKILL file is exact:
+
+| Pattern | Delegation target |
+|---------|------------------|
+| Repeated command sequence worth automating | `sessionkit:skillit` |
+| Repeated permission approvals | `sessionkit:suggest-permissions` |
+| Context running low or session should be captured | `sessionkit:handoff` |
+| Recurring hook-blocked behavior worth enforcing | `hookify:hookify` |
+| A problem worth filing as a tracked issue | `speckit:issue` |
+| A behavioral config worth persisting | `update-config` |
+| No matching skill | Surface as plain-text guidance only |
+
+The actions are capped at four to fit the harness's `AskUserQuestion` option limit. If more than four items qualify, retro keeps the highest-signal ones and reserves the fourth slot for "Other — I'll handle this manually" when there's remaining guidance with no skill match. That cap is doing real work: a menu of nine options is functionally identical to no menu at all.
+
+The action menu is mandatory. The SKILL file is unambiguous: *"Never run delegated skills without explicit user selection. The `AskUserQuestion` call in step 4 is mandatory. Skipping it and auto-running skills is a defect."* The router is opinionated about delegation but conservative about consent.
+
+**Takeaway:** Retro is a thin reflective layer. It does not absorb `skillit`'s encoding logic, it does not absorb `suggest-permissions`' tuning logic, it does not write files. When it recommends "encode X as a skill," it delegates to `/skillit` — it does not author the skill itself.
+
+That last constraint matters more than it looks. The temptation is to fold each downstream skill's logic into retro for convenience. The cost would be every retro change touching every downstream skill's behaviour. Keeping retro thin keeps the rest of the kit composable.
+
+### A worked example
+
+Imagine a session that:
+
+- Approved `Bash(npm run build)` four times.
+- Repeated the same `git status && git diff && git commit` sequence twice.
+- Hit a `tool denied` for a Write tool inside `node_modules/`.
+- Surfaced a real bug nobody's filed yet.
+
+`/sessionkit:retro` produces an inline summary citing each turn, then asks:
+
+```text
+Which of these would you like to action now?
+
+1. Permission tune for `Bash(npm run build)`     → /sessionkit:suggest-permissions
+2. Encode the status/diff/commit sequence        → /sessionkit:skillit
+3. Hookify the node_modules write block          → /hookify:hookify
+4. File the bug as a tracked issue               → /speckit:issue
+```
+
+You pick the ones you want, retro invokes each in turn, and the session ends with concrete artifacts — not a markdown post-mortem you'll never re-read.
+
+## Putting it together
+
+sessionkit's three big surfaces compose cleanly because each one has a narrow, well-defined contract:
+
+- `/sessionkit:handoff` writes the structural state — git, tasks, gotchas — into a single Markdown file with a fingerprint header that makes the next run cheap.
+- `/sessionkit:pickup` reads that file, rebuilds the task graph (preserving `blockedBy` edges across the id remap), and ends by asking what you want to tackle first.
+- `/sessionkit:skillit` reflects on the session, checks the existing skill library for overlap, and proposes one new skill or one extension — never a duplicate.
+- `/sessionkit:retro` scans four signal surfaces (conversation, tasks, git, denials), groups findings into went-well / didn't-go-well / recommended actions, and routes each action to the right downstream skill via a one-keystroke menu.
+
+The kit doesn't ship a "session manager" abstraction. It ships four small skills that each own one beat — capture, restore, encode, route — and a Markdown file that's the entire shared state.
+
+**Takeaway:** Continuity is a discipline, not a feature. sessionkit gives you the contract; the discipline is yours.
+
+If you take one thing from this post, take this: the round-trip between `/sessionkit:handoff` and `/sessionkit:pickup` is the most-overlooked compounding lever in the suite. Run `/handoff` after every PR, every decision, every scope change — delta mode keeps the cost near-zero. The next session starts with the goal restated, the task graph rebuilt, the gotchas surfaced. The first ten minutes of a fresh session stop being a tax.
+
+Forward pointer: the squadkit deep-dive picks up where this one leaves off — multi-agent coordination layered on top of the sessionkit substrate, with squadkit's `SessionStart` hook re-asserting role context whenever a session resumes via `/pickup`. Two kits, one continuity story.
