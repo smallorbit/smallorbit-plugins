@@ -15,9 +15,17 @@ const { title, subtitle, kit, date, author, readTime, ogImage, draft } = entry.d
 
 const description = subtitle ?? title;
 const accentVar = kit ? `var(--${kit}, var(--color-accent))` : 'var(--color-accent)';
+
+const siteOrigin = Astro.site?.toString().replace(/\/$/, '') ?? 'https://smallorbit.github.io';
+const baseHref = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+const postSlug = entry.id.replace(/\.(md|mdx)$/, '');
+const generatedOgImage = `${siteOrigin}${baseHref}og/${postSlug}.png`;
+const resolvedOgImage = ogImage ?? generatedOgImage;
 ---
 
-<BaseLayout title={title} description={description} ogImage={ogImage} ogType="article">
+<BaseLayout title={title} description={description} ogImage={resolvedOgImage} ogType="article">
   <article class="post" style={`--post-accent: ${accentVar};`}>
     <header class="post__header">
       {kit && <p class="post__kit">{kit}</p>}
