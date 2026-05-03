@@ -1,6 +1,6 @@
 ---
 name: push-or-pr
-description: Publish pending commits on the current branch by pushing directly when allowed, or by creating a feature branch and opening a PR when the target is branch-protected. Sub-skill used by /bump-versions and /flowkit:release (via git-sync-develop).
+description: Publish pending commits on the current branch by pushing directly when allowed, or by creating a feature branch and opening a PR when the target is branch-protected. Sub-skill used by /bump-versions, /flowkit:release, and /flowkit:hotfix.
 ---
 
 # push-or-pr
