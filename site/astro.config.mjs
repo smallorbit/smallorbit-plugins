@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
 
 export default defineConfig({
   site: 'https://smallorbit.github.io',
@@ -11,4 +12,5 @@ export default defineConfig({
       wrap: false,
     },
   },
+  integrations: [mdx()],
 });

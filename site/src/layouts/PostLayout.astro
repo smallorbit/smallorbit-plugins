@@ -25,7 +25,7 @@ const generatedOgImage = `${siteOrigin}${baseHref}og/${postSlug}.png`;
 const resolvedOgImage = ogImage ?? generatedOgImage;
 ---
 
-<BaseLayout title={title} description={description} ogImage={resolvedOgImage} ogType="article">
+<BaseLayout title={title} description={description} ogImage={resolvedOgImage} ogType="article" active="blog">
   <article class="post" style={`--post-accent: ${accentVar};`}>
     <header class="post__header">
       {kit && <p class="post__kit">{kit}</p>}
