@@ -85,12 +85,11 @@ fi
 
 ### 4. Engage the fallback
 
-Save HEAD, reset the protected branch back to its upstream, create the feature branch carrying the saved commits, and push it:
+Save HEAD, switch to a new feature branch carrying the saved commits, then move the protected branch back to its upstream so the local copy doesn't drift. The order matters — `git branch -f` refuses to update the currently-checked-out branch, so checkout away first:
 
 ```bash
 if [ -z "${PUSH_RESULT:-}" ]; then
   SAVED=$(git rev-parse HEAD)
-  git branch -f "$BRANCH" "$UPSTREAM_REF"
 
   DATE=$(date +%Y-%m-%d)
   NEW_BRANCH="${PREFIX}-${DATE}"
@@ -102,6 +101,7 @@ if [ -z "${PUSH_RESULT:-}" ]; then
   done
 
   git checkout -b "$NEW_BRANCH" "$SAVED"
+  git branch -f "$BRANCH" "$UPSTREAM_REF"
   git push -u origin "$NEW_BRANCH"
 fi
 ```
