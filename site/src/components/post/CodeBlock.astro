@@ -1,0 +1,69 @@
+---
+interface Props {
+  filename?: string;
+  lineNumbers?: boolean;
+}
+
+const { filename, lineNumbers = false } = Astro.props;
+---
+
+<figure class={`code-block${lineNumbers ? ' code-block--numbered' : ''}`}>
+  {filename && <figcaption class="code-block__filename">{filename}</figcaption>}
+  <div class="code-block__body">
+    <slot />
+  </div>
+</figure>
+
+<style is:global>
+  .code-block {
+    margin: 2rem 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    overflow: hidden;
+  }
+
+  .code-block__filename {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.825rem;
+    color: var(--text-muted);
+    background: var(--bg-veil);
+  }
+
+  .code-block__body {
+    position: relative;
+  }
+
+  .code-block__body pre {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .code-block--numbered .code-block__body pre {
+    padding-left: 0 !important;
+  }
+
+  .code-block--numbered .code-block__body pre code {
+    counter-reset: line;
+  }
+
+  .code-block--numbered .code-block__body pre code .line {
+    counter-increment: line;
+    padding-left: 3rem;
+    position: relative;
+  }
+
+  .code-block--numbered .code-block__body pre code .line::before {
+    content: counter(line);
+    position: absolute;
+    left: 0;
+    width: 2.25rem;
+    text-align: right;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+</style>

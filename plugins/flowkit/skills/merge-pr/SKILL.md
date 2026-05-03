@@ -74,7 +74,25 @@ If `git worktree remove` fails, abort with:
 >
 > Then re-run /merge-pr.
 
-### 5. Squash-merge and delete the remote branch
+### 5. Retarget any child PRs stacked on this PR's head branch
+
+`gh pr merge --delete-branch` deletes the head branch on the remote. GitHub auto-CLOSES (not merges) any open PRs whose `baseRefName` equals the deleted branch, silently abandoning their diffs. Pre-empt this by enumerating those child PRs and retargeting each to the merging PR's base before the squash.
+
+```bash
+BASE_BRANCH=$(gh pr view "$PR_NUM" --json baseRefName --jq '.baseRefName')
+
+gh pr list --base "$HEAD_BRANCH" --state open --json number --jq '.[].number' \
+  | while read CHILD; do
+      [ -z "$CHILD" ] && continue
+      if gh pr edit "$CHILD" --base "$BASE_BRANCH" >/dev/null; then
+        echo "Retargeted PR #$CHILD: base $HEAD_BRANCH → $BASE_BRANCH" >&2
+      else
+        echo "WARNING: Failed to retarget PR #$CHILD from $HEAD_BRANCH to $BASE_BRANCH. It will be auto-closed when $HEAD_BRANCH is deleted." >&2
+      fi
+    done
+```
+
+### 6. Squash-merge and delete the remote branch
 
 `gh pr merge --squash --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. The block below mirrors the stash-guard logic from `flowkit:with-clean-workspace` — auto-stashing dirty state before the merge and restoring it after:
 
@@ -123,7 +141,7 @@ fi
 [ "$MERGE_OK" = "false" ] && exit 1
 ```
 
-### 6. Report
+### 7. Report
 
 Print a summary:
 

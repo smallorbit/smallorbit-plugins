@@ -1,0 +1,391 @@
+---
+---
+
+<section id="lifecycle" class="lifecycle" aria-labelledby="lifecycle-title">
+  <div class="lifecycle__container">
+    <span class="lifecycle__eyebrow">end-to-end flow</span>
+    <h2 id="lifecycle-title" class="lifecycle__title">A complete loop, with you at every turn.</h2>
+    <p class="lifecycle__lede">
+      Claude drives each phase; you approve at every handoff. sessionkit keeps context flowing as you go.
+    </p>
+
+    <div class="lifecycle__panel">
+      <div
+        class="lifecycle__svg-wrap"
+        role="img"
+        aria-label="Development lifecycle subway map: speckit, swarmkit, polishkit, and flowkit arranged left to right across the PLAN, EXECUTE, POLISH, and SHIP phases. Below each is a human-in-the-loop decision point. sessionkit runs underneath all phases."
+      >
+        <svg class="lifecycle__svg" viewBox="0 0 1040 430" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+          <rect class="ls-phase-bar" x="130" y="34" width="60" height="2" fill="var(--speckit)" />
+          <rect class="ls-phase-bar" x="370" y="34" width="60" height="2" fill="var(--swarmkit)" />
+          <rect class="ls-phase-bar" x="610" y="34" width="60" height="2" fill="var(--polishkit)" />
+          <rect class="ls-phase-bar" x="850" y="34" width="60" height="2" fill="var(--flowkit)" />
+
+          <text class="ls-phase-text" x="160" y="22" text-anchor="middle">PLAN</text>
+          <text class="ls-phase-text" x="400" y="22" text-anchor="middle">EXECUTE</text>
+          <text class="ls-phase-text" x="640" y="22" text-anchor="middle">POLISH</text>
+          <text class="ls-phase-text" x="880" y="22" text-anchor="middle">SHIP</text>
+
+          <line class="ls-spine" x1="50" y1="113" x2="990" y2="113" />
+
+          <text class="ls-lane-label" x="20" y="116">AI</text>
+
+          <path class="ls-transfer" data-kit="speckit"   d="M 160,150 C 150,190 170,220 160,252" />
+          <path class="ls-transfer" data-kit="swarmkit"  d="M 400,150 C 390,190 410,220 400,252" />
+          <path class="ls-transfer" data-kit="polishkit" d="M 640,150 C 630,190 650,220 640,252" />
+          <path class="ls-transfer" data-kit="flowkit"   d="M 880,150 C 870,190 890,220 880,252" />
+
+          <g class="ls-station">
+            <rect class="ls-node-rect" data-kit="speckit" x="50"  y="76" width="220" height="74" rx="12" />
+            <text class="ls-node-name" data-kit="speckit" x="160" y="110">speckit</text>
+            <text class="ls-node-role" x="160" y="132">plan it</text>
+            <circle class="ls-star" cx="252" cy="84" r="2" />
+          </g>
+          <g class="ls-station">
+            <rect class="ls-node-rect" data-kit="swarmkit" x="290" y="76" width="220" height="74" rx="12" />
+            <text class="ls-node-name" data-kit="swarmkit" x="400" y="110">swarmkit</text>
+            <text class="ls-node-role" x="400" y="132">execute it</text>
+            <circle class="ls-star" cx="492" cy="84" r="2" />
+          </g>
+          <g class="ls-station">
+            <rect class="ls-node-rect" data-kit="polishkit" x="530" y="76" width="220" height="74" rx="12" />
+            <text class="ls-node-name" data-kit="polishkit" x="640" y="110">polishkit</text>
+            <text class="ls-node-role" x="640" y="132">polish it</text>
+            <circle class="ls-star" cx="732" cy="84" r="2" />
+          </g>
+          <g class="ls-station">
+            <rect class="ls-node-rect" data-kit="flowkit" x="770" y="76" width="220" height="74" rx="12" />
+            <text class="ls-node-name" data-kit="flowkit" x="880" y="110">flowkit</text>
+            <text class="ls-node-role" x="880" y="132">ship it</text>
+            <circle class="ls-star" cx="972" cy="84" r="2" />
+          </g>
+
+          <text class="ls-lane-label" x="20" y="285">YOU</text>
+
+          <line x1="50" y1="282" x2="990" y2="282" stroke="var(--border-strong)" stroke-width="1" stroke-dasharray="2 4" />
+
+          <g class="ls-station">
+            <rect class="ls-you-rect" x="50" y="252" width="220" height="60" rx="10" />
+            <text class="ls-you-action" x="160" y="275">approve spec</text>
+            <text class="ls-you-hint"   x="160" y="294">review issues before swarm</text>
+          </g>
+          <g class="ls-station">
+            <rect class="ls-you-rect" x="290" y="252" width="220" height="60" rx="10" />
+            <text class="ls-you-action" x="400" y="275">review PRs from swarm</text>
+            <text class="ls-you-hint"   x="400" y="294">merge or request changes</text>
+          </g>
+          <g class="ls-station">
+            <rect class="ls-you-rect" x="530" y="252" width="220" height="60" rx="10" />
+            <text class="ls-you-action" x="640" y="275">triage polish findings</text>
+            <text class="ls-you-hint"   x="640" y="294">decide what ships now</text>
+          </g>
+          <g class="ls-station">
+            <rect class="ls-you-rect" x="770" y="252" width="220" height="60" rx="10" />
+            <text class="ls-you-action" x="880" y="275">approve release</text>
+            <text class="ls-you-hint"   x="880" y="294">tag and ship to users</text>
+          </g>
+
+          <line class="ls-session-bar" x1="50" y1="370" x2="340" y2="370" />
+          <line class="ls-session-bar" x1="700" y1="370" x2="990" y2="370" />
+          <text class="ls-session-label" x="520" y="374" text-anchor="middle">sessionkit · throughout all phases</text>
+          <text class="ls-session-handoff" x="520" y="395" text-anchor="middle">/handoff    /pickup</text>
+        </svg>
+      </div>
+
+      <ol class="lifecycle__mobile" aria-label="Development lifecycle, vertical view">
+        <li class="lcm-phase-label">PLAN</li>
+        <li class="lcm-row">
+          <div class="lcm-ai"><span class="lcm-ai-name" data-kit="speckit">speckit</span><span class="lcm-ai-role">plan it</span></div>
+          <div class="lcm-you"><span class="lcm-you-action">approve spec</span><span class="lcm-you-hint">review issues before swarm</span></div>
+        </li>
+        <li class="lcm-phase-label">EXECUTE</li>
+        <li class="lcm-row">
+          <div class="lcm-ai"><span class="lcm-ai-name" data-kit="swarmkit">swarmkit</span><span class="lcm-ai-role">execute it</span></div>
+          <div class="lcm-you"><span class="lcm-you-action">review PRs</span><span class="lcm-you-hint">merge or request changes</span></div>
+        </li>
+        <li class="lcm-phase-label">POLISH</li>
+        <li class="lcm-row">
+          <div class="lcm-ai"><span class="lcm-ai-name" data-kit="polishkit">polishkit</span><span class="lcm-ai-role">polish it</span></div>
+          <div class="lcm-you"><span class="lcm-you-action">triage findings</span><span class="lcm-you-hint">decide what ships now</span></div>
+        </li>
+        <li class="lcm-phase-label">SHIP</li>
+        <li class="lcm-row">
+          <div class="lcm-ai"><span class="lcm-ai-name" data-kit="flowkit">flowkit</span><span class="lcm-ai-role">ship it</span></div>
+          <div class="lcm-you"><span class="lcm-you-action">approve release</span><span class="lcm-you-hint">tag and ship to users</span></div>
+        </li>
+        <li class="lcm-session">sessionkit · throughout all phases · /handoff · /pickup</li>
+      </ol>
+
+      <div class="lifecycle__legend">
+        <span class="lifecycle__legend-item"><span class="lifecycle__legend-dot ai"></span>AI agent (plugin-driven)</span>
+        <span class="lifecycle__legend-item"><span class="lifecycle__legend-dot you"></span>Human checkpoint</span>
+        <span class="lifecycle__legend-item"><span class="lifecycle__legend-dot session"></span>sessionkit — throughout</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .lifecycle {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-page);
+  }
+
+  .lifecycle__container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 4.5rem 1.25rem;
+  }
+
+  .lifecycle__eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+  }
+
+  .lifecycle__title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    line-height: 1.15;
+    color: var(--text-strong);
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  .lifecycle__lede {
+    max-width: 60ch;
+    color: var(--text-muted);
+    margin: 0 0 2.5rem;
+    font-size: 1.05rem;
+  }
+
+  .lifecycle__panel {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 2rem 1.5rem;
+  }
+
+  .lifecycle__svg-wrap {
+    display: block;
+  }
+
+  .lifecycle__svg {
+    width: 100%;
+    height: auto;
+  }
+
+  .ls-phase-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    fill: var(--text-muted);
+    letter-spacing: 0.12em;
+  }
+
+  .ls-spine {
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+  }
+
+  .ls-lane-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--text-dim);
+    letter-spacing: 0.12em;
+  }
+
+  .ls-transfer {
+    fill: none;
+    stroke-width: 1.25;
+    stroke-dasharray: 3 3;
+    opacity: 0.6;
+  }
+
+  .ls-transfer[data-kit="speckit"]   { stroke: var(--speckit); }
+  .ls-transfer[data-kit="swarmkit"]  { stroke: var(--swarmkit); }
+  .ls-transfer[data-kit="polishkit"] { stroke: var(--polishkit); }
+  .ls-transfer[data-kit="flowkit"]   { stroke: var(--flowkit); }
+
+  .ls-node-rect {
+    fill: var(--bg-veil);
+    stroke-width: 2;
+  }
+
+  .ls-node-rect[data-kit="speckit"]   { stroke: var(--speckit); }
+  .ls-node-rect[data-kit="swarmkit"]  { stroke: var(--swarmkit); }
+  .ls-node-rect[data-kit="polishkit"] { stroke: var(--polishkit); }
+  .ls-node-rect[data-kit="flowkit"]   { stroke: var(--flowkit); }
+
+  .ls-node-name {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 600;
+    text-anchor: middle;
+  }
+
+  .ls-node-name[data-kit="speckit"]   { fill: var(--speckit); }
+  .ls-node-name[data-kit="swarmkit"]  { fill: var(--swarmkit); }
+  .ls-node-name[data-kit="polishkit"] { fill: var(--polishkit); }
+  .ls-node-name[data-kit="flowkit"]   { fill: var(--flowkit); }
+
+  .ls-node-role {
+    font-family: var(--sans);
+    font-size: 12px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+  }
+
+  .ls-star {
+    fill: var(--text-dim);
+  }
+
+  .ls-you-rect {
+    fill: var(--bg-page);
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+  }
+
+  .ls-you-action {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text-strong);
+    text-anchor: middle;
+  }
+
+  .ls-you-hint {
+    font-family: var(--sans);
+    font-size: 11px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+  }
+
+  .ls-session-bar {
+    stroke: var(--sessionkit);
+    stroke-width: 2;
+    opacity: 0.45;
+  }
+
+  .ls-session-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    fill: var(--sessionkit);
+    letter-spacing: 0.06em;
+  }
+
+  .ls-session-handoff {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .lifecycle__mobile {
+    display: none;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .lifecycle__svg-wrap {
+      display: none;
+    }
+
+    .lifecycle__mobile {
+      display: block;
+    }
+  }
+
+  .lcm-phase-label {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  .lcm-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .lcm-ai,
+  .lcm-you {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .lcm-ai-name {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .lcm-ai-name[data-kit="speckit"]   { color: var(--speckit); }
+  .lcm-ai-name[data-kit="swarmkit"]  { color: var(--swarmkit); }
+  .lcm-ai-name[data-kit="polishkit"] { color: var(--polishkit); }
+  .lcm-ai-name[data-kit="flowkit"]   { color: var(--flowkit); }
+
+  .lcm-ai-role,
+  .lcm-you-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .lcm-you-action {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-strong);
+  }
+
+  .lcm-session {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: var(--r-sm);
+    background: var(--bg-veil);
+    color: var(--sessionkit);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    text-align: center;
+  }
+
+  .lifecycle__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .lifecycle__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .lifecycle__legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .lifecycle__legend-dot.ai      { background: var(--swarmkit); }
+  .lifecycle__legend-dot.you     { background: var(--text-muted); }
+  .lifecycle__legend-dot.session { background: var(--sessionkit); }
+</style>
