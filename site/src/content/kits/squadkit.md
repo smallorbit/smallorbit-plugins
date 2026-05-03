@@ -1,7 +1,6 @@
 ---
 name: squadkit
 role: Orchestrate it — multi-agent crews with the roles → squads → crews vocabulary
-accentColor: "var(--squadkit)"
 oneLiner: Multi-agent team coordination — spawn role-aware crews for execution or read-only discovery, end to end.
 commands:
   - /squadkit:init
