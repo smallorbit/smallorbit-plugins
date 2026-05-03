@@ -137,7 +137,7 @@ If no tags exist yet, `ISSUE_REFS` remains empty and the PR body is unchanged.
 
 ### 5. Build release summary and create a PR from SOURCE → main
 
-Compute the git log range between the source branch and main, then derive version bumps, synthesized release notes, and grouped changes from that range.
+Compute the git log range between the source branch and main, then derive version bumps and synthesized release notes from that range.
 
 ```bash
 RELEASE_DATE=$(date +%Y-%m-%d)
@@ -148,60 +148,29 @@ VERSION_BUMPS=$(git log origin/main..origin/"$SOURCE" --oneline \
   | sed 's/^[a-f0-9]* /- /' \
   || true)
 
-# --- grouped changes by conventional-commit scope ---
-# Collect all commits that are NOT version-bump lines
-ALL_COMMITS=$(git log origin/main..origin/"$SOURCE" --oneline \
-  | grep -ivE "bump|version|plugin\.json" \
-  || true)
-
-# Extract known plugin scopes; extend this list as new plugins are added.
-# Newline-delimited so we can iterate via `while read` — `for X in $VAR` does
-# not word-split unquoted variables in zsh and would silently process the
-# whole list as a single value.
-PLUGINS="flowkit
-speckit
-swarmkit
-sessionkit
-polishkit
-squadkit
-vaultkit"
-
-GROUPED_CHANGES_FILE=$(mktemp)
-printf '%s\n' "$PLUGINS" | while read PLUGIN; do
-  [ -z "$PLUGIN" ] && continue
-  PLUGIN_COMMITS=$(printf '%s\n' "$ALL_COMMITS" \
-    | grep -iE '\('"$PLUGIN"'[:)]' \
-    | sed 's/^[a-f0-9]* /- /' \
+# --- scope list ---
+# Prefer .flowkit/scopes.txt at the repo root if the operator has pinned a
+# canonical list (one scope per line; blank lines and `#` comments ignored).
+# Otherwise auto-detect scopes from the release commit range: extract
+# conventional-commit `type(scope):` tokens, normalize sub-scopes
+# (`flowkit:open-pr` → `flowkit`), and dedupe. The skill adapts to whatever
+# scopes the consumer repo actually uses — no hardcoded list.
+SCOPES_FILE="$(git rev-parse --show-toplevel)/.flowkit/scopes.txt"
+if [ -f "$SCOPES_FILE" ]; then
+  PLUGINS=$(grep -v '^[[:space:]]*#' "$SCOPES_FILE" | grep -v '^[[:space:]]*$' || true)
+else
+  PLUGINS=$(git log origin/main..origin/"$SOURCE" --format=%s \
+    | grep -oE '^[a-z]+\([^)]+\)' \
+    | sed -E 's/^[a-z]+\(([^):]+).*/\1/' \
+    | sort -u \
     || true)
-  if [ -n "$PLUGIN_COMMITS" ]; then
-    printf '\n**%s**\n%s\n' "$PLUGIN" "$PLUGIN_COMMITS" >> "$GROUPED_CHANGES_FILE"
-  fi
-done
-
-# Unscoped commits: filter out mechanical chore/docs entries — they don't
-# belong in release notes and account for nearly all "other" noise. Unscoped
-# commits with feat/fix/refactor/perf type are inlined after the last plugin
-# group without an **other** header; the header adds visual weight without
-# information value and the commits speak for themselves.
-SCOPED_PATTERN=$(printf '%s\n' "$PLUGINS" | tr '\n' '|' | sed 's/|$//')
-MEANINGFUL_UNSCOPED=$(printf '%s\n' "$ALL_COMMITS" \
-  | grep -ivE '\('"$SCOPED_PATTERN"'[:)]' \
-  | grep -iE "^[a-f0-9]+ (feat|fix|refactor|perf)" \
-  | sed 's/^[a-f0-9]* /- /' \
-  || true)
-if [ -n "$MEANINGFUL_UNSCOPED" ]; then
-  printf '\n**cross-plugin**\n%s\n' "$MEANINGFUL_UNSCOPED" >> "$GROUPED_CHANGES_FILE"
 fi
-
-GROUPED_CHANGES=$(cat "$GROUPED_CHANGES_FILE"); rm -f "$GROUPED_CHANGES_FILE"
 
 # --- synthesized release notes ---
 # Fetch merged-PR titles and the first sentence of each PR's ## Summary section
-# since the last release tag. Group per plugin using the same scope list as
-# ### Changes. Render as human-readable bullets — one bullet per PR, phrased
-# from the PR title with the Summary's first sentence appended if it adds
-# context beyond the title. This is the canonical "what shipped" view;
-# ### Changes remains the raw commit log for completeness.
+# since the last release tag. Group per scope using the list above. Render as
+# human-readable bullets — one bullet per PR, phrased from the PR title with
+# the Summary's first sentence appended if it adds context beyond the title.
 RELEASE_NOTES_FILE=$(mktemp)
 if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
   MERGED_PR_DATA=$(gh pr list --base develop --state merged --limit 200 \
@@ -257,14 +226,14 @@ RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE"); rm -f "$RELEASE_NOTES_FILE"
 # "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up."
 # Do not list individual file paths or repeat the title. Keep it to 3 sentences max.
 NARRATIVE_SUMMARY="<!-- Write 1–3 sentences summarising what this release contains.
-Derive the narrative from the version bumps and grouped changes computed above.
+Derive the narrative from the version bumps and release notes computed above.
 Example: "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up." -->"
 
 # --- assemble PR body ---
 # <!-- include: plugins/_shared/pr-body.md -->
 # The body shape below follows the canonical PR body spec defined in
 # plugins/_shared/pr-body.md: Summary → Release summary → Version bumps →
-# Release notes → Changes → issue-reference footer. Keep that order.
+# Release notes → issue-reference footer. Keep that order.
 PR_BODY="## Summary
 
 $NARRATIVE_SUMMARY
@@ -285,13 +254,6 @@ if [ -n "$RELEASE_NOTES" ]; then
 
 ### Release notes
 $RELEASE_NOTES"
-fi
-
-if [ -n "$GROUPED_CHANGES" ]; then
-  PR_BODY="$PR_BODY
-
-### Changes
-$GROUPED_CHANGES"
 fi
 
 [ -n "$ARGUMENTS" ] && PR_BODY="$PR_BODY
