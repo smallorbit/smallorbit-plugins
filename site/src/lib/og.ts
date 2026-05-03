@@ -18,22 +18,35 @@ let fontDataCache: { fraunces: ArrayBuffer; monaSans: ArrayBuffer } | null = nul
 async function loadFonts(): Promise<{ fraunces: ArrayBuffer; monaSans: ArrayBuffer }> {
   if (fontDataCache) return fontDataCache;
 
-  const [frauncesRes, monaSansRes] = await Promise.all([
-    fetch(
-      'https://fonts.gstatic.com/s/fraunces/v38/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIchRujDg.ttf',
-    ),
-    fetch(
-      'https://fonts.gstatic.com/s/monasans/v4/o-0mIpQmx24alC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAjBN9d.ttf',
-    ),
-  ]);
+  try {
+    const [frauncesRes, monaSansRes] = await Promise.all([
+      fetch(
+        'https://fonts.gstatic.com/s/fraunces/v38/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIchRujDg.ttf',
+      ),
+      fetch(
+        'https://fonts.gstatic.com/s/monasans/v4/o-0mIpQmx24alC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAjBN9d.ttf',
+      ),
+    ]);
 
-  const [fraunces, monaSans] = await Promise.all([
-    frauncesRes.arrayBuffer(),
-    monaSansRes.arrayBuffer(),
-  ]);
+    if (!frauncesRes.ok || !monaSansRes.ok) {
+      throw new Error(
+        `OG font fetch failed (Fraunces: ${frauncesRes.status}, Mona Sans: ${monaSansRes.status})`,
+      );
+    }
 
-  fontDataCache = { fraunces, monaSans };
-  return fontDataCache;
+    const [fraunces, monaSans] = await Promise.all([
+      frauncesRes.arrayBuffer(),
+      monaSansRes.arrayBuffer(),
+    ]);
+
+    fontDataCache = { fraunces, monaSans };
+    return fontDataCache;
+  } catch (cause) {
+    throw new Error(
+      'OG font fetch failed — ensure network access to fonts.gstatic.com during build',
+      { cause },
+    );
+  }
 }
 
 export interface OgOptions {
