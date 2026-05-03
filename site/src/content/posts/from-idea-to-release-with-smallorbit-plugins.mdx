@@ -1,0 +1,434 @@
+---
+title: "From Idea to Release with smallorbit-plugins"
+subtitle: "A tour of the kits and how they compose"
+date: 2026-05-03
+author: "smallorbit"
+readTime: 19
+tags: ["deep-dive", "workflow", "tutorial"]
+---
+
+Most "AI agent" workflows hand you everything in one prompt: planning, coding, reviewing, shipping — all collapsed into a single call where you press enter and pray. The output is sometimes magical, often sloppy, and almost always opaque about which decisions were made on your behalf.
+
+smallorbit-plugins splits the work across seven small kits instead. Each kit owns one beat of the development lifecycle — the interview, the swarm, the polish, the ship — and hands off cleanly to the next. You stay in the loop at the moments that matter (approving the plan, reviewing the PRs, choosing the version bump) and out of the loop at the moments that don't (rebasing, retargeting, tagging, branch cleanup).
+
+This is what that looks like end-to-end. One chapter per kit, in lifecycle order. Real slash commands, real handoffs, no hand-waving. By the end you should have a working mental map of which kit owns which phase and what the seam between any two kits looks like.
+
+## Why a kit per beat?
+
+The monolithic-agent default optimises for one thing: minimum prompts. That's a real win the first time you watch a single command turn a vague brief into a merged PR. The cost shows up later — when the agent picks the wrong file, invents a function that already exists three modules away, or quietly skips the test you cared about. By the time you notice, the work is done and undoing it is more expensive than redoing it from scratch.
+
+Splitting the lifecycle changes the contract. Each kit is small enough to reason about, owns one verb, and emits an artefact (an issue, a PR, a tag) that the next kit reads as input. The "team" of kits doesn't need a shared memory blob; the artefacts *are* the memory. That's why a `/spec` interview can hand off to a `/swarm` two days later in a fresh session — the epic label on the GitHub issues is the entire handshake.
+
+**Takeaway:** You don't lose composability by splitting the work. You gain it. Each handoff is an artefact you can inspect, edit, or rerun independently.
+
+The seven kits, in lifecycle order:
+
+- **speckit** — interview the idea into a labelled epic.
+- **swarmkit** — resolve the epic in parallel with stacked PRs.
+- **polishkit** — gate quality between merge and ship.
+- **flowkit** — cut a release candidate, ship to `main`, tag it.
+- **sessionkit** — handoff, pickup, retro, route what you learned.
+- **squadkit** — when one problem needs multiple roles in one room.
+- **vaultkit** — capture decisions and archives in Obsidian, alongside the code.
+
+The first four form the spine. The last three run alongside.
+
+## Plan it: speckit
+
+`speckit` turns a fuzzy human request into a labelled epic and a set of child issues that downstream kits can read as a contract.
+
+The four user-facing skills:
+
+- `/interview` — runs a structured interview to clarify requirements and produce a speckit-format plan (Goal, Background, Requirements, Out of Scope, Tasks). The output is plain Markdown you can pipe into `/spec` or `/catalog` later.
+- `/spec` — the workhorse. Interviews you, builds a plan, files a GitHub epic and linked child issues with consistent labels.
+- `/catalog` — bulk-converts pre-existing findings (a code review, an audit, a polishkit appraisal) into prioritised, labelled issues. Used internally by `/spec` after plan approval.
+- `/issue` — the quick path. Drafts and files a single issue from a one-line description, with duplicate detection.
+
+The interesting design decision is `/spec`'s **two-path classifier**. Before any interview begins, `/spec` does a quick codebase scan and classifies the request as **simple** (single conceptual change, single file or tightly co-located cluster) or **full** (anything else). On the simple path it runs one lightweight interview round and files a single standalone issue with no epic wiring. On the full path it runs the multi-round interview, applies a silent consolidation pass (merging tasks that touch the same file or strictly depend on a predecessor), and files an epic plus child issues.
+
+```bash
+/spec add tags to notes
+```
+
+That single command can either file one issue (if the heuristic says simple) or kick off a five-minute interview that ends with a labelled epic like:
+
+```text
+Filed epic: #101 Epic: Add tags to notes             label: epic:tags-notes
+Filed children:
+  #102 Extend Note schema with tags field            priority:high   type:feature
+  #103 Add tag input to NoteEditor                   priority:high   type:feature
+  #104 Render tag chips on note cards                priority:medium type:feature
+  #105 Filter notes by tag from the sidebar          priority:medium type:feature
+```
+
+Every child carries the same `epic:tags-notes` label. That label is the contract. swarmkit reads it. flowkit's release notes group by it. polishkit's appraise reports filter by it. The interview is gone, but its conclusions live on as labels.
+
+**Takeaway:** speckit doesn't estimate, doesn't assign, doesn't sequence. It captures intent and emits labels. Other kits handle the rest.
+
+A second decision worth flagging: after the epic and children are filed, `/spec` runs a **team-readiness assessment** against four signals (multiple independent modules, clear interface boundaries, separable phases, non-trivial implementation surface). If at least three hold, it provisions `phase:1`, `phase:2`, `phase:3` labels, assigns each child a phase, and posts a team dispatch summary as a comment on the epic — pre-staging the work for `swarmkit` or `squadkit`. If fewer than three hold, it prints `Team decomposition skipped — <reason>` and stops. The kit knows when not to over-engineer.
+
+**Takeaway:** Use `/issue` when you already know exactly what to file. Use `/interview` to think out loud. Use `/spec` when you want the result to feed a swarm. Use `/catalog` when you have findings to bulk-load.
+
+## Resolve it: swarmkit
+
+`swarmkit` takes the issues `/spec` filed and resolves them in parallel — one isolated worktree agent per issue, opening a stack of PRs that merge bottom-up.
+
+The user-facing skills:
+
+- `/swarm` — spawns one agent per issue, each in its own `worktree-agent-<n>` branch. One-shot mode (`/swarm 102 103 104 105`) or loop mode (`/swarm` with no args clears the open board until empty).
+- `/swarm-plus` — wraps `/swarm` with a vendored `swarm-reviewer` agent per PR. If the reviewer flags blockers, a worker is dispatched to push follow-up commits onto the same PR. Single pass, no infinite loops.
+- `/next-issue` — fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to swarm next.
+- `/merge-stack` — merges all open swarm PRs bottom-up after retargeting non-root PRs to `develop` (or whatever base branch is configured).
+- `/clean-worktrees` — removes local agent worktrees and orphaned `worktree-agent-*` branches.
+- `/clean-remote-worktrees` — sweeps remote `worktree-agent-*` branches whose PRs already merged.
+
+The canonical use:
+
+```bash
+/swarm 102 103 104 105
+```
+
+Behind the scenes, swarmkit fans out one agent per issue. Each agent works in an isolated git worktree, makes its commits with conventional-commit messages, opens a PR, and stops. You get something like:
+
+```text
+Swarm complete — 4 PRs opened:
+
+  #210 feat(notes): extend Note schema with tags field        → develop
+  #211 feat(notes): add tag input to NoteEditor               → worktree-agent-102
+  #212 feat(notes): render tag chips on note cards            → worktree-agent-103
+  #213 feat(notes): filter notes by tag from the sidebar      → worktree-agent-104
+
+Stack root: #210. Run /merge-stack to merge bottom-up.
+```
+
+That stacked-PR shape is doing real work. The naive approach — every agent branches off `develop`, every PR targets `develop` — runs into a known GitHub trap: when one PR merges into a non-default base, downstream PRs whose head branches existed before the merge get auto-closed in a cascade. swarmkit prevents that by **retargeting non-root PRs to `develop` up front, before the swarm runs**, never after. The retargeting is idempotent and survives across runs.
+
+**Takeaway:** Stacked PRs with up-front retargeting are not a stylistic choice. They're the only safe shape for parallel agents that share a base branch.
+
+A few flags worth knowing:
+
+- `/swarm --base main` — for trunk-based projects without a `develop` branch.
+- `/swarm --model opus` — override the per-agent model (default is sonnet).
+- `/swarm bug` — loop mode filtered to `bug`-labelled issues.
+- `/swarm-plus --review-only` — dispatch reviewers but never spawn workers (triage mode).
+
+The `simplify-loop` deserves a callout. After each agent finishes its implementation, swarmkit runs an internal `/simplify` loop on the agent's branch — iterative passes that tighten the code (collapse duplication, drop unused vars, prune dead branches) before the PR opens. It's a pre-PR sanity check, not a code review. The catch: it runs *per agent*, on the agent's local branch. It does not see the union of all four PRs. That's polishkit's job, downstream.
+
+**Takeaway:** swarmkit's parallelism is enabled by three counterintuitive choices — stacked PRs (not topic branches), up-front retargeting (not last-minute), and per-agent simplify-loop (not deferred). The methodology document at `plugins/swarmkit/METHODOLOGY.md` walks through each in depth.
+
+After the stack is reviewed and you're ready, `/merge-stack` walks the stack bottom-up: root first, leaves last, squash-merging each PR and deleting the remote branch as it goes. If one PR fails review or merge mid-stack, the stack stops cleanly so you can fix and resume.
+
+## Polish it: polishkit
+
+`polishkit` is the quality gate between the swarm finishing and the ship starting. Three skills, three jobs.
+
+- `/appraise` — scores code across five weighted dimensions and produces a report. Works on a single file, a directory, or the whole repo.
+- `/sweep` — runs a two-phase sweep: dead code first (unused exports, imports, vars, unreachable branches), then cruft (stale docs, build artefacts, merged branches). Confirms before any change.
+- `/polish <scope>` — applies cross-cutting fixes (reuse, quality, efficiency) across a path or themed scope, in an isolated worktree, gated on your project's verify commands, opening one PR.
+
+`/appraise` is the most opinionated of the three. The five dimensions and their weights:
+
+- **Architecture & Separation of Concerns** — 30%
+- **Naming & Readability** — 25%
+- **Algorithmic Elegance** — 20%
+- **Testability & Test Design** — 15%
+- **Idiomatic Consistency** — 10%
+
+The weights are doing more than weighting a number — they're a worldview. polishkit thinks architecture beats naming, naming beats algorithm, algorithm beats testability. If you appraise a codebase and it scores high on naming but low on architecture, the report tells you: this code reads well one file at a time but the seams between files are wrong. That's a different problem than "the variables are unclear", and polishkit refuses to flatten them into one number.
+
+```bash
+/appraise src/services
+```
+
+Outputs a scored report leading with beauty highlights (what works), followed by a per-dimension breakdown, followed by flagged violations (god classes, magic numbers, functions over 30 lines).
+
+**Takeaway:** "This code is good" means nothing. polishkit splits the question into five and tells you the weights so you can argue with them.
+
+`/sweep` is the surgical pass. Phase 1 detects the project's language and available static analysis tools (`tsc --noEmit`, `pyflakes`, `vulture`, `staticcheck`, etc.) and finds genuine dead code. Phase 2 walks for cruft — stale docs, leftover build artefacts, duplicate content, merged branches still hanging around. Both phases produce a single Remove / Update / Keep summary, and nothing is written without your approval.
+
+```bash
+/sweep              # full sweep, dead code + cruft
+/sweep src/hooks/   # scoped sweep
+```
+
+`/polish` is the cross-cutting cleanup pass. You give it a scope — a path, a glob, or a themed concern with a scope hint — and it dispatches one subagent in an isolated worktree. The agent applies semantic fixes across reuse (extract duplication, use existing helpers), quality (naming, error handling, type hygiene), and efficiency (avoidable recomputation, quadratic loops). It must keep public surfaces compatible, gate on every verify command, and open one PR.
+
+```bash
+/polish src/hooks/
+/polish error handling in src/providers/
+```
+
+**Takeaway:** Place `/sweep` after `/merge-stack` (cleanest moment to see the union dead code), `/appraise` before `/cut` (so the score reflects what's about to ship), and `/polish` between them as a targeted cleanup of any specific dimension that scored low.
+
+## Ship it: flowkit
+
+`flowkit` owns the git lifecycle from "I have something to commit" all the way to "the release is tagged and the issues are closed". Twenty-two skills total — most are sub-skills the user-facing ones compose on. The ones you'll actually invoke:
+
+- `/commit` — stage and commit with conventional-commit format, splitting changes into logical groups.
+- `/create-branch` — branch off `develop` with an inferred name.
+- `/pr` — combined `create-branch` + `commit` + `open-pr` in one step.
+- `/open-pr` — push the current branch and open a PR. Respects `claude.flowkit.prBase` for branch targeting.
+- `/merge-pr` — squash-merge the open PR for the current branch and delete the remote branch.
+- `/sync` — checkout `develop`, pull latest, prune stale branches.
+- `/cut` — cut a `rc/YYYY-MM-DD.N` release candidate from `develop`. Auto-stages if `origin/staging` exists.
+- `/stage` — force-reset the `staging` branch to a release candidate.
+- `/release` — merge the RC (or staging) to `main`, tag it `vYYYY.M.D`, close referenced issues, clean up RC branches.
+- `/ship` — collapses `merge-stack` → `cut` → `release` into one command. The post-swarm shipping path.
+- `/hotfix` — emergency fix path: branch off `main`, apply the fix, PR to `main`, tag, back-merge into `develop`.
+- `/cut-epic` — cut a long-lived `feature/<slug>-<issue>` branch and pin `claude.flowkit.prBase` so subsequent PRs target the epic, not `develop`.
+- `/preview-epic` — verify the integrated state of an epic locally before promotion. Auto-detects whether the epic uses stacked PRs (octopus-merge into a throwaway preview branch) or direct-merge-to-epic (run verify on the epic HEAD).
+- `/pipeline-status` — show the full release pipeline at a glance.
+
+The shipping path after a swarm is three commands or one:
+
+```bash
+# Three commands, explicit
+/merge-stack     # merge all swarm PRs bottom-up into develop
+/cut             # create rc/YYYY-MM-DD.N from develop
+/release         # promote to main, tag, close issues
+
+# Or collapse all three
+/ship
+```
+
+The most interesting design choice in flowkit is **runtime staging detection**. `/cut`, `/stage`, `/release`, `/pipeline-status`, and `/hotfix` all check at runtime whether `origin/staging` exists. No config, no flag, no setup wizard. Branch presence is the sole signal:
+
+- Staging exists → `/cut` pushes the RC to `staging`; `/release` merges `staging` → `main`.
+- Staging absent → the RC merges directly to `main`.
+
+To add a staging environment to a project, you create the branch:
+
+```bash
+git checkout -b staging main && git push -u origin staging
+```
+
+From that moment on, every flowkit release skill picks it up automatically. To remove staging, delete the branch. There is no other knob.
+
+**Takeaway:** Configuration that lives in the repo's actual state (does this branch exist?) instead of a config file is harder to forget, easier to migrate, and impossible to have in two minds about.
+
+The version-string story is opinionated too. flowkit uses **CalVer** — releases tag as `vYYYY.M.D`. Multiple releases on the same day append a counter (`v2026.4.16`, `v2026.4.16-2`). The first hotfix on a given day tags as `v2026.4.16` plus a companion `hotfix/v2026.4.16` tag. A second hotfix the same day becomes `v2026.4.16.1` plus `hotfix/v2026.4.16.1`. The `.N` suffix sorts hotfixes alongside scheduled releases in the tag history; the companion `hotfix/` tag makes them discoverable via `git tag --list 'hotfix/*'`.
+
+CalVer over SemVer is the right call for a plugin marketplace specifically. There's no semantic-break promise to keep — kits are independent, users update them on their own cadence — so the version number's job is to encode "when did this ship", not "did this break the contract". CalVer reads as time. SemVer reads as ambiguity.
+
+**Takeaway:** flowkit isn't a thin wrapper over `git`. It has opinions about staging, preview, hotfix, and how versions encode time — and the opinions are load-bearing.
+
+The `/preview-epic` skill is the lifeline for multi-PR features. Each child PR's CI is green against its own base, but the union may not compile. `/preview-epic` builds a throwaway preview branch by octopus-merging every open PR in the stack (with sequential fallback on conflict), runs your project's verify commands (typecheck, test, lint) against the combined tree, and reports. Nothing is pushed; nothing is merged. It just answers "does the integrated state actually work?" before you find out the hard way at merge time.
+
+## Carry it: sessionkit
+
+`sessionkit` is the connective tissue across the lifecycle. Other kits handle "do the work"; sessionkit handles "what happens between" — context limits, planning the path forward, capturing what you learned, reducing future friction.
+
+- `/handoff` — captures session goal, progress, git state, remaining work, and active tasks into `.sessionkit/HANDOFF.md`. Run when context is running low or before switching agents.
+- `/pickup` — loads `.sessionkit/HANDOFF.md` at the start of a fresh session, orients the agent, and hydrates pending and in-progress tasks back into the task system.
+- `/roadmap` — surveys current work-in-flight, classifies the state, and produces an approved task chain that takes it all the way to "shipped".
+- `/drive` — picks up an approved task chain and executes it autonomously. Marks each task `in_progress` before starting and `completed` immediately after. Surfaces only for blockers, executive decisions, or completion.
+- `/skillit` — reflects on the current session to identify patterns worth encoding as reusable skills. Checks for existing overlap before proposing anything new.
+- `/suggest-permissions` — scans recent session history for repeatedly approved permissions and proposes additions to `.claude/settings.json` to reduce future prompts.
+- `/retro` — runs a session retrospective and presents a one-keystroke action menu that delegates to the right downstream skill.
+
+The handoff/pickup pair is the bedrock. The handoff document is a structured Markdown file with six sections (Goal, Progress, Git State, Remaining Work, Task List as a fenced JSON block, and Context). The task list snapshot is a real round-trip — `id`, `subject`, `description`, `activeForm`, `status`, and `blockedBy` all survive across the session reset. `blockedBy` edges get remapped to the new task IDs after rehydration.
+
+```bash
+/handoff
+# — start a new Claude Code session —
+/pickup
+```
+
+**Takeaway:** A markdown file beats an in-memory state blob. You can edit it, diff it, commit it, or hand it to a different agent on a different machine. The handshake between sessions is plain text on disk, not a magic state store.
+
+`/roadmap` and `/drive` are the autonomous-execution pair. `/roadmap` looks at your branch, your open PRs, your peer PRs, your in-flight worktrees, your RCs, and your latest tag, then materializes a linear task chain that takes the work to shipped. It presents the chain for approval; on approval, it can hand off to `/drive` for autonomous execution. `/drive` is also standalone-invokable — if you've populated a task list any other way, you can just run `/drive` and it picks up the chain.
+
+```bash
+/roadmap        # survey, propose, ask
+/drive          # execute the approved chain end-to-end
+```
+
+The driving contract — mark `in_progress` before, `completed` immediately after, never batch — lives entirely inside the `/drive` skill. It does not depend on any rule in your global or project `CLAUDE.md`. Installs of sessionkit get the autonomous-execution semantics out of the box.
+
+**Takeaway:** `/handoff` and `/pickup` keep one session's context alive. `/roadmap` and `/drive` collapse the gap between "I see what to do" and "it's done".
+
+`/skillit` is the slow-burn capture path. After a session that did something interesting, `/skillit` reads the conversation for repeated instructions, multi-step workflows executed in a fixed pattern, and heuristics applied consistently. It scans your existing skill library for overlap before proposing anything new, then offers to create a new skill or extend an existing one. The not-capturing-an-existing-skill check is the hard part — it's what keeps your skill library from turning into a graveyard of near-duplicates.
+
+`/retro` runs a session retrospective by scanning your conversation transcript, task list, git activity, and hook/tool-denial events. It surfaces what went well and what didn't, then presents a one-keystroke action menu that delegates to the right downstream skill — `/skillit` for capturable patterns, `/suggest-permissions` for repeated approvals, `/spec` for follow-up work, etc. The retro isn't a static report. It's a router.
+
+## Coordinate it: squadkit
+
+`squadkit` is the alternative to swarmkit when the parallelism you need is *across roles*, not *across issues*. swarmkit gives you N agents working independently on N issues. squadkit gives you one team working concurrently on one problem, with each agent in a different role.
+
+The vocabulary:
+
+- **Role** — a single agent with a focused contract (architect, builder, reviewer, tester, explorer, designer, team-lead). One role definition, one agent.
+- **Squad** — a role-cohesive group of agents collaborating on one slice of work.
+- **Crew** — a team-lead orchestrating one or more squads end-to-end. The crew is the unit you spawn and ship with.
+
+Three skills bracket a crew's life:
+
+- `/squadkit:init` — interview-driven generator that writes `.squadkit/config.json` to the repo root (typecheck, test, lint, install commands plus base branch). One-time per repo.
+- `/squadkit:spawn-team` — spawn a crew from a profile. Resolves a phonetic team name (`<repo>-alpha`, `<repo>-bravo`, …), optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member before the orchestrator (which IS the lead) enters its dispatch loop.
+- `/squadkit:agent-team-retro` — runs a retrospective on the currently-spawned squad after a crew completes.
+
+Crew profiles live as YAML under `plugins/squadkit/crews/`. The starter set:
+
+```yaml
+name: all-rounder
+description: Full-spectrum crew for end-to-end feature work.
+members:
+  - role: team-lead
+  - role: architect
+  - role: builder
+    count: 2
+  - role: reviewer
+  - role: tester
+  - role: explorer
+  - role: designer
+```
+
+Two other profiles ship — `qa` (team-lead, reviewer, tester, builder×1) for hardening sweeps, and `design` (architect, designer, explorer) for discovery-stage exploration with `kind: discovery`.
+
+The `kind:` field is doing real work. **Execution crews** (the default) ship code on a `feature/<slug>-<issue>` branch — they cut the branch, provision worktrees, and produce PRs. **Discovery crews** are read-only. They don't cut a branch, don't provision worktrees, don't pin `claude.flowkit.prBase`, and don't open PRs. What they do produce is a structured blueprint comment on the originating GitHub issue — the contract that a later swarm can read and execute against.
+
+```bash
+/squadkit:spawn-team --kind execution --epic tags-notes --issues 102-105
+/squadkit:spawn-team --kind discovery --issues 821,822,823 --brief @./brief.md
+```
+
+**Takeaway:** Discovery crews don't ship code. They produce blueprints. The same vocabulary covers both shapes — only the `kind:` field changes.
+
+The orchestrator-is-lead design is the other key choice. squadkit never spawns a separate `team-lead` agent. The session that ran `/squadkit:spawn-team` *is* the lead. The role contract file is the operating manual that session loads. This collapses an entire layer of indirection: there's no mailbox between you and the lead, no dispatch hop, no leaked tokens to a process you can't see. You give instructions to the lead the way you give instructions to any Claude session — directly.
+
+The trio composes with the rest of the suite:
+
+- With **flowkit** — `--epic` triggers `flowkit:cut-epic`-equivalent inline cutting and pins `claude.flowkit.prBase` so member PRs target the epic. `flowkit:preview-epic` validates the integrated state before the final epic-to-`develop` PR.
+- With **swarmkit** — squadkit and swarmkit are siblings, not alternatives. The squad-vs-swarm choice turns on whether you need parallelism across roles or across issues. They can also nest: a squad's lead can dispatch a swarm.
+- With **sessionkit** — squadkit ships a `SessionStart` hook that re-asserts role context whenever a session starts, including sessions resumed via `/pickup`. The role contract reload is automatic.
+
+## Capture it: vaultkit
+
+`vaultkit` is the only kit that lives outside the development loop. It's an Obsidian sidekick for the things that don't belong in the codebase — decisions, retros, archived conversations, daily notes — and it runs alongside every other kit without coupling.
+
+Four user-facing skills:
+
+- `/obsidian` — the catch-all interface to your Obsidian vault: read, search, tag, edit, manage templates, vault maintenance.
+- `/jot` — quickly capture a decision, task, or note into the active project. A thin entry point over the `project` skill's update operation.
+- `/archive-export` — file the latest `/export session` output into the active project's `Conversations/` folder.
+- `/project` — manage a `Projects/` second brain: load context, initialise new projects from template, and update project files.
+
+A few internal skills the others compose on — `vaultkit:load-project`, `vaultkit:list-projects`, and `vaultkit:file-edit`. The last one carries the most weight per line of code.
+
+When Claude Code's standard `Edit` and `Write` tools modify a file, they atomic-rename under the hood — and on macOS that resets the file's birth time. Obsidian uses birth time as the source of the `created` field that drives dataview queries, sort orders, and a slew of plugin behaviors. So a routine edit through standard tooling silently corrupts your "created at" history. `vaultkit:file-edit` patches the file in place and preserves the birth-time extended attribute. Every other vaultkit skill that writes goes through it.
+
+**Takeaway:** A kit that does one tiny systems-correctness thing right — preserve a birth-time `xattr` across edits — is doing more for your second brain than a shelf of feature flags.
+
+The capture path is friction-free by design:
+
+```bash
+/jot decided to use CalVer for release tagging; rationale in plugin-release.md
+```
+
+The active project is inferred from conversation context (or you'll be prompted to pick one), and the note is appended without disturbing the file's `created` timestamp. The point is to stay out of your way so you actually use it.
+
+The archive path is the cold-storage counterpart:
+
+```bash
+/export session       # writes ./session.txt in the cwd
+/archive-export       # files it into the active project's Conversations/
+```
+
+Two artefacts land in Obsidian — a `.txt` copy for plain-text viewing and a `.md` companion with the session ID embedded so the conversation can be resumed later.
+
+**Takeaway:** Six kits ship code. vaultkit captures the things that don't fit in code. The seam between "session work" and "durable second brain" is exactly where it lives.
+
+## Putting it together
+
+The composition story is what makes the kits worth installing as a set. Each handoff is an artefact, and every kit reads from and writes to the artefact stream in a predictable place. Here's the canonical idea-to-release loop, end-to-end:
+
+```text
+                   speckit         swarmkit         polishkit          flowkit
+                   -------         --------         ---------          -------
+
+human idea  ──▶  /spec  ──▶  epic + child issues
+                                    │
+                                    ▼
+                              /swarm 102 103 104 105
+                                    │
+                                    ▼
+                              4 stacked PRs (worktree-agent-*)
+                                    │
+                                    ▼
+                              /merge-stack
+                                    │
+                                    ▼
+                              all merged into develop
+                                                            │
+                                                            ▼
+                                                      /sweep --apply
+                                                      /appraise
+                                                      /polish (optional)
+                                                                              │
+                                                                              ▼
+                                                                        /cut → rc/YYYY-MM-DD.N
+                                                                              │
+                                                                              ▼
+                                                                        /release
+                                                                              │
+                                                                              ▼
+                                                                        v2026.5.3 tagged,
+                                                                        issues closed
+```
+
+Sessionkit and vaultkit run alongside that whole pipeline. Squadkit slots in when one node — usually the swarmkit or the speckit node — needs multiple roles in one room instead of one role across many issues.
+
+A worked example tying it together. You want to add tag-filtering to a notes app:
+
+```bash
+/spec add tags to notes
+# Interview, plan, approval. Files epic + 4 child issues.
+
+/swarm 102 103 104 105
+# 4 isolated worktree agents, 4 stacked PRs, all targeting develop.
+
+/merge-stack
+# Bottom-up squash-merge into develop.
+
+/sweep
+# Two-phase: dead code, then cruft. Approve the changes.
+
+/appraise
+# Score the union before shipping. Optionally /polish a low-scoring dimension.
+
+/cut
+# rc/2026-05-03.1 from develop. Auto-staged if origin/staging exists.
+
+/release
+# Merge to main, tag v2026.5.3, close referenced issues, clean up.
+```
+
+Seven commands across four kits. Three handoffs (epic-label → swarmkit, merged-develop → polishkit/flowkit, tagged-release → done). Zero manual translation steps between them.
+
+**Takeaway:** Each handoff is "free" because the artefact carries the contract. The label `epic:tags-notes` is the same string in `/spec`'s output, swarmkit's filter, polishkit's report group, and flowkit's release-notes scope. No translation, no glue script, no shared memory blob.
+
+When the lifecycle goes off-script — context runs out mid-swarm, a hotfix needs to ship before the next scheduled release, an epic needs three roles in one room — the kits that run alongside step in:
+
+- `/handoff` mid-swarm so the next session picks up exactly where this one stopped.
+- `/hotfix "fix the regression"` when a bug needs to ship before the next `/release`.
+- `/squadkit:spawn-team --kind execution --epic <slug>` when the problem is one ambiguous bug needing architect plus builder plus tester in concurrent flight.
+- `/squadkit:spawn-team --kind discovery --issues 821-823` when the problem isn't ready to be built yet and you need a research crew to produce a blueprint comment on the issue.
+- `/jot` when you make a decision worth recalling later.
+- `/skillit` after the session if a pattern emerged worth encoding as a reusable skill.
+- `/retro` at the end of the session to route what you learned to the right downstream kit.
+
+**Takeaway:** The seven kits don't compete for the same surface. They compose. Pick the ones that match your workflow today; add the others when the friction makes itself known. Nothing breaks if you start with two and grow into seven.
+
+The kits are intentionally small. None of them is trying to be a framework. Each one owns one verb, emits one artefact, and reads someone else's artefact as input. The "team" of kits doesn't need a shared memory blob, because the artefacts *are* the memory. That's the whole design.
+
+Start with `/spec` and `/swarm` — the two essential kits — and add the rest when their friction outruns your patience. The marketplace makes that easy:
+
+```bash
+/plugin marketplace add smallorbit/smallorbit-plugins
+/plugin install speckit@smallorbit-plugins
+/plugin install swarmkit@smallorbit-plugins
+```
+
+The full catalog is in the [repo README](https://github.com/smallorbit/smallorbit-plugins/blob/main/README.md#available-plugins). The end-to-end walkthrough is in [Getting Started](https://github.com/smallorbit/smallorbit-plugins/blob/main/README.md#getting-started). The methodology behind the most opinionated kit — swarmkit's stacked-PR strategy — lives in [METHODOLOGY.md](https://github.com/smallorbit/smallorbit-plugins/blob/main/plugins/swarmkit/METHODOLOGY.md).
+
+You stay in the loop where it matters. The kits handle the rest.
