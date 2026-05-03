@@ -1,0 +1,38 @@
+main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-page);
+  margin-top: 4rem;
+}
+
+.site-footer__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.site-footer__links {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.site-footer__links a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-footer__links a:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
