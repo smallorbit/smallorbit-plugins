@@ -36,8 +36,18 @@ Run it before staging and committing the release.
 
 ## Skill Authoring Conventions
 
+**Before authoring** a new skill, adding a script under `scripts/`, or substantially rewriting a `SKILL.md` under `plugins/`, read the canonical convention docs that apply:
+
+- New script under `plugins/<plugin>/skills/<skill>/scripts/` → [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md)
+- Skill or script that opens a PR → [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md)
+- New skill or cross-plugin pattern → both of the above
+
+Skip for typo fixes, renames, and small edits that don't touch convention surfaces.
+
 **Bash loop convention**: Never use `for N in $VAR` to iterate over newline-delimited output — word splitting is unreliable across shell contexts. Always pipe directly: `some-command | while read N; do ... done`.
 
 **PR body standard**: All PRs opened by agents in this repo must follow the canonical three-section shape (`## Summary`, `## Changes`, `## Test plan`) plus an issue-reference footer. The spec lives at [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md) — reference it instead of inventing a local format.
 
 **Skill scripts standard**: Skills that extract deterministic bash work into shell scripts must follow the convention at [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md) — folder layout, `$SKILL_DIR` resolution, bare-payload JSON, stderr errors, when to extract, and `.claude/settings.json` allowlist guidance.
+
+**README flag-matrix drift**: Any change to a SKILL.md `## Input` table needs a matching pass on the corresponding plugin README's flag matrix — these drift silently otherwise.
