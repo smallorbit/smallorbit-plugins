@@ -5,137 +5,76 @@ description: Publish pending commits on the current branch by pushing directly w
 
 # push-or-pr
 
-Publish pending commits on the current branch to origin. The skill optimistically attempts a direct push; if origin rejects the push because the branch is protected, it saves HEAD, resets the local branch to its upstream, creates a feature branch carrying the saved commit(s), pushes that branch, and opens a PR. Skills that legitimately operate on `develop` (or any branch that may or may not be push-protected depending on repo policy) inline this snippet so they work uniformly across protected and unprotected setups.
+Publish pending commits on the current branch to origin. Optimistically attempts a direct push; if origin rejects the push because the branch is protected, saves HEAD, resets the local branch to its upstream, creates a feature branch carrying the saved commit(s), pushes it, and opens a PR. Skills that legitimately operate on `develop` (or any branch that may or may not be push-protected depending on repo policy) call this sub-skill so they work uniformly across protected and unprotected setups.
 
-The skill is push-only. Tag creation, post-merge sync, and merging the resulting PR remain caller responsibilities — they vary per caller (squash vs. merge strategy, post-sync requirements, tag placement).
+The skill is push-only. Tag creation, post-merge sync, and merging the resulting PR remain caller responsibilities — those vary per caller (squash vs. merge strategy, post-sync requirements, tag placement).
 
-## Caller contract
+## Invocation
 
-Before inlining the snippet, the caller sets these shell variables:
-
-| Variable | Required when | Purpose |
-|----------|---------------|---------|
-| `PREFIX` | fallback engages | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`, `chore/sync-develop`). The skill appends `-YYYY-MM-DD` and a numeric suffix on collision. |
-| `PR_TITLE` | fallback engages | Title for the PR opened against `$BASE`. |
-| `PR_BODY` | fallback engages | Body for the PR. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). |
-| `BASE` | always | Base branch for the PR (typically `develop`). Defaults to `develop` if unset. |
-
-After the snippet runs, the caller observes:
-
-- `$PUSH_RESULT` — `direct` if the original push succeeded, `pr` if the fallback opened a PR, `noop` if there were no pending commits.
-- `$NEW_BRANCH` — the auto-created feature branch name (set only when `$PUSH_RESULT=pr`).
-- `$PR_URL` — the PR URL returned by `gh pr create` (set only when `$PUSH_RESULT=pr`).
-
-The caller's working tree on success:
-
-- `direct` — current branch unchanged, now in sync with origin.
-- `pr` — current branch is the new feature branch (`$NEW_BRANCH`); the original protected branch is reset to its upstream so it no longer holds the unpublished commit. The commit lives on `$NEW_BRANCH` and in the open PR.
-- `noop` — current branch unchanged.
-
-## Process
-
-### 1. Identify pending commits
+The bash work lives in [`scripts/push_or_pr.sh`](./scripts/push_or_pr.sh). Callers invoke it directly:
 
 ```bash
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-UPSTREAM_REF="origin/$BRANCH"
-if ! git rev-parse --verify --quiet "$UPSTREAM_REF" >/dev/null; then
-  echo "ERROR: $UPSTREAM_REF does not exist locally — run \`git fetch origin\` before invoking push-or-pr." >&2
-  exit 1
-fi
-
-PENDING=$(git rev-list --count "$UPSTREAM_REF..HEAD")
-if [ "$PENDING" = "0" ]; then
-  PUSH_RESULT=noop
-fi
+RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
+  --prefix "$PREFIX" \
+  --title "$PR_TITLE" \
+  --body "$PR_BODY" \
+  --base "${BASE:-develop}")
 ```
 
-### 2. Attempt direct push
+`$SKILL_DIR` is the absolute path of the *push-or-pr* skill on disk. Callers resolve it as follows:
 
-If there are pending commits, try the direct push first. Capture stderr so we can classify any failure:
+- **Sibling skills inside flowkit** (`release`, `hotfix`): `SKILL_DIR="$(dirname "$CALLER_SKILL_DIR")/push-or-pr"`, where `$CALLER_SKILL_DIR` is the caller's own `Base directory for this skill` value.
+- **Repo-local skills** (e.g. `.claude/skills/bump-versions/`): hardcode `SKILL_DIR="plugins/flowkit/skills/push-or-pr"` relative to the repo root. The skill is project-local so it always knows where flowkit lives.
 
-```bash
-if [ -z "${PUSH_RESULT:-}" ]; then
-  PUSH_LOG=$(mktemp)
-  if git push origin "HEAD:$BRANCH" >"$PUSH_LOG" 2>&1; then
-    PUSH_RESULT=direct
-    cat "$PUSH_LOG"
-  else
-    PUSH_OUTPUT=$(cat "$PUSH_LOG")
-    echo "$PUSH_OUTPUT" >&2
-  fi
-  rm -f "$PUSH_LOG"
-fi
-```
+## Arguments
 
-### 3. Classify the rejection
+| Flag | Required | Default | Purpose |
+|------|----------|---------|---------|
+| `--prefix` | when fallback engages | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`, `chore/sync-develop`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
+| `--title` | when fallback engages | — | Title for the fallback PR. |
+| `--body` | when fallback engages | — | Body for the fallback PR. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). Multi-line strings are fine — the caller quotes the value. |
+| `--base` | always optional | `develop` | Base branch for the fallback PR. |
 
-If push failed, decide whether to engage the fallback or surface a real error. The rejection patterns below cover GitHub's branch-protection messages (`GH006`), repository rulesets (`push declined due to repository rule violations`), and the underlying refspec rejection (`remote rejected ... protected branch hook declined`):
+If the direct push succeeds, the fallback args are unused and may be omitted. If the push is rejected by branch protection but the fallback args are missing, the script exits non-zero with exit code 2.
 
-```bash
-if [ -z "${PUSH_RESULT:-}" ]; then
-  if printf '%s' "$PUSH_OUTPUT" | grep -qiE "(protected branch|GH006|push declined due to repository rule|protected branch hook declined)"; then
-    echo "note: direct push to $BRANCH rejected by branch protection — falling back to feature branch + PR." >&2
-  else
-    echo "ERROR: push to $BRANCH failed for a reason other than branch protection. See output above." >&2
-    exit 1
-  fi
-fi
-```
+## Output
 
-### 4. Engage the fallback
+On success the script emits a single bare JSON object on stdout (per [`plugins/_shared/script-authoring.md`](../../../_shared/script-authoring.md)):
 
-Save HEAD, switch to a new feature branch carrying the saved commits, then move the protected branch back to its upstream so the local copy doesn't drift. The order matters — `git branch -f` refuses to update the currently-checked-out branch, so checkout away first:
+| Key | Type | Present when | Meaning |
+|-----|------|--------------|---------|
+| `push_result` | string | always | `"direct"` \| `"pr"` \| `"noop"` |
+| `branch` | string | always | The current branch at invocation time. |
+| `pending_count` | integer | always | Commits ahead of upstream at invocation. |
+| `new_branch` | string | `push_result == "pr"` | Auto-created feature branch carrying the saved commits. |
+| `pr_url` | string | `push_result == "pr"` | URL of the PR opened against `--base`. |
 
-```bash
-if [ -z "${PUSH_RESULT:-}" ]; then
-  SAVED=$(git rev-parse HEAD)
+On failure the script exits non-zero with stderr describing the failure and stdout empty.
 
-  DATE=$(date +%Y-%m-%d)
-  NEW_BRANCH="${PREFIX}-${DATE}"
-  N=1
-  while git ls-remote --exit-code origin "refs/heads/$NEW_BRANCH" >/dev/null 2>&1 \
-     || git rev-parse --verify --quiet "refs/heads/$NEW_BRANCH" >/dev/null; do
-    N=$((N + 1))
-    NEW_BRANCH="${PREFIX}-${DATE}-${N}"
-  done
+## Caller follow-up
 
-  git checkout -b "$NEW_BRANCH" "$SAVED"
-  git branch -f "$BRANCH" "$UPSTREAM_REF"
-  git push -u origin "$NEW_BRANCH"
-fi
-```
+Branch on `push_result`:
 
-### 5. Open the PR
+- **`direct`** — commits are on origin's protected branch. Caller continues with whatever post-publish work it has (tag creation, sync, etc.).
+- **`pr`** — PR is open at `pr_url`; commits live on `new_branch`; the local protected branch was reset to its upstream so it no longer holds the unpublished commit. Caller self-reviews and merges (`gh pr merge --squash --delete-branch` or `--merge --delete-branch` depending on whether history needs preserving), then switches back to the protected branch and pulls before continuing post-publish work.
+- **`noop`** — no pending commits. Nothing was pushed; nothing to clean up.
 
-```bash
-if [ -z "${PUSH_RESULT:-}" ]; then
-  PR_URL=$(gh pr create \
-    --base "${BASE:-develop}" \
-    --head "$NEW_BRANCH" \
-    --title "$PR_TITLE" \
-    --body "$PR_BODY")
-  PUSH_RESULT=pr
-fi
-```
+When the fallback engages, the working tree is left on `new_branch`. Callers that need to return to the protected branch must explicitly `git checkout <branch> && git pull origin <branch>` after the PR merges.
 
-The skill does not merge the PR — the caller invokes `/flowkit:merge-pr` (or `gh pr merge ... --merge --delete-branch` for the merge-commit case) once it has self-reviewed.
+## Branch-protection detection
 
-### 6. Report
+The script classifies push failures as protection-related when stderr contains any of:
 
-The skill emits a one-line summary on stdout so the caller's prose can show what happened:
+- `protected branch` (case-insensitive)
+- `GH006` — GitHub's branch-protection error code
+- `push declined due to repository rule violations` — repository rulesets
+- `protected branch hook declined` — the underlying refspec rejection
 
-```bash
-case "$PUSH_RESULT" in
-  direct) echo "push-or-pr: pushed $PENDING commit(s) directly to origin/$BRANCH." ;;
-  pr)     echo "push-or-pr: opened $PR_URL ($BRANCH protected; commits live on $NEW_BRANCH)." ;;
-  noop)   echo "push-or-pr: no pending commits — nothing to publish." ;;
-esac
-```
+Any other push failure (auth, network, divergence) exits non-zero with the captured stderr surfaced.
 
 ## Constraints
 
-- Never force-push. The skill assumes the protected branch's upstream is the canonical state and resets the local copy to it before creating the feature branch.
-- Never engage the fallback for non-protection-related push failures (auth, network, divergence). Surface those plainly.
-- The skill leaves the working tree on the new feature branch when the fallback engages so the caller can immediately invoke `/flowkit:merge-pr` or self-review the PR.
-- The skill does not push tags. Tag creation belongs to the caller and must run after the fallback PR (if any) is merged so tags point at the post-merge commit.
+- Never force-push. The script assumes the protected branch's upstream is the canonical state and resets the local copy to it before creating the feature branch.
+- Never engage the fallback for non-protection-related push failures.
+- The script does not push tags. Tag creation belongs to the caller and must run after the fallback PR (if any) is merged so tags point at the post-merge commit.
+- The script checks out `new_branch` before resetting the protected branch — `git branch -f` refuses to update the currently-checked-out branch, so the order matters.

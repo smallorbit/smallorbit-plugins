@@ -431,8 +431,7 @@ git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/
 Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — direct pushes succeed when develop is unprotected and fall through to a merge-strategy back-merge PR when it isn't:
 
 ```bash
-PREFIX="chore/sync-develop"
-PR_TITLE="chore(develop): back-merge release $TAG from main"
+PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
 PR_BODY="## Summary
 
 Back-merge release \`$TAG\` from main into develop.
@@ -440,10 +439,19 @@ Back-merge release \`$TAG\` from main into develop.
 ## Test plan
 
 - [ ] Confirm \`git log origin/main..origin/develop\` is empty after merge."
-BASE="develop"
+
+RESULT=$(bash "$PUSH_OR_PR_DIR/scripts/push_or_pr.sh" \
+  --prefix "chore/sync-develop" \
+  --title "chore(develop): back-merge release $TAG from main" \
+  --body "$PR_BODY" \
+  --base "develop")
+
+PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
+NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
+PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 ```
 
-After inlining the push-or-pr snippet, branch on `$PUSH_RESULT`:
+Branch on `$PUSH_RESULT`:
 
 - `direct` — develop now matches main on origin. Done.
 - `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the release merge commit's history). The local working tree is left on `$NEW_BRANCH` — switch back to develop and pull after the merge.

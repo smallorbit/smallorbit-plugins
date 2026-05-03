@@ -106,11 +106,9 @@ git commit -m "chore(plugins): bump $BUMPED_LIST"
 Use a single commit message listing all bumped plugins, e.g.:
 `chore(plugins): bump swarmkit@2.0.0, flowkit@1.3.0`
 
-Then publish the commit via the [`flowkit:push-or-pr`](../../../plugins/flowkit/skills/push-or-pr/SKILL.md) sub-skill so the bump lands on the protected branch even when direct pushes are rejected. Set `PREFIX`, `PR_TITLE`, and `PR_BODY` before inlining the snippet:
+Then publish the commit via the [`flowkit:push-or-pr`](../../../plugins/flowkit/skills/push-or-pr/SKILL.md) sub-skill so the bump lands on the protected branch even when direct pushes are rejected:
 
 ```bash
-PREFIX="chore/bump-plugins"
-PR_TITLE="chore(plugins): bump $BUMPED_LIST"
 PR_BODY="## Summary
 
 Bump plugin.json versions for plugins changed since their last release.
@@ -122,10 +120,19 @@ $(printf '%s\n' "$BUMPED_LIST" | tr ',' '\n' | sed 's/^[[:space:]]*/- /')
 ## Test plan
 
 - [ ] Confirm each \`plugin.json\` version bump matches the per-plugin tag that will be created after merge."
-BASE="develop"
+
+RESULT=$(bash plugins/flowkit/skills/push-or-pr/scripts/push_or_pr.sh \
+  --prefix "chore/bump-plugins" \
+  --title "chore(plugins): bump $BUMPED_LIST" \
+  --body "$PR_BODY" \
+  --base "develop")
+
+PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
+NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
+PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 ```
 
-After inlining the push-or-pr snippet (steps 1–6 in that skill), branch on `$PUSH_RESULT`:
+Branch on `$PUSH_RESULT`:
 
 - `direct` — the bump commit is on origin's protected branch. Continue to Step 5.
 - `pr` — push-or-pr opened `$PR_URL`. Self-review the PR, then merge it (`/flowkit:merge-pr` from `$NEW_BRANCH`). Once merged, switch to the protected branch and pull (`git checkout <branch> && git pull origin <branch>`), then continue to Step 5 — tags now point at the squash-merged commit, not the original feature-branch commit.

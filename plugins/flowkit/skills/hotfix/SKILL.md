@@ -137,8 +137,7 @@ git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
 Then publish via the [`flowkit:push-or-pr`](../push-or-pr/SKILL.md) sub-skill so the back-merge lands on develop whether or not develop is push-protected:
 
 ```bash
-PREFIX="chore/sync-develop"
-PR_TITLE="chore(develop): back-merge hotfix from main"
+PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
 PR_BODY="## Summary
 
 Back-merge hotfix \`$TAG\` from main into develop.
@@ -146,10 +145,19 @@ Back-merge hotfix \`$TAG\` from main into develop.
 ## Test plan
 
 - [ ] Confirm \`git log origin/main..origin/develop\` is empty after merge."
-BASE="develop"
+
+RESULT=$(bash "$PUSH_OR_PR_DIR/scripts/push_or_pr.sh" \
+  --prefix "chore/sync-develop" \
+  --title "chore(develop): back-merge hotfix from main" \
+  --body "$PR_BODY" \
+  --base "develop")
+
+PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
+NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
+PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 ```
 
-After inlining the push-or-pr snippet, branch on `$PUSH_RESULT`:
+Branch on `$PUSH_RESULT`:
 
 - `direct` — develop now matches main on origin.
 - `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the hotfix merge history).
