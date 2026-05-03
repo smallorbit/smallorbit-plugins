@@ -1,4 +1,5 @@
 .DS_Store
 .sessionkit/
+.squadkit/
 .claude/settings.local.json
 .ideas.md
