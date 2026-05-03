@@ -6,7 +6,7 @@ date: 2026-05-03
 author: smallorbit
 readTime: 6
 draft: false
-tags: ["meta", "announcement"]
+tags: ["announcement"]
 ---
 
 This is the seed post for the smallorbit blog &mdash; equal parts welcome mat and

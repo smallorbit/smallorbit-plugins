@@ -6,7 +6,7 @@ date: 2026-04-22
 author: smallorbit
 readTime: 8
 draft: false
-tags: ["swarmkit", "workflow", "stacked-prs"]
+tags: ["workflow", "deep-dive"]
 ---
 
 A swarm produces a stack of dependent pull requests. Merging that stack without
