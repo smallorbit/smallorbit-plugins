@@ -10,6 +10,12 @@ set -euo pipefail
 #   {caller_branch, main_worktree, worktrees_to_remove: [{path}], branches_to_delete: [string], stuck: [{path, branch}]}
 # On failure: non-zero exit, empty stdout, human-readable message on stderr.
 
+# Anchor to the main repo root. The harness can drop the operator's shell into
+# an agent worktree after a swarm; without this anchor `git branch
+# --show-current` would report the agent's branch as caller_branch and the
+# downstream `git checkout <caller_branch>` would fail.
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
+
 for cmd in git jq; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "gather: required dependency '$cmd' not found on PATH" >&2

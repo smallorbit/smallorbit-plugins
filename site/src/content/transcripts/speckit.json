@@ -1,0 +1,50 @@
+{
+  "ariaLabel": "speckit example session",
+  "lines": [
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/spec" },
+      { "type": "text", "text": " add dark-mode toggle" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "interviewing..." }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· where does the toggle live? → header, next to account menu" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· does it persist across sessions? → yes, localStorage" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· honor system preference on first load? → yes" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "synthesizing plan... 4 tasks, 1 dependency chain" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " plan approved" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " filed epic " },
+      { "type": "annotate", "text": "#142" },
+      { "type": "text", "text": " + 4 child issues " },
+      { "type": "annotate", "text": "(#143–#146)" }
+    ]
+  ]
+}

@@ -127,6 +127,8 @@ This attaches the `epic:dark-mode` label to every issue created in that run, wit
 
 Pass `--auto` to skip the approval gate and proceed directly to issue creation. Use this for programmatic or scripted invocations (e.g. `/polish`, CI pipelines) where interactive confirmation is not needed. Omit it for interactive use when you want to review and adjust the catalog before anything is filed.
 
+When the source is a multi-row blueprint table (e.g. a "Child issue list" grouped by phase), `/catalog` consolidates by default: rows in the same phase that share scope and have no inter-dependency fold into a single issue per phase, and a one-line per-phase summary prints before the catalog table so the consolidation decision is visible. Pass `--split` to disable this and file one issue per row.
+
 ## How Issue Works
 
 `/issue` is the lightweight path. Give it a description, and it drafts a title, infers type and priority, checks for duplicates, and shows a preview before filing. Use it when you know exactly what to file and don't need an interview.

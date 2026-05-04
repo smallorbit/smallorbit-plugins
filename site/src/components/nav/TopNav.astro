@@ -25,6 +25,13 @@ const githubRepoUrl = 'https://github.com/smallorbit/smallorbit-plugins';
         Blog
       </a>
       <a
+        href={`${baseHref}kits/`}
+        class:list={[{ 'is-active': active === 'kits' }]}
+        aria-current={active === 'kits' ? 'page' : undefined}
+      >
+        Kits
+      </a>
+      <a
         href={`${baseHref}about/`}
         class:list={[{ 'is-active': active === 'about' }]}
         aria-current={active === 'about' ? 'page' : undefined}

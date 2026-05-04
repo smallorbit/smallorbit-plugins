@@ -1,6 +1,6 @@
 ---
 name: swarm-plus
-description: Wrap /swarmkit:swarm with an automatic review/fix pass. After each swarm PR opens, dispatch a swarmkit-vendored reviewer; if the reviewer flags blockers or concerns, re-engage the original builder via SendMessage to address them and update the PR. Single pass — stop after one reviewer + at-most-one fix round per PR.
+description: Wrap /swarmkit:swarm with an automatic review/fix pass. After each swarm PR opens, dispatch a swarmkit-vendored reviewer; if the reviewer flags blockers or concerns, spawn a fresh worker to address them and update the PR. Single pass — stop after one reviewer + at-most-one fix round per PR.
 triggers:
   - "swarm plus"
   - "swarm+"
@@ -12,21 +12,15 @@ triggers:
 
 # Swarm Plus
 
-Layer an automatic review/fix pass over `/swarmkit:swarm`. Same arg grammar; same isolation; same final state (open PRs awaiting human merge). The only addition: each PR gets one reviewer, and if the reviewer surfaces blockers or concerns, the original builder is re-engaged via SendMessage to push follow-up commits to the same branch.
+Layer an automatic review/fix pass over `/swarmkit:swarm`. Same arg grammar; same isolation; same final state (open PRs awaiting human merge). The only addition: each PR gets one reviewer, and if the reviewer surfaces blockers or concerns, a fresh worker is spawned to push follow-up commits to the same branch.
 
-### Keep-alive architecture
+### Runtime contract: builders always exit; fix-rounds always spawn a fresh worker
 
-Builders do not terminate after reporting their PR URL — they enter standby awaiting an orchestrator message. The orchestrator routes the reviewer's verdict back to the original builder via SendMessage:
+The harness terminates builder agents shortly after they emit their final task notification. Builder prompts still emit `STANDBY_READY` as a forward-compatibility hint in case the runtime ever supports persistent standby, but **the orchestrator MUST treat every builder as no-longer-addressable once the PR is reported**. SendMessage to a former builder consistently fails with "No agent named X is currently addressable."
 
-- **Reviewer clean** → `"Approved. Terminate."` — builder exits cleanly.
-- **Reviewer flagged blockers / concerns / `[recommended]` coverage gaps** → reviewer findings forwarded verbatim with explicit scope. Builder applies, pushes, comments on the PR, terminates.
-- **`--review-only` set** → `"Review-only run. Terminate."` — builder exits without acting on findings.
+**Canonical fix-round path: spawn-fresh-worker.** Whenever a reviewer's verdict is non-clean (blockers, concerns, or `[recommended]` coverage gaps), the orchestrator spawns a brand-new `general-purpose` agent in an isolated worktree, branches it from the existing PR head, and lets it apply the reviewer's findings. The original builder is never re-engaged.
 
-**Why keep-alive**: the builder already has every relevant file loaded, the design rationale in working memory, and the issue acceptance criteria internalized. Re-engaging it via SendMessage saves an entire spawn-and-orient cycle per PR with non-clean review.
-
-**Cost tradeoff**: peak agent concurrency roughly doubles during the review window — on a 5-PR run, up to 10 alive concurrently (5 builders in standby + 5 reviewers) instead of the baseline of 5 sequential builders followed by 5 sequential reviewers. Acceptable for the latency win.
-
-**Fallback to spawn-fresh-worker**: if the original builder is no longer alive (crashed at PR creation, or `verify_agent.sh` recovered the PR after the builder failed to push), the orchestrator falls back to the legacy spawn-fresh-worker path. `--worker-model` continues to apply on this fallback path only.
+**Why STANDBY_READY remains in builder prompts.** It is cheap, harmless under today's runtime (the builder emits the sentinel and is then terminated by the harness), and keeps the prompt forward-compatible if a future runtime version preserves agents past their last notification. The orchestrator should NOT attempt SendMessage on builders today — those calls will fail.
 
 ## Input
 
@@ -37,8 +31,8 @@ Identical to `/swarmkit:swarm`:
 - Issue numbers (`12 15 18`, `#12 #15 #18`, range `12-18`) → one-shot mode → `develop`
 - `--model <tier>` (`sonnet`, `opus`) — model override for swarm agents (reviewer + worker have their own defaults; see below)
 - `--base <branch>` — override default base branch
-- `--review-only` — review only; never act on findings (useful for triage). Each builder still receives a `"Review-only run. Terminate."` SendMessage so it exits cleanly from standby.
-- `--worker-model <tier>` — override model **for the fallback spawn-fresh-worker path only** (default: `sonnet`). On the default keep-alive path the builder is re-engaged with whatever model `--model` selected; this knob has no effect there. Kept as a knob for the fallback case.
+- `--review-only` — review only; never spawn a fix-round worker (useful for triage). The reviewer's findings stay inline in the final report.
+- `--worker-model <tier>` — override model for the fix-round worker (default: `sonnet`). Every non-clean reviewer verdict spawns a fresh worker, so this knob applies to the canonical fix-round path.
 - `--reviewer-model <tier>` — override reviewer model (default: `sonnet`)
 
 ## Process
@@ -53,22 +47,22 @@ Resolve the project's verify command once and reuse it for every worker prompt. 
 2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is determined by the package manager: `yarn.lock` present → `yarn run verify`; `pnpm-lock.yaml` present → `pnpm run verify`; otherwise → `npm run verify`.
 3. **Fallback** — `npx tsc -b --noEmit` for TS projects. "TS toolchain present" means `tsconfig.json` exists at the repo root. If neither of the above resolves AND `tsconfig.json` is absent, print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail. **Note:** projects that use `tsc` via a non-standard mechanism (e.g. a wrapper script, a monorepo tool, or a config file named differently) won't be detected by this check — those repos should set `verifyCommand` in `.squadkit/config.json` to opt in explicitly.
 
-Record the resolved command as `<verify_command>` and interpolate it into the prompts in step 1 (builder standby instruction) and step 4 (fallback worker prompt).
+Record the resolved command as `<verify_command>` and interpolate it into the prompts in step 1 (builder prompt, forward-compat clause) and step 4 (fix-round worker prompt).
 
 ### 1. Run the swarm phase
 
-**Builder prompt construction (swarm-plus constructs prompts directly).** swarm-plus does NOT invoke `/swarmkit:swarm` as a sub-skill. Instead, it follows the spawn pattern documented in `/swarmkit:swarm/SKILL.md` — reading its agent prompt structure, dependency graph logic, and verification steps — but constructs each builder Agent call itself with two modifications:
+**Builder prompt construction (swarm-plus constructs prompts directly).** swarm-plus does NOT invoke `/swarmkit:swarm` as a sub-skill. Instead, it follows the spawn pattern documented in `/swarmkit:swarm/SKILL.md` — reading its agent prompt structure, dependency graph logic, and verification steps — but constructs each builder Agent call itself with two minor modifications:
 
-1. Each builder is spawned with a deterministic, addressable `name:` parameter: `swarm-builder-<issue>`. This is required so the orchestrator can route reviewer findings back via SendMessage.
-2. A STANDBY clause is appended to every builder prompt (see below).
+1. Each builder is spawned with a deterministic, addressable `name:` parameter: `swarm-builder-<issue>`. This is kept for forward compatibility with a future runtime that supports persistent standby; today it has no functional effect since the harness terminates the builder anyway.
+2. A STANDBY clause is appended to every builder prompt (see below) for the same forward-compat reason.
 
 This approach keeps `/swarmkit:swarm` completely unmodified while giving swarm-plus full control over name assignment and prompt injection.
 
-Record `(issue, pr_number, head_branch, base_branch, builder_agent_name)` for each PR as it is produced.
+Record `(issue, pr_number, head_branch, base_branch)` for each PR as it is produced.
 
-**Standby instruction injection.** swarm-plus appends the following STANDBY clause to the end of every builder prompt it constructs. Plain `/swarmkit:swarm` invocations continue to terminate at step 6 of the swarm prompt — this clause only appears in swarm-plus-constructed prompts.
+**Standby instruction injection (forward-compat only).** swarm-plus appends the following STANDBY clause to the end of every builder prompt it constructs. **In today's runtime the harness terminates the builder shortly after it emits the final notification, so this clause is effectively a no-op** — but it is left in place so the prompt remains correct if a future runtime preserves agents past their last notification. Plain `/swarmkit:swarm` invocations continue to terminate at step 6 of the swarm prompt — this clause only appears in swarm-plus-constructed prompts.
 
-> **STANDBY (swarm-plus only).** After reporting the PR URL, do NOT terminate. Reply `STANDBY_READY` and then enter standby, awaiting an orchestrator SendMessage. You will receive one of three messages:
+> **STANDBY (swarm-plus only, forward-compat).** After reporting the PR URL, reply `STANDBY_READY` and then enter standby, awaiting an orchestrator SendMessage. If the harness terminates you instead of delivering a message, that is expected under the current runtime. If a message does arrive, it will be one of three:
 >
 > 1. `"Approved. Terminate."` — exit cleanly.
 > 2. `"Review-only run. Terminate."` — exit cleanly without acting on anything.
@@ -80,11 +74,7 @@ Do NOT block on every swarm agent before spawning reviewers. As each swarm agent
 
 1. Verify the PR exists: `gh pr view <pr_number> --json url,headRefName,baseRefName,state`
 2. Fetch the original issue body: `gh issue view <issue> --json body --jq '.body'`
-3. **Determine builder liveness.** The builder emits `STANDBY_READY` in its task notification body immediately before entering standby. If the notification body contains `STANDBY_READY`, set `builder_alive: true`. If it does not (e.g. the builder completed without emitting the sentinel — crashed at PR creation, was recovered by `verify_agent.sh`, or the standby clause was missed/ignored), set `builder_alive: false`.
-
-   Additionally, if `verify_agent.sh` returns `pushed_now: true` OR if `pr_exists: false` (meaning the orchestrator had to create the PR on the builder's behalf), set `builder_alive: false` — in both cases the builder exited before completing its standby setup.
-
-4. Spawn a reviewer for that PR (see step 2). Continue handling other notifications in parallel.
+3. Spawn a reviewer for that PR (see step 2). Continue handling other notifications in parallel.
 
 ### 2. Spawn reviewer per PR
 
@@ -104,54 +94,31 @@ The reviewer prompt MUST include:
 
 Track each reviewer's agent ID against the PR it covers.
 
-### 3. Decide what to send the builder
+### 3. Decide whether to spawn a fix-round worker
 
-When a reviewer's task notification arrives, parse its result. Apply the **skip-on-clean** rule.
+When a reviewer's task notification arrives, parse its result and apply the **skip-on-clean** rule.
 
-**If `builder_alive: false`**: skip Step 3 routing entirely and proceed directly to the Step 4 fallback path. The decision table below applies only when `builder_alive: true`.
-
-**If `builder_alive: true`**: the builder is in standby and must always receive a SendMessage so it can exit cleanly. Never abandon a standby builder.
-
-| Reviewer output | Builder message |
-|-----------------|-----------------|
-| Verdict `Approve` AND no blockers AND no concerns AND no `[recommended]` coverage gaps | SendMessage `"Approved. Terminate."` — builder exits. Nits and `[optional]` coverage gaps are not actionable enough to warrant a fix round. |
-| Any blockers | SendMessage with reviewer findings + scope. Blockers are mandatory. |
-| Any concerns | SendMessage with reviewer findings + scope. Concerns get addressed or explicitly deferred. |
-| Coverage gaps flagged `[recommended]` | SendMessage with reviewer findings + scope. Treat recommended coverage gaps as concerns. |
-| `--review-only` flag set | SendMessage `"Review-only run. Terminate."` regardless of reviewer verdict — builder exits without acting on findings. |
+| Reviewer output | Action |
+|-----------------|--------|
+| Verdict `Approve` AND no blockers AND no concerns AND no `[recommended]` coverage gaps | No fix-round worker. PR stands as-is. Nits and `[optional]` coverage gaps are not actionable enough to warrant a fix round. |
+| Any blockers | Spawn fix-round worker (see step 4). Blockers are mandatory. |
+| Any concerns | Spawn fix-round worker. Concerns get addressed or explicitly deferred in a PR comment. |
+| Coverage gaps flagged `[recommended]` | Spawn fix-round worker. Treat recommended coverage gaps as concerns. |
+| `--review-only` flag set | Never spawn a fix-round worker, regardless of reviewer verdict. Reviewer output stays inline in the final report. |
 
 Print one line announcing the decision per PR:
 
 ```
-PR #1390: reviewer clean (no blockers/concerns) → SendMessage "Approved. Terminate."
-PR #1391: reviewer flagged 1 blocker, 2 concerns → SendMessage findings to swarm-builder-<issue>
-PR #1392: builder no longer alive → falling back to spawn-fresh-worker
+PR #1390: reviewer clean (no blockers/concerns) → no fix round
+PR #1391: reviewer flagged 1 blocker, 2 concerns → spawning fresh worker
+PR #1392: reviewer flagged 1 blocker → spawning fresh worker
 ```
 
-### 4. Re-engage builder (or fallback to spawn worker)
+### 4. Spawn the fix-round worker
 
-**Default path: SendMessage to the standby builder.** When `builder_alive: true` for the PR, route the message determined in step 3 directly to the builder by name. The builder's standby instructions (injected in step 1) tell it how to interpret each message.
+For every PR whose reviewer verdict was non-clean (and `--review-only` is not set), spawn a fresh `general-purpose` agent with `isolation: worktree`, `mode: bypassPermissions`, `run_in_background: true`. Default model `sonnet`; override via `--worker-model`.
 
-For the findings-payload case, the SendMessage body MUST include:
-
-- The **PR number** and **head branch** (e.g. `worktree-agent-42`) — the builder is already on this branch in its worktree, but include explicitly so the message is self-contained.
-- The **full reviewer output** verbatim under a `REVIEWER FINDINGS` section.
-- Explicit scope:
-  - **In scope**: blockers (mandatory), concerns (address or explicitly defer with stated reason in a PR comment), reviewer-recommended coverage gaps.
-  - **Out of scope**: nits (skip unless trivially co-located with a fix), `[optional]` coverage gaps, unrelated cleanups, scope creep.
-
-The builder's standby instructions already cover the action steps (verify, commit, push, optional PR comment, terminate) — no need to re-state them in the SendMessage.
-
-**Fallback path: spawn a fresh worker.** Trigger the legacy spawn-fresh-worker path **only** when:
-
-- `builder_alive: false` for this PR (builder crashed at PR creation, or `verify_agent.sh` recovered the PR after the builder failed to push, or the builder somehow exited without emitting `STANDBY_READY`).
-- AND `--review-only` is **not** set (review-only never spawns workers, regardless of liveness).
-
-If `--review-only` is set and `builder_alive: false`, do nothing — the reviewer output stays inline in the final report and no fix round happens.
-
-For the fallback, spawn a `general-purpose` agent with `isolation: worktree`, `mode: bypassPermissions`, `run_in_background: true`. Default model `sonnet`; override via `--worker-model` (this is the only path where `--worker-model` takes effect).
-
-The fallback worker prompt MUST:
+The fix-round worker prompt MUST:
 
 - Include the **PR number** and **head branch** (e.g. `worktree-agent-42`).
 - Include the **full reviewer output** verbatim under a `REVIEWER FINDINGS` section.
@@ -165,7 +132,7 @@ The fallback worker prompt MUST:
      git checkout -B <head_branch> origin/<head_branch>
      ```
   2. Apply the changes.
-  3. Run `<verify_command>` (resolved in step 1a) and the relevant test scope. Resolve any failures before proceeding — never push a red build.
+  3. Run `<verify_command>` (resolved in step 0) and the relevant test scope. Resolve any failures before proceeding — never push a red build.
   4. Commit with conventional-commit format (no Claude mentions, no co-author lines).
   5. Push to the same branch (`git push origin <head_branch>`) — auto-updates the PR.
   6. Optionally comment on the PR summarizing what was addressed and what was deferred:
@@ -175,25 +142,27 @@ The fallback worker prompt MUST:
 - Forbid: branching off `develop`, force-pushing, rewriting prior commits, closing the issue manually.
 - Termination: report the new commit SHAs and confirm `gh pr view <pr_number> --json commits` includes them.
 
-### 5. Wait for all builders / fallback workers
+> **Best-effort SendMessage optimization (currently inert).** If a future runtime version preserves builders past their final notification, an orchestrator could optimistically `SendMessage` the findings to `swarm-builder-<issue>` and skip the spawn. This is documented for forward reference only — under today's runtime the SendMessage call always fails ("No agent named X is currently addressable"), so the orchestrator MUST go straight to spawning a fresh worker. Do not waste a turn attempting SendMessage on builders.
 
-Continue until every re-engaged builder and every fallback worker reports completion. For PRs whose builder received `"Approved. Terminate."` or `"Review-only run. Terminate."`, simply confirm the builder's task notification arrived. For PRs that received a findings payload (or that fell back to a fresh worker), verify the PR's HEAD has advanced:
+### 5. Wait for all fix-round workers
+
+Continue until every spawned fix-round worker reports completion. Verify the PR's HEAD has advanced:
 
 ```bash
 gh pr view <pr_number> --json commits | jq '.commits[-1].oid'
 ```
 
-Note: for review-only runs, no HEAD check is needed — no commits were pushed.
+For PRs with no fix round (clean reviewer verdict, or `--review-only`), no further action is needed.
 
 ### 6. Final report
 
 ```
 ── swarm-review complete ─────────────────────
 PRs opened by swarm: #1390 #1391 #1392 #1393
-  #1390: reviewed → clean → builder terminated cleanly
-  #1391: reviewed → 2 concerns → builder pushed 2 commits (re-engaged)
-  #1392: reviewed → 1 blocker → builder pushed 1 commit (re-engaged)
-  #1393: reviewed → 1 blocker → fallback worker pushed 1 commit (builder was no longer alive)
+  #1390: reviewed → clean → no fix round
+  #1391: reviewed → 2 concerns → fresh worker pushed 2 commits
+  #1392: reviewed → 1 blocker → fresh worker pushed 1 commit
+  #1393: reviewed → 1 blocker → fresh worker pushed 1 commit
 All PRs ready for human merge.
 ─────────────────────────────────────────────
 ```
@@ -203,14 +172,14 @@ Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 ## Constraints
 
 - **Single pass** — no reviewer-after-fix re-review. The user can manually trigger another review with `/review <pr>` if desired.
-- **Skip-on-clean preserves SendMessage** — even on a clean approval, the orchestrator must SendMessage `"Approved. Terminate."` to the standby builder. Never abandon a builder in standby.
-- **Builder never re-branches** — the re-engaged builder is already on the PR's head branch in its worktree; it must not branch off `develop` or anything else for the fix round. The fallback worker (if triggered) branches off the existing PR head, not `develop`.
-- **`/swarmkit:swarm` default behavior is untouched** — swarm-plus constructs its own Agent calls following swarm's spawn pattern, with `name:` and the STANDBY clause added. Plain `/swarmkit:swarm` invocations still terminate at step 6 of the swarm prompt.
-- **`--worker-model` only applies on the fallback path** — on the default keep-alive path the builder runs under whatever `--model` selected. The flag is kept for the fallback case; do not assume it influences re-engaged builders.
-- **Reviewer output stays inline, never posted as a PR comment** by the reviewer itself. The builder (or fallback worker) is the only sub-agent that may comment on the PR (and only with a brief "addressed feedback" summary).
+- **Builders are not addressable post-PR** — under today's runtime the harness terminates builders after their final notification. Never attempt SendMessage on a builder; always spawn a fresh worker for the fix round.
+- **Fix-round worker never re-branches off develop** — it branches off the existing PR head (`worktree-agent-<issue>`) so its commits stack onto the PR.
+- **`/swarmkit:swarm` default behavior is untouched** — swarm-plus constructs its own Agent calls following swarm's spawn pattern, with `name:` and the (forward-compat) STANDBY clause added. Plain `/swarmkit:swarm` invocations still terminate at step 6 of the swarm prompt.
+- **`--worker-model` controls the fix-round worker** — every non-clean reviewer verdict spawns a fresh worker, so this knob applies on the canonical fix-round path.
+- **Reviewer output stays inline, never posted as a PR comment** by the reviewer itself. The fix-round worker is the only sub-agent that may comment on the PR (and only with a brief "addressed feedback" summary).
 - **Never merge** any PR — final state is open PRs awaiting human merge.
 - **Never close issues** — `Closes #N` in PR bodies handles it on merge.
-- **Defer rather than guess** — if the reviewer's findings are ambiguous (e.g. "consider X"), the builder should explicitly defer in a PR comment rather than implement guesses.
+- **Defer rather than guess** — if the reviewer's findings are ambiguous (e.g. "consider X"), the worker should explicitly defer in a PR comment rather than implement guesses.
 - All swarm constraints from `/swarmkit:swarm` apply transitively: worktree isolation, conventional commits, no Claude/co-author mentions, no absolute repo paths in agent prompts, never commit directly to develop or main.
 
 ## Failure modes
@@ -218,10 +187,6 @@ Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 | Symptom | Handling |
 |---------|----------|
 | Swarm agent fails to produce a PR | Skip review/fix round for that issue; report in final summary |
-| Reviewer crashes or returns no output | SendMessage `"Approved. Terminate."` to the standby builder so it exits cleanly; note the missing review in the final summary; leave PR open without a fix pass |
-| Builder unresponsive in standby (SendMessage delivered but no notification within 90 seconds) | Treat as `builder_alive: false` and trigger the fallback spawn-fresh-worker path. Surface a warning in the final summary so the user knows the standby builder may still be holding resources |
-| SendMessage call fails (builder agent ID no longer addressable) | Treat as `builder_alive: false` and trigger the fallback spawn-fresh-worker path |
-| Builder crashed before entering standby (no PR pushed; recovered by `verify_agent.sh`) | `builder_alive: false` from the start; if reviewer flags issues, fallback worker handles the fix round |
-| Builder pushed PR but exited before standby (`STANDBY_READY` not emitted) | `builder_alive: false`; fallback worker handles any fix round |
-| Re-engaged builder push rejected (branch advanced underneath) | Builder re-fetches and rebases (`git fetch origin <head>; git rebase origin/<head>`); if conflicts arise, abort and report to user |
-| Re-engaged builder (or fallback worker) introduces new test failures | Sub-agent MUST resolve before push — never push a red build |
+| Reviewer crashes or returns no output | Note the missing review in the final summary; leave PR open without a fix pass |
+| Fix-round worker push rejected (branch advanced underneath) | Worker re-fetches and rebases (`git fetch origin <head>; git rebase origin/<head>`); if conflicts arise, abort and report to user |
+| Fix-round worker introduces new test failures | Worker MUST resolve before push — never push a red build |
