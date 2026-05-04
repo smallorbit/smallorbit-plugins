@@ -1,0 +1,59 @@
+{
+  "ariaLabel": "flowkit example session",
+  "lines": [
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/pr" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "branch: feat/dark-mode-toggle · commit: a3f9c21" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " opened PR #214 → develop " },
+      { "type": "annotate", "text": "(closes #143)" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " merged PR #214 " },
+      { "type": "annotate", "text": "(squash)" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/cut" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " cut rc/2026-04-17.1 " },
+      { "type": "annotate", "text": "from origin/develop" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " staging updated " },
+      { "type": "annotate", "text": "(origin/staging detected)" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/release" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " merged staging → main · tagged " },
+      { "type": "annotate", "text": "v2026.04.17.1" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " closed issues #143, #156, #157, #158" }
+    ]
+  ]
+}

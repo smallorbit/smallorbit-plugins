@@ -1,0 +1,55 @@
+{
+  "ariaLabel": "sessionkit example session",
+  "lines": [
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/handoff" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "# context at 82%, wrapping up" }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "capturing: goal, decisions, open threads, next step" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " wrote " },
+      { "type": "annotate", "text": ".sessionkit/HANDOFF.md" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· working on: #143 dark-mode toggle UI" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· branch: feat/dark-mode-toggle · 2 commits" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· next: wire ThemeProvider to localStorage persistence" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "annotate", "text": "— new session —" }
+    ],
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/pickup" }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "loaded HANDOFF.md · restored 6 context anchors" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " resuming on feat/dark-mode-toggle " },
+      { "type": "annotate", "text": "at ThemeProvider" }
+    ]
+  ]
+}

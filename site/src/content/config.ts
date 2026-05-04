@@ -51,4 +51,17 @@ const kits = defineCollection({
   }),
 });
 
-export const collections = { posts, kits };
+const transcriptSegment = z.object({
+  type: z.enum(['prompt', 'cmd', 'annotate', 'text']),
+  text: z.string(),
+});
+
+const transcripts = defineCollection({
+  type: 'data',
+  schema: z.object({
+    ariaLabel: z.string(),
+    lines: z.array(z.array(transcriptSegment)),
+  }),
+});
+
+export const collections = { posts, kits, transcripts };
