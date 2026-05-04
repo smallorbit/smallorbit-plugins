@@ -1,0 +1,55 @@
+{
+  "ariaLabel": "swarmkit example session",
+  "lines": [
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/next-issue" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "top: #156 (api), #157 (ui), #158 (docs) — #157 blocks #158" }
+    ],
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/swarm" },
+      { "type": "text", "text": " 156 157 158" }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "spawning 3 agents in isolated worktrees..." }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· agent-a1b2 → worktrees/agent-156 → #156" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· agent-c3d4 → worktrees/agent-157 → #157" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· agent-e5f6 → worktrees/agent-158 → #158 (waits on #157)" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " opened PR #201, PR #202, PR #203 " },
+      { "type": "annotate", "text": "(stacked)" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/merge-stack" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " merged #201 → #202 → #203 " },
+      { "type": "annotate", "text": "top-down: leaf PRs first, root last" }
+    ]
+  ]
+}

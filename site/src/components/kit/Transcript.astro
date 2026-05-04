@@ -1,0 +1,35 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import '../../styles/transcript.css';
+
+interface Props {
+  transcript: CollectionEntry<'transcripts'>;
+}
+
+const { transcript } = Astro.props;
+const { ariaLabel, lines } = transcript.data;
+
+const segmentClass: Record<string, string | undefined> = {
+  prompt: 'transcript-prompt',
+  cmd: 'transcript-cmd',
+  annotate: 'transcript-annotate',
+  text: undefined,
+};
+---
+
+<div class="transcript" role="group" aria-label={ariaLabel}>
+  {
+    lines.map((segments) => (
+      <span class="transcript-line">
+        {segments.length === 0 ? (
+          <Fragment>{' '}</Fragment>
+        ) : (
+          segments.map((segment) => {
+            const cls = segmentClass[segment.type];
+            return cls ? <span class={cls}>{segment.text}</span> : <Fragment>{segment.text}</Fragment>;
+          })
+        )}
+      </span>
+    ))
+  }
+</div>

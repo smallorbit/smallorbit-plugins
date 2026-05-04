@@ -1,10 +1,12 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Transcript from '../../components/kit/Transcript.astro';
 import { stripExt } from '../../lib/slug';
 
 type KitEntry = CollectionEntry<'kits'>;
 type PostEntry = CollectionEntry<'posts'>;
+type TranscriptEntry = CollectionEntry<'transcripts'>;
 
 const baseHref = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
@@ -15,6 +17,7 @@ export async function getStaticPaths() {
   const allPosts = await getCollection('posts', ({ data }: PostEntry) => {
     return !data.draft || import.meta.env.DEV;
   });
+  const allTranscripts = await getCollection('transcripts');
 
   return kits.map((kit: KitEntry) => {
     const kitSlug = stripExt(kit.id);
@@ -23,10 +26,12 @@ export async function getStaticPaths() {
       .sort(
         (a: PostEntry, b: PostEntry) => b.data.date.valueOf() - a.data.date.valueOf()
       );
+    const transcript =
+      allTranscripts.find((t: TranscriptEntry) => stripExt(t.id) === kitSlug) ?? null;
 
     return {
       params: { slug: kitSlug },
-      props: { kit, posts },
+      props: { kit, posts, transcript },
     };
   });
 }
@@ -34,9 +39,10 @@ export async function getStaticPaths() {
 interface Props {
   kit: KitEntry;
   posts: PostEntry[];
+  transcript: TranscriptEntry | null;
 }
 
-const { kit, posts } = Astro.props;
+const { kit, posts, transcript } = Astro.props;
 const kitSlug = stripExt(kit.id);
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -87,6 +93,15 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
               </li>
             ))}
           </ul>
+        </section>
+      )
+    }
+
+    {
+      transcript && (
+        <section class="kit-page__transcript">
+          <h2 class="kit-page__h2">Example session</h2>
+          <Transcript transcript={transcript} />
         </section>
       )
     }
@@ -220,6 +235,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
 
   .kit-page__summary,
   .kit-page__commands,
+  .kit-page__transcript,
   .kit-page__posts {
     margin-bottom: 2.5rem;
   }

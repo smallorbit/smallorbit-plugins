@@ -1,0 +1,74 @@
+/**
+ * Transcript — stylized terminal frame.
+ * Ported verbatim from docs/style.css (lines 797–841). The frame keeps
+ * its own dark palette regardless of the surrounding page theme so the
+ * terminal aesthetic survives the lighter blog/kit pages.
+ */
+.transcript {
+  --transcript-prompt: #f5b042;
+  --transcript-cmd: #5ba8c8;
+  --transcript-annotate: #8c8882;
+  --transcript-text: #d8d4cc;
+  --transcript-border: #1a1f2a;
+  --transcript-radius: 0.5rem;
+
+  position: relative;
+  margin: 2rem 0 0;
+  padding: 36px 18px 16px;
+  background: linear-gradient(180deg, #0a0d13, #070a10);
+  border: 1px solid var(--transcript-border);
+  border-radius: var(--transcript-radius);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.75;
+  color: var(--transcript-text);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.transcript::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 26px;
+  background: linear-gradient(180deg, #131822, #0e1219);
+  border-bottom: 1px solid var(--transcript-border);
+  border-radius: var(--transcript-radius) var(--transcript-radius) 0 0;
+}
+
+.transcript::after {
+  content: '● ● ●   example session';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--transcript-annotate);
+  pointer-events: none;
+}
+
+.transcript-line {
+  display: block;
+}
+
+.transcript-prompt {
+  color: var(--transcript-prompt);
+  font-weight: 700;
+  margin-right: 3px;
+}
+
+.transcript-cmd {
+  color: var(--transcript-cmd);
+  font-weight: 600;
+}
+
+.transcript-annotate {
+  color: var(--transcript-annotate);
+}

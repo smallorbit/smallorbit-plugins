@@ -1,0 +1,49 @@
+{
+  "ariaLabel": "polishkit example session",
+  "lines": [
+    [
+      { "type": "prompt", "text": "$" },
+      { "type": "text", "text": " " },
+      { "type": "cmd", "text": "/sweep" }
+    ],
+    [
+      { "type": "prompt", "text": "►" },
+      { "type": "text", "text": " " },
+      { "type": "annotate", "text": "scanning dead code + cruft..." }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· 12 unused exports across src/utils/" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· 7 merged local branches (2 weeks stale)" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· dist/ and .coverage/ tracked but in .gitignore" }
+    ],
+    [
+      { "type": "text", "text": "  " },
+      { "type": "annotate", "text": "· README references removed /deploy command" }
+    ],
+    [
+      { "type": "text", "text": " " }
+    ],
+    [
+      { "type": "prompt", "text": "?" },
+      { "type": "text", "text": " act on all findings? " },
+      { "type": "annotate", "text": "[y/n/select]" },
+      { "type": "text", "text": " → select: all" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " removed 12 exports, deleted 7 branches, untracked 2 dirs, patched README" }
+    ],
+    [
+      { "type": "prompt", "text": "✓" },
+      { "type": "text", "text": " committed: " },
+      { "type": "annotate", "text": "chore: sweep dead code and stale artifacts" }
+    ]
+  ]
+}
