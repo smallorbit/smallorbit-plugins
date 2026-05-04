@@ -30,7 +30,7 @@ Materialize a crew of agents from a profile. The skill picks an unused phonetic 
 | `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase`. If omitted, prompt. **Rejected when the resolved profile has `kind: discovery`.** |
 | `--issues <range>` | none | Issue numbers / ranges to load as the team's initial backlog. Accepts the swarmkit grammar: `1319,1329,1331` or `1319-1337` (inclusive). Resolved (open, non-on-hold) list is forwarded to the lead's first dispatch prompt as a structured backlog table. |
 | `--brief <text\|@path>` | none | Mission brief embedded into the architect's spawn prompt under `## Mission brief`. Accepts inline text (`--brief "the brief"`) or a file reference (`--brief @./path/to/brief.md`). **Required when the resolved profile has `kind: discovery`** (prompt via `AskUserQuestion` if missing). Optional and otherwise ignored when `kind: execution`. |
-| `--mode <inherit\|auto\|bypass>` | `inherit` | Permission mode for spawned members. `inherit`: no `mode` override passed to `Agent` — harness defaults apply. `auto`: pass `mode: "auto"` to every spawn AND force `model: "opus"` for non-builder roles (sonnet members prompt for permissions in auto mode — see Harness constraints). `bypass`: pass `mode: "bypassPermissions"` to every spawn; model stays default per role. Pass this when the orchestrator is in `auto` or `bypassPermissions` so spawned members inherit the same authority. |
+| `--mode <inherit\|auto\|bypass\|none>` | `inherit` | Permission mode for spawned members. `inherit`: auto-detect the parent session's permission mode and propagate it (see Mode detection, step 2.5). `auto`: pass `mode: "auto"` to every spawn AND force `model: "opus"` for non-builder roles (sonnet members prompt for permissions in auto mode — see Harness constraints). `bypass`: pass `mode: "bypassPermissions"` to every spawn; model stays default per role. `none`: opt out of inheritance — no `mode` override passed to `Agent`, harness defaults apply. |
 
 ### Narrative-tail parsing
 
@@ -79,6 +79,28 @@ Extract every flag from `$ARGUMENTS`. Treat unknown flags as an error and stop, 
 - Coerce `--builders` to an integer; reject non-numeric input. If the value exceeds 5, cap it at 5 and warn.
 - For `--issues <range>`: resolve via the swarmkit `gh-fetch-issues` sub-skill (see step 5.5) — do not implement filtering inline.
 - For `--brief <value>`: capture the raw value verbatim. Do **not** read the file or apply discovery/execution gating yet — that happens in step 5.6 once the crew profile (and its `kind:`) is loaded.
+
+### 2.5 Detect the parent permission mode
+
+Runs only when `--mode inherit` (the default). Probes in priority order and stops at the first hit:
+
+1. **Env var** — check `CLAUDE_PERMISSION_MODE`. If set and non-empty, use its value.
+2. **Settings file** — read `~/.claude/settings.json`, then `.claude/settings.json` (project, relative to `REPO_ROOT`). For each file that exists, extract `.permissionMode` with `jq -r '.permissionMode // empty'`. Last file wins (project-level overrides global).
+3. **Fallback** — if neither probe yields a value, treat as `default`.
+
+Accepted values: `auto`, `bypassPermissions`, `acceptEdits`, `default`, `plan`. Any unrecognized value falls back to `default` with a warning:
+
+> `DETECTED_MODE` is not a recognized permission mode — treating as `default`. Pass `--mode none` to suppress this warning.
+
+Store the result as `DETECTED_MODE`. The mapping to spawn behavior:
+
+| `DETECTED_MODE` | `Agent({mode})` per spawn | Model override |
+|-----------------|---------------------------|----------------|
+| `auto` | `"auto"` | non-builder roles forced to `opus` |
+| `bypassPermissions` | `"bypassPermissions"` | none — role frontmatter default |
+| `acceptEdits` / `default` / `plan` | not passed — harness defaults apply | none |
+
+When `--mode` is passed explicitly as `auto`, `bypass`, or `none`, skip this step entirely — `DETECTED_MODE` is unused.
 
 ### 3. Resolve the team name
 
@@ -401,17 +423,32 @@ The brief is included verbatim — do not paraphrase, summarize, or re-order its
 
 The `--mode` flag controls the permission `mode` passed to each `Agent({mode})` spawn and, in auto mode, forces opus for non-builder roles:
 
-| `--mode` | `Agent({mode})` per spawn | Model override |
-|----------|---------------------------|----------------|
-| `inherit` (default) | not passed — harness defaults apply | none — role frontmatter default |
-| `auto` | `"auto"` | non-builder roles forced to `opus`; builders unchanged |
-| `bypass` | `"bypassPermissions"` | none — role frontmatter default |
+| `--mode` value | Effective resolved mode | `Agent({mode})` per spawn | Model override |
+|----------------|------------------------|---------------------------|----------------|
+| `inherit` (default) — `DETECTED_MODE=auto` | `auto` | `"auto"` | non-builder roles forced to `opus` |
+| `inherit` (default) — `DETECTED_MODE=bypassPermissions` | `bypassPermissions` | `"bypassPermissions"` | none — role frontmatter default |
+| `inherit` (default) — `DETECTED_MODE=acceptEdits`/`default`/`plan` | (none) | not passed — harness defaults apply | none — role frontmatter default |
+| `auto` | `auto` | `"auto"` | non-builder roles forced to `opus`; builders unchanged |
+| `bypass` | `bypassPermissions` | `"bypassPermissions"` | none — role frontmatter default |
+| `none` | (none) | not passed — harness defaults apply | none — role frontmatter default |
 
-**Rationale.** When the orchestrator runs in auto mode, sonnet-tier crew members prompt for permission approval on every tool call, defeating the autonomous-flow benefit of auto. Opus-tier members run cleanly under the same condition (see Harness constraints for the empirical observation). The `--mode auto` shortcut encodes this so teams stay autonomous end-to-end without per-spawn fiddling.
+**Rationale.** When the orchestrator runs in auto mode, sonnet-tier crew members prompt for permission approval on every tool call, defeating the autonomous-flow benefit of auto. Opus-tier members run cleanly under the same condition (see Harness constraints for the empirical observation). The mode-coupling rule encodes this so teams stay autonomous end-to-end without per-spawn fiddling.
 
-Builders are exempt from the auto-mode opus override because builder workloads benefit less from the larger model and burn budget faster on long-running implementation work. If a builder workload requires opus, override the role default explicitly — `--mode auto` only forces opus for non-builders.
+Builders are exempt from the auto-mode opus override because builder workloads benefit less from the larger model and burn budget faster on long-running implementation work. If a builder workload requires opus, override the role default explicitly — `auto` mode only forces opus for non-builders.
 
-**Mode detection (operator responsibility).** The spawn skill cannot programmatically detect the parent orchestrator's permission mode — there is no `CLAUDE_PERMISSION_MODE` env var or persisted setting that reflects the active session's runtime mode. The operator (or the calling slash command / agent) is responsible for passing `--mode auto` or `--mode bypass` to match the orchestrator's session. Defaulting to `inherit` keeps existing call sites unchanged.
+**Inherited-mode logging.** When `--mode inherit` resolves to a non-`default` mode via step 2.5, print one line before the first spawn:
+
+```
+inherited mode: <DETECTED_MODE> (from <source: env/global-settings/project-settings>)
+```
+
+Then, when `DETECTED_MODE=auto`, print one line per non-builder spawn noting the model override:
+
+```
+inherited mode: auto → forcing opus on <role>
+```
+
+This gives the human visibility into propagation without requiring them to pass explicit flags.
 
 Capture the session UUID returned by each `Agent` spawn — it lands in the harness-managed config automatically; the squadkit-specific sibling file (step 10) only stores the squadkit metadata, not the per-member roster.
 
@@ -508,6 +545,12 @@ The orchestrator IS the lead — there is no separate handoff message to send. I
 - The fact that `claude.flowkit.prBase` is pinned (if applicable) and how to clear it (`git config --unset claude.flowkit.prBase`).
 - Any worktree-seeding warnings (missing files listed in `worktreeSeed`).
 
+The summary must also include the effective permission mode:
+
+- If `--mode` was passed explicitly: `permission mode: <value> (explicit flag)`.
+- If `--mode inherit` resolved via detection: `permission mode: <DETECTED_MODE> (inherited from <source>)` — or `permission mode: default (no signal detected)` when the fallback applied.
+- If `--mode none`: `permission mode: none (inheritance suppressed)`.
+
 Then begin the dispatch loop per the team-lead role contract (`plugins/squadkit/agents/team-lead.md`). The first dispatch prompt sent to each builder MUST include the resolved backlog (if `RESOLVED_BACKLOG` is non-empty) as a structured section:
 
 ```markdown
@@ -560,7 +603,9 @@ Idle ≠ delivery. The orchestrator reads the latest `(member, task)` line befor
 - Discovery crews (`kind: discovery`) must not provision worktrees, must not cut an epic branch, must not pin `claude.flowkit.prBase`, and must reject `--epic`. They require `--brief`.
 - Reject any `kind:` value other than `execution` or `discovery`. A missing `kind:` defaults to `execution`.
 - The `--brief` payload is embedded verbatim in the architect spawn prompt only — never in explorer, designer, builder, reviewer, or tester spawn prompts.
-- `--mode auto` MUST force `model: "opus"` for every non-builder role at spawn time, even when the role frontmatter declares `model: sonnet`. Sonnet members under auto mode are non-autonomous (they prompt for permissions) and will deadlock the dispatch loop if the orchestrator stops monitoring.
+- Any resolved effective mode of `auto` (whether via explicit `--mode auto` or via `inherit` detecting `DETECTED_MODE=auto`) MUST force `model: "opus"` for every non-builder role at spawn time, even when the role frontmatter declares `model: sonnet`. Sonnet members under auto mode are non-autonomous (they prompt for permissions) and will deadlock the dispatch loop if the orchestrator stops monitoring.
+- `--mode inherit` must always run step 2.5 detection before step 3. Never skip detection and silently pass nothing — that is what `--mode none` is for.
+- `--mode none` is the documented escape hatch when inheritance is undesirable. Never treat an unknown `--mode` value as `none` — reject it with an error listing the valid values: `inherit`, `auto`, `bypass`, `none`.
 
 ## Harness constraints
 
@@ -571,7 +616,7 @@ These are observed limitations of the `Agent` and `TeamCreate` primitives at the
 - **`Agent({isolation: "worktree"})` is unreliable when combined with `team_name`.** The auto-isolation does not fire reliably for team-scoped spawns, so the skill always provisions worktrees manually via `git worktree add --detach` (see step 7) and passes the resolved absolute path into each spawned agent.
 - **`git worktree add <path> <branch>` refuses when the main worktree is already on `<branch>`.** Always use `--detach` for per-builder worktrees so the branch ref stays free.
 - **`Agent({model})` rejects 1M-context aliases like `opus[1m]`.** The harness validates the model param against a fixed allowlist of bare names. To put a long-running role (tester, reviewer, architect) on the 1M tier, spawn with the bare alias (e.g. `opus`) and rely on the team-lead's between-wave swap protocol to rotate in a fresh successor before context fills.
-- **Sonnet-tier crew members prompt for permissions in auto mode.** When the orchestrator runs in auto mode and a spawned member is on sonnet, every tool call that would normally proceed silently under auto instead prompts for approval — even though the orchestrator session itself runs autonomously. Opus-tier members do not exhibit this. The `--mode auto` flag (see step 8) forces opus for non-builder roles to work around this; without that flag, autonomous flow breaks the moment a sonnet member needs to call a tool.
+- **Sonnet-tier crew members prompt for permissions in auto mode.** When the orchestrator runs in auto mode and a spawned member is on sonnet, every tool call that would normally proceed silently under auto instead prompts for approval — even though the orchestrator session itself runs autonomously. Opus-tier members do not exhibit this. The effective auto mode (whether from explicit `--mode auto` or from `inherit` detecting `auto`) forces opus for non-builder roles to work around this; without the mode being propagated, autonomous flow breaks the moment a sonnet member needs to call a tool.
 - **Frontmatter `model:` in `.claude/agents/*.md` is ignored on spawn.** Only the explicit `Agent({model})` parameter controls which model the spawned agent runs on. The frontmatter field is informational for human readers; do not expect it to override the spawn-time parameter, and do not let users assume editing frontmatter changes a live team.
 - **Frontmatter `tools:` is overridden by a default allowlist for some roles.** The harness applies its own tool subset on spawn that may strip tools the role contract declared. Always include `Bash` in the explicit spawn `tools` param so an agent missing `Glob`/`Grep`/`LS` can still fall back to `find`/`grep`/`ls` and complete its work.
 
