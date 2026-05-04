@@ -11,6 +11,11 @@ set -euo pipefail
 #   {base, base_restored, config_unset}
 # On failure: non-zero exit, empty stdout, human-readable message on stderr.
 
+# Anchor to the main repo root. The harness can drop the operator's shell into
+# an agent worktree after a swarm; `git checkout <base>` then fails because
+# `<base>` is already checked out in the main worktree.
+cd "$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)" || exit 1
+
 BASE="develop"
 
 while [[ $# -gt 0 ]]; do
