@@ -52,6 +52,7 @@ const kits = (await getCollection('kits')).sort(
                 class="kit-card__readme"
                 href={`https://github.com/smallorbit/smallorbit-plugins/tree/main/plugins/${stripExt(kit.id)}`}
                 rel="noopener noreferrer"
+                aria-label={`${kit.data.name} README`}
               >
                 README ↗
               </a>
