@@ -1,6 +1,7 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
+import { stripExt } from '../lib/slug';
 
 export async function GET(context: APIContext) {
   const allPosts = await getCollection('posts');
@@ -20,7 +21,7 @@ export async function GET(context: APIContext) {
     site,
     items: posts.map((entry) => ({
       title: entry.data.title,
-      link: `${base}blog/${entry.id.replace(/\.(md|mdx)$/, '')}/`,
+      link: `${base}blog/${stripExt(entry.id)}/`,
       pubDate: entry.data.date,
       description: entry.data.subtitle ?? entry.data.title,
     })),

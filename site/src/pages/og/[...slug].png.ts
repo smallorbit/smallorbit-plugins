@@ -1,5 +1,6 @@
 import { getCollection } from 'astro:content';
 import { renderOgPng } from '../../lib/og';
+import { stripExt } from '../../lib/slug';
 import type { APIContext } from 'astro';
 
 export async function getStaticPaths() {
@@ -7,7 +8,7 @@ export async function getStaticPaths() {
   const posts = allPosts.filter((entry) => !entry.data.draft);
 
   return posts.map((entry) => ({
-    params: { slug: entry.id.replace(/\.(md|mdx)$/, '') },
+    params: { slug: stripExt(entry.id) },
     props: {
       title: entry.data.title,
       subtitle: entry.data.subtitle,

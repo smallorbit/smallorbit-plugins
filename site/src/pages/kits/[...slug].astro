@@ -1,6 +1,7 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { stripExt } from '../../lib/slug';
 
 type KitEntry = CollectionEntry<'kits'>;
 type PostEntry = CollectionEntry<'posts'>;
@@ -14,8 +15,6 @@ export async function getStaticPaths() {
   const allPosts = await getCollection('posts', ({ data }: PostEntry) => {
     return !data.draft || import.meta.env.DEV;
   });
-
-  const stripExt = (id: string): string => id.replace(/\.(md|mdx)$/, '');
 
   return kits.map((kit: KitEntry) => {
     const kitSlug = stripExt(kit.id);
@@ -38,7 +37,7 @@ interface Props {
 }
 
 const { kit, posts } = Astro.props;
-const kitSlug = kit.id.replace(/\.(md|mdx)$/, '');
+const kitSlug = stripExt(kit.id);
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
@@ -46,7 +45,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 });
 
-const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
 ---
 
 <BaseLayout
@@ -105,7 +103,7 @@ const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
           <ul class="kit-page__post-list">
             {posts.map((post) => (
               <li class="kit-post">
-                <a class="kit-post__link" href={`${baseHref}blog/${slugFor(post.id)}/`}>
+                <a class="kit-post__link" href={`${baseHref}blog/${stripExt(post.id)}/`}>
                   <span class="kit-post__date">
                     {dateFormatter.format(post.data.date)}
                   </span>
