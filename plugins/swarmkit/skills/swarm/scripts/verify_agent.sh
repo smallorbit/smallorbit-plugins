@@ -14,7 +14,7 @@ set -euo pipefail
 # Anchor to the main repo root. The harness can drop the operator's shell into
 # an agent worktree after a swarm; bookkeeping operations must run from the
 # main worktree, not whichever worktree happens to be CWD.
-cd "$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)" || exit 1
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
 
 if [[ $# -ne 1 ]]; then
   echo "verify_agent: exactly one argument required: <issue-number>" >&2

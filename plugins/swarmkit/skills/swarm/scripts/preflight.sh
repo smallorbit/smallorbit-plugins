@@ -14,7 +14,7 @@ set -euo pipefail
 # Anchor to the main repo root. The harness can drop the operator's shell into
 # an agent worktree between swarm runs; `git config --local` would otherwise
 # write to the wrong worktree's config.
-cd "$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)" || exit 1
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
 
 BASE="develop"
 SCOPE_PR_BASE=0

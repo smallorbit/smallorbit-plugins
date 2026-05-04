@@ -14,7 +14,7 @@ set -euo pipefail
 # Anchor to the main repo root. The harness can drop the operator's shell into
 # an agent worktree after a swarm; `git checkout <base>` then fails because
 # `<base>` is already checked out in the main worktree.
-cd "$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)" || exit 1
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
 
 BASE="develop"
 
