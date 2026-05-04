@@ -222,6 +222,46 @@ else
   fi
 fi
 
+# gather.sh — caller_branch anchor test (regression for #844).
+# Run gather.sh with CWD inside an agent worktree on a different branch and
+# verify that caller_branch reflects the main worktree's checked-out branch,
+# not the agent worktree's. Without the repo-root anchor in gather.sh, this
+# would silently return the agent's branch.
+echo "  [gather.sh anchor-from-agent-cwd] setting up scratch repo..."
+SCRATCH3_DIR="$(mktemp -d)"
+cleanup_scratch3() { rm -rf "$SCRATCH3_DIR"; }
+trap cleanup_scratch3 EXIT
+
+MAIN3_REPO="$SCRATCH3_DIR/main"
+git init -q -b main-branch "$MAIN3_REPO"
+git -C "$MAIN3_REPO" commit -q --allow-empty -m "init"
+
+git -C "$MAIN3_REPO" branch worktree-agent-810
+AGENT3_WT="$SCRATCH3_DIR/main/.claude/worktrees/agent-d41eff07445c39395"
+mkdir -p "$(dirname "$AGENT3_WT")"
+git -C "$MAIN3_REPO" worktree add -q "$AGENT3_WT" worktree-agent-810
+
+# Run gather.sh from inside the agent worktree CWD. The anchor in gather.sh
+# should redirect git operations to the main repo before reading the branch.
+GATHER3_OUT="$(cd "$AGENT3_WT" && bash "$SCRIPT_DIR/gather.sh" 2>/tmp/gather3_stderr)"
+GATHER3_RC=$?
+
+if [[ $GATHER3_RC -ne 0 ]]; then
+  red   "  FAIL [gather.sh anchor-from-agent-cwd]: gather.sh exited $GATHER3_RC"
+  sed 's/^/         stderr: /' /tmp/gather3_stderr || true
+  FAIL=$((FAIL + 1))
+else
+  CALLER_BRANCH="$(printf '%s' "$GATHER3_OUT" | jq -r '.caller_branch')"
+  if [[ "$CALLER_BRANCH" == "main-branch" ]]; then
+    green "  PASS [gather.sh anchor-from-agent-cwd]: caller_branch=main-branch (anchor held)"
+    PASS=$((PASS + 1))
+  else
+    red   "  FAIL [gather.sh anchor-from-agent-cwd]: expected caller_branch=main-branch, got '$CALLER_BRANCH'"
+    printf '%s\n' "$GATHER3_OUT" | jq . | sed 's/^/         /'
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
 echo
 echo "clean-worktrees: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]] || exit 1
