@@ -170,151 +170,7 @@
 &lt;/ul&gt;
 &lt;p&gt;What flowkit is &lt;em&gt;not&lt;/em&gt;: a thin wrapper over &lt;code&gt;git&lt;/code&gt;. There are 22 skills in the kit and most of them are sub-skills the user-facing ones compose on. The opinions are the surface; the wiring is the depth.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; flowkit is opinionated about staging, preview, and version strings, and the opinions are load-bearing. They look small individually. They add up to a release flow you can actually trust on a Friday.&lt;/p&gt;
-&lt;p&gt;For the swarm that produces the work flowkit ships, see the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/swarmkit-deep-dive&quot;&gt;swarmkit deep-dive&lt;/a&gt;. For the quality gate that sits between merge and ship, see the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/polishkit-deep-dive&quot;&gt;polishkit deep-dive&lt;/a&gt;.&lt;/p&gt;</content:encoded></item><item><title>sessionkit: continuity that survives a context reset</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/sessionkit-deep-dive/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/sessionkit-deep-dive/</guid><description>How HANDOFF.md round-trips your task list, why /skillit refuses duplicates, and what /retro routes where.</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Every kit in the suite handles “do the work.” sessionkit handles what happens between.&lt;/p&gt;
-&lt;p&gt;A real working day rarely fits inside a single session. The context window fills up. You stop for lunch and come back five hours later. You hand the work off to a teammate, or to a fresh agent, or to your future self after a weekend. Every one of those transitions burns coordination cost — restating the goal, re-reading the diff, re-deriving the gotchas you already paid for once. sessionkit’s job is to make that cost trivial.&lt;/p&gt;
-&lt;p&gt;This is a tour of three sessionkit surfaces that earn their keep on a real workday. The anatomy of &lt;code&gt;HANDOFF.md&lt;/code&gt; and the task round-trip that pickup performs. The overlap check inside &lt;code&gt;/sessionkit:skillit&lt;/code&gt; that refuses to propose duplicate skills. And &lt;code&gt;/sessionkit:retro&lt;/code&gt; as a router — not a journal — that turns each finding into a one-keystroke action.&lt;/p&gt;
-&lt;p&gt;Each section walks you through the contract sessionkit ships, with citations from the kit’s own &lt;code&gt;SKILL.md&lt;/code&gt; files so you can verify the behaviour against source.&lt;/p&gt;
-&lt;h2 id=&quot;handoffmd-is-a-contract-not-a-diary&quot;&gt;HANDOFF.md is a contract, not a diary&lt;/h2&gt;
-&lt;p&gt;The premise is simple. &lt;code&gt;/sessionkit:handoff&lt;/code&gt; writes one Markdown file at &lt;code&gt;.sessionkit/HANDOFF.md&lt;/code&gt;. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that file in a new session and rehydrates the agent. The interesting part is what the file actually contains and what survives the round-trip.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; The handoff document is the entire memory blob between sessions. Everything else — the in-flight tools, the open editor buffers, the unsaved scratchpad — is gone. The file is structured so the next agent can reconstruct enough state to make a real decision in two minutes.&lt;/p&gt;
-&lt;p&gt;The section order is fixed:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;## Goal&lt;/code&gt; — one bullet, one sentence. What this session is working toward.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;## Progress&lt;/code&gt; — bullets only. What was completed, decided, or abandoned.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;## Git State&lt;/code&gt; — branch, staged files, unstaged files, recent commits.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;## Remaining Work&lt;/code&gt; — bullets in priority order.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;## Task List&lt;/code&gt; — a fenced JSON block that captures the actual task graph.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;## Context&lt;/code&gt; — bullets only. Decisions, gotchas, dead ends, external references.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;That order is not a stylistic choice — it’s enforced by &lt;code&gt;plugins/sessionkit/skills/handoff/SKILL.md&lt;/code&gt; under “Constraints,” and &lt;code&gt;/sessionkit:pickup&lt;/code&gt; parses positionally. Goal first because it answers “why are we even here.” Context last because by the time the next agent reads it, they already know what we were doing and just need the gotchas.&lt;/p&gt;
-&lt;p&gt;The file also carries an HTML-comment header on line 1:&lt;/p&gt;
-&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;text&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span&gt;&amp;lt;!-- handoff-meta gitFingerprint=&amp;lt;sha&amp;gt; taskFingerprint=&amp;lt;sha&amp;gt; --&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;That header is what enables delta mode. On the next &lt;code&gt;/sessionkit:handoff&lt;/code&gt; run, the skill compares the prior &lt;code&gt;gitFingerprint&lt;/code&gt; (HEAD sha plus a hash of the staged and unstaged file lists) against the current state. If git hasn’t moved, the &lt;code&gt;## Git State&lt;/code&gt; and &lt;code&gt;## Progress&lt;/code&gt; sections are reused verbatim. Same for &lt;code&gt;taskFingerprint&lt;/code&gt; over the Task List and Remaining Work sections. When both fingerprints match, four of the six sections come straight from the prior file and the synthesis sub-agent is skipped entirely.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Run &lt;code&gt;/sessionkit:handoff&lt;/code&gt; after every meaningful state change — opening a PR, completing a task, locking in a decision. Delta mode keeps the cost trivial. You don’t have to wait for context pressure to capture state.&lt;/p&gt;
-&lt;h3 id=&quot;what-survives-the-task-round-trip&quot;&gt;What survives the task round-trip&lt;/h3&gt;
-&lt;p&gt;The &lt;code&gt;## Task List&lt;/code&gt; section is where the real engineering happens. &lt;code&gt;/sessionkit:handoff&lt;/code&gt; snapshots every non-deleted task into a JSON array inside the fenced &lt;code&gt;json&lt;/code&gt; block. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that block in the next session and recreates the tasks with &lt;code&gt;TaskCreate&lt;/code&gt;, then re-wires the dependency graph with &lt;code&gt;TaskUpdate&lt;/code&gt;.&lt;/p&gt;
-&lt;p&gt;The fields that survive the round-trip, per the table in &lt;code&gt;plugins/sessionkit/README.md&lt;/code&gt;:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;id&lt;/code&gt; — preserved in the snapshot so &lt;code&gt;blockedBy&lt;/code&gt; edges can be rewired; the new session assigns a fresh id.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;subject&lt;/code&gt; — the task title.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;description&lt;/code&gt; — the full task description.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;activeForm&lt;/code&gt; — the active-form view state.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;status&lt;/code&gt; — original status (&lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt;); all recreated tasks start as &lt;code&gt;pending&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;blockedBy&lt;/code&gt; — dependency edges; remapped to new ids after all tasks are created.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;blocks&lt;/code&gt; — listed in the snapshot for reference; not re-wired on pickup (the inverse of &lt;code&gt;blockedBy&lt;/code&gt; is implicit and wiring both directions would double-write the graph).&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;What does &lt;strong&gt;not&lt;/strong&gt; survive: &lt;code&gt;owner&lt;/code&gt; and &lt;code&gt;metadata&lt;/code&gt;. And only &lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt; tasks are restored — &lt;code&gt;completed&lt;/code&gt; ones appear in the orientation summary as history but are not recreated. This is deliberate. The task list is the active work plan, not the audit log; resurrecting completed tasks would just clutter the new session’s queue.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; The task graph is the only structural state that survives a context reset. Conversation transcripts, scratchpad notes, even the orientation prose are reconstructed every time. The graph is the spine.&lt;/p&gt;
-&lt;p&gt;The pickup pass is two-pass on purpose. Pass 1 calls &lt;code&gt;TaskCreate&lt;/code&gt; for each &lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt; task and records an &lt;code&gt;oldId → newId&lt;/code&gt; map. Pass 2 walks the same set, remaps each &lt;code&gt;blockedBy&lt;/code&gt; array through the map, and calls &lt;code&gt;TaskUpdate&lt;/code&gt; with &lt;code&gt;addBlockedBy&lt;/code&gt; for the new task id. The handoff snapshot doesn’t carry the new ids — those don’t exist yet — so the rewire has to wait until every task is created.&lt;/p&gt;
-&lt;p&gt;There’s also a graceful back-compat clause. Legacy &lt;code&gt;HANDOFF.md&lt;/code&gt; files written before task-list support existed (no &lt;code&gt;## Task List&lt;/code&gt; section) are valid input. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; emits one warning line — &lt;code&gt;No task list snapshot — skipping hydration&lt;/code&gt; — and continues with the orientation summary. That tiny touch matters: handoff files in the wild outlive their schema.&lt;/p&gt;
-&lt;h3 id=&quot;one-subtle-invariant&quot;&gt;One subtle invariant&lt;/h3&gt;
-&lt;p&gt;The &lt;code&gt;## Goal&lt;/code&gt; and &lt;code&gt;## Context&lt;/code&gt; sections are always refreshed on a new &lt;code&gt;/sessionkit:handoff&lt;/code&gt; run, even when both fingerprints match. Goal because it incorporates &lt;code&gt;$ARGUMENTS&lt;/code&gt; when present (the freeform notes you fold in to steer the next agent). Context because the gotchas drift faster than the structural state — a decision made twenty minutes ago might be the most important thing the next agent reads.&lt;/p&gt;
-&lt;p&gt;Everything else can be reused verbatim. That’s the asymmetry that makes delta mode safe: structural state is content-addressed, narrative state is always fresh.&lt;/p&gt;
-&lt;h2 id=&quot;skillit-refuses-to-propose-duplicates&quot;&gt;/skillit refuses to propose duplicates&lt;/h2&gt;
-&lt;p&gt;&lt;code&gt;/sessionkit:skillit&lt;/code&gt; reflects on the current session and proposes new skills worth encoding. Most “agent reflection” tools are unbounded — they will happily generate the tenth variation of a skill you wrote three weeks ago. &lt;code&gt;skillit&lt;/code&gt; won’t.&lt;/p&gt;
-&lt;p&gt;The contract from &lt;code&gt;plugins/sessionkit/skills/skillit/SKILL.md&lt;/code&gt; is four steps. The third step is the one that earns the kit:&lt;/p&gt;
-&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;bash&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; ~/.claude/skills&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;SKILL.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; .claude/skills&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;SKILL.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; ~/.claude/commands&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;*.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;code&gt;/skillit&lt;/code&gt; scans the user-global skill library, the project-local skill library, and the legacy commands directory. It reads the &lt;code&gt;name&lt;/code&gt; and &lt;code&gt;description&lt;/code&gt; frontmatter of any candidates that look relevant, and surfaces close matches to you &lt;strong&gt;before&lt;/strong&gt; proposing anything new.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Capturing a reusable skill is easy. &lt;em&gt;Not&lt;/em&gt; capturing one that already exists — that’s the hard part. Without the overlap check, every session ends with a fresh skill proposal that overlaps the existing library at 80% and just hasn’t been noticed.&lt;/p&gt;
-&lt;p&gt;The presentation step is structured to make that explicit:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;What it would do&lt;/strong&gt; — one sentence.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Why it’s worth encoding&lt;/strong&gt; — what friction it removes.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Overlap risk&lt;/strong&gt; — does it duplicate or extend an existing skill?&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;The “extend an existing skill” branch is where overlap turns into a positive. If the conversation surfaced a pattern that’s 60% covered by an existing skill plus a new wrinkle, &lt;code&gt;/skillit&lt;/code&gt; offers to modify the existing skill rather than ship a near-duplicate. That keeps the library coherent over months.&lt;/p&gt;
-&lt;p&gt;The constraints at the bottom of the SKILL file lock the discipline in:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;em&gt;Always&lt;/em&gt; check for existing skills before proposing something new.&lt;/li&gt;
-&lt;li&gt;&lt;em&gt;Never&lt;/em&gt; create a skill file without user approval.&lt;/li&gt;
-&lt;li&gt;&lt;em&gt;Identify at least one candidate&lt;/em&gt; before concluding — never report “nothing found.”&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;The first two are obvious. The third is doing more work than it looks. Without it, &lt;code&gt;/skillit&lt;/code&gt; could just shrug and exit when the session was uneventful — and you’d never get the small wins (the recurring command sequence you didn’t notice was a pattern). Forcing one candidate per run keeps the library growing.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Run &lt;code&gt;/skillit&lt;/code&gt; at the end of any session that involved a non-trivial workflow. The overlap check is what makes it safe to run often.&lt;/p&gt;
-&lt;h2 id=&quot;retro-is-a-router-not-a-journal&quot;&gt;/retro is a router, not a journal&lt;/h2&gt;
-&lt;p&gt;The temptation in any retro tooling is to write a long markdown summary you’ll never re-read. &lt;code&gt;/sessionkit:retro&lt;/code&gt; does the opposite. It produces a short inline summary, then asks one question with a one-keystroke answer. Each finding has a delegation target — a downstream skill that owns the action.&lt;/p&gt;
-&lt;p&gt;Per &lt;code&gt;plugins/sessionkit/skills/retro/SKILL.md&lt;/code&gt;, the input surfaces are four:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Conversation transcript&lt;/strong&gt; — repeated corrections, friction loops, mid-flight self-corrections.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Task list&lt;/strong&gt; — &lt;code&gt;TaskList&lt;/code&gt; plus per-task &lt;code&gt;TaskGet&lt;/code&gt; to find stalls, scope revisions, completed-vs-cancelled patterns.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Git activity within the session window&lt;/strong&gt; — &lt;code&gt;git log --since=&amp;quot;8 hours ago&amp;quot;&lt;/code&gt;, current branch, stashes, recent PRs.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Hook and tool-denial events&lt;/strong&gt; — scanned from the most recent &lt;code&gt;~/.claude/projects/&amp;lt;encoded-cwd&amp;gt;/*.jsonl&lt;/code&gt; files for &lt;code&gt;permission denied&lt;/code&gt;, &lt;code&gt;tool denied&lt;/code&gt;, or &lt;code&gt;hook blocked&lt;/code&gt; patterns.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;That fourth surface is the one most retro tools miss. A &lt;code&gt;permission denied&lt;/code&gt; you approved twice this session is a strong signal — the next session will burn the same approval friction unless you ship a permission tweak now.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Retro isn’t lessons-learned theatre. Every signal has a downstream action; the retro’s job is to route, not narrate.&lt;/p&gt;
-&lt;p&gt;The synthesis step organizes findings into three buckets — &lt;strong&gt;What went well&lt;/strong&gt;, &lt;strong&gt;What didn’t go well&lt;/strong&gt;, &lt;strong&gt;Recommended actions&lt;/strong&gt; — and the third bucket is where the routing happens. The mapping table in the SKILL file is exact:&lt;/p&gt;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Pattern&lt;/th&gt;&lt;th&gt;Delegation target&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Repeated command sequence worth automating&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:skillit&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Repeated permission approvals&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:suggest-permissions&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Context running low or session should be captured&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:handoff&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Recurring hook-blocked behavior worth enforcing&lt;/td&gt;&lt;td&gt;&lt;code&gt;hookify:hookify&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;A problem worth filing as a tracked issue&lt;/td&gt;&lt;td&gt;&lt;code&gt;speckit:issue&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;A behavioral config worth persisting&lt;/td&gt;&lt;td&gt;&lt;code&gt;update-config&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;No matching skill&lt;/td&gt;&lt;td&gt;Surface as plain-text guidance only&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;
-&lt;p&gt;The actions are capped at four to fit the harness’s &lt;code&gt;AskUserQuestion&lt;/code&gt; option limit. If more than four items qualify, retro keeps the highest-signal ones and reserves the fourth slot for “Other — I’ll handle this manually” when there’s remaining guidance with no skill match. That cap is doing real work: a menu of nine options is functionally identical to no menu at all.&lt;/p&gt;
-&lt;p&gt;The action menu is mandatory. The SKILL file is unambiguous: &lt;em&gt;“Never run delegated skills without explicit user selection. The &lt;code&gt;AskUserQuestion&lt;/code&gt; call in step 4 is mandatory. Skipping it and auto-running skills is a defect.”&lt;/em&gt; The router is opinionated about delegation but conservative about consent.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Retro is a thin reflective layer. It does not absorb &lt;code&gt;skillit&lt;/code&gt;’s encoding logic, it does not absorb &lt;code&gt;suggest-permissions&lt;/code&gt;’ tuning logic, it does not write files. When it recommends “encode X as a skill,” it delegates to &lt;code&gt;/skillit&lt;/code&gt; — it does not author the skill itself.&lt;/p&gt;
-&lt;p&gt;That last constraint matters more than it looks. The temptation is to fold each downstream skill’s logic into retro for convenience. The cost would be every retro change touching every downstream skill’s behaviour. Keeping retro thin keeps the rest of the kit composable.&lt;/p&gt;
-&lt;h3 id=&quot;a-worked-example&quot;&gt;A worked example&lt;/h3&gt;
-&lt;p&gt;Imagine a session that:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Approved &lt;code&gt;Bash(npm run build)&lt;/code&gt; four times.&lt;/li&gt;
-&lt;li&gt;Repeated the same &lt;code&gt;git status &amp;amp;&amp;amp; git diff &amp;amp;&amp;amp; git commit&lt;/code&gt; sequence twice.&lt;/li&gt;
-&lt;li&gt;Hit a &lt;code&gt;tool denied&lt;/code&gt; for a Write tool inside &lt;code&gt;node_modules/&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;Surfaced a real bug nobody’s filed yet.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;&lt;code&gt;/sessionkit:retro&lt;/code&gt; produces an inline summary citing each turn, then asks:&lt;/p&gt;
-&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;text&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span&gt;Which of these would you like to action now?&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span&gt;1. Permission tune for `Bash(npm run build)`     → /sessionkit:suggest-permissions&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span&gt;2. Encode the status/diff/commit sequence        → /sessionkit:skillit&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span&gt;3. Hookify the node_modules write block          → /hookify:hookify&lt;/span&gt;&lt;/span&gt;
-&lt;span class=&quot;line&quot;&gt;&lt;span&gt;4. File the bug as a tracked issue               → /speckit:issue&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;You pick the ones you want, retro invokes each in turn, and the session ends with concrete artifacts — not a markdown post-mortem you’ll never re-read.&lt;/p&gt;
-&lt;h2 id=&quot;putting-it-together&quot;&gt;Putting it together&lt;/h2&gt;
-&lt;p&gt;sessionkit’s three big surfaces compose cleanly because each one has a narrow, well-defined contract:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;/sessionkit:handoff&lt;/code&gt; writes the structural state — git, tasks, gotchas — into a single Markdown file with a fingerprint header that makes the next run cheap.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that file, rebuilds the task graph (preserving &lt;code&gt;blockedBy&lt;/code&gt; edges across the id remap), and ends by asking what you want to tackle first.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;/sessionkit:skillit&lt;/code&gt; reflects on the session, checks the existing skill library for overlap, and proposes one new skill or one extension — never a duplicate.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;/sessionkit:retro&lt;/code&gt; scans four signal surfaces (conversation, tasks, git, denials), groups findings into went-well / didn’t-go-well / recommended actions, and routes each action to the right downstream skill via a one-keystroke menu.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;The kit doesn’t ship a “session manager” abstraction. It ships four small skills that each own one beat — capture, restore, encode, route — and a Markdown file that’s the entire shared state.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Continuity is a discipline, not a feature. sessionkit gives you the contract; the discipline is yours.&lt;/p&gt;
-&lt;p&gt;If you take one thing from this post, take this: the round-trip between &lt;code&gt;/sessionkit:handoff&lt;/code&gt; and &lt;code&gt;/sessionkit:pickup&lt;/code&gt; is the most-overlooked compounding lever in the suite. Run &lt;code&gt;/handoff&lt;/code&gt; after every PR, every decision, every scope change — delta mode keeps the cost near-zero. The next session starts with the goal restated, the task graph rebuilt, the gotchas surfaced. The first ten minutes of a fresh session stop being a tax.&lt;/p&gt;
-&lt;p&gt;Forward pointer: the squadkit deep-dive picks up where this one leaves off — multi-agent coordination layered on top of the sessionkit substrate, with squadkit’s &lt;code&gt;SessionStart&lt;/code&gt; hook re-asserting role context whenever a session resumes via &lt;code&gt;/pickup&lt;/code&gt;. Two kits, one continuity story.&lt;/p&gt;</content:encoded></item><item><title>From Idea to Release with smallorbit-plugins</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/</guid><description>A tour of the kits and how they compose</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Most “AI agent” workflows hand you everything in one prompt: planning, coding, reviewing, shipping — all collapsed into a single call where you press enter and pray. The output is sometimes magical, often sloppy, and almost always opaque about which decisions were made on your behalf.&lt;/p&gt;
+&lt;p&gt;For the swarm that produces the work flowkit ships, see the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/swarmkit-deep-dive&quot;&gt;swarmkit deep-dive&lt;/a&gt;. For the quality gate that sits between merge and ship, see the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/polishkit-deep-dive&quot;&gt;polishkit deep-dive&lt;/a&gt;.&lt;/p&gt;</content:encoded></item><item><title>From Idea to Release with smallorbit-plugins</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/</guid><description>A tour of the kits and how they compose</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Most “AI agent” workflows hand you everything in one prompt: planning, coding, reviewing, shipping — all collapsed into a single call where you press enter and pray. The output is sometimes magical, often sloppy, and almost always opaque about which decisions were made on your behalf.&lt;/p&gt;
 &lt;p&gt;smallorbit-plugins splits the work across seven small kits instead. Each kit owns one beat of the development lifecycle — the interview, the swarm, the polish, the ship — and hands off cleanly to the next. You stay in the loop at the moments that matter (approving the plan, reviewing the PRs, choosing the version bump) and out of the loop at the moments that don’t (rebasing, retargeting, tagging, branch cleanup).&lt;/p&gt;
 &lt;p&gt;This is what that looks like end-to-end. One chapter per kit, in lifecycle order. Real slash commands, real handoffs, no hand-waving. By the end you should have a working mental map of which kit owns which phase and what the seam between any two kits looks like.&lt;/p&gt;
 &lt;h2 id=&quot;why-a-kit-per-beat&quot;&gt;Why a kit per beat?&lt;/h2&gt;
@@ -857,7 +713,151 @@
 &lt;li&gt;The four merge signals run silently because the user shouldn’t have to learn them to get a clean plan.&lt;/li&gt;
 &lt;li&gt;The &lt;code&gt;epic:&amp;lt;slug&amp;gt;&lt;/code&gt; label is the contract every other kit reads. The interview is gone; the label remains.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;If you’ve read the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/&quot;&gt;pillar post&lt;/a&gt;, you’ve already seen the next move: the swarm. The same label &lt;code&gt;speckit&lt;/code&gt; filed becomes the input that &lt;code&gt;swarmkit&lt;/code&gt; fans out into stacked PRs. That’s the next deep-dive — how &lt;code&gt;/swarmkit:swarm&lt;/code&gt; turns one label into N agents and one merge-safe stack of PRs.&lt;/p&gt;</content:encoded></item><item><title>squadkit: roles, squads, and crews — multi-agent without the chaos</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/</guid><description>The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other.</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;“Multi-agent” usually means an undefined pile of agents. squadkit names the pile.&lt;/p&gt;
+&lt;p&gt;If you’ve read the &lt;a href=&quot;https://smallorbit.github.io/smallorbit-plugins/blog/from-idea-to-release-with-smallorbit-plugins/&quot;&gt;pillar post&lt;/a&gt;, you’ve already seen the next move: the swarm. The same label &lt;code&gt;speckit&lt;/code&gt; filed becomes the input that &lt;code&gt;swarmkit&lt;/code&gt; fans out into stacked PRs. That’s the next deep-dive — how &lt;code&gt;/swarmkit:swarm&lt;/code&gt; turns one label into N agents and one merge-safe stack of PRs.&lt;/p&gt;</content:encoded></item><item><title>sessionkit: continuity that survives a context reset</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/sessionkit-deep-dive/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/sessionkit-deep-dive/</guid><description>How HANDOFF.md round-trips your task list, why /skillit refuses duplicates, and what /retro routes where.</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Every kit in the suite handles “do the work.” sessionkit handles what happens between.&lt;/p&gt;
+&lt;p&gt;A real working day rarely fits inside a single session. The context window fills up. You stop for lunch and come back five hours later. You hand the work off to a teammate, or to a fresh agent, or to your future self after a weekend. Every one of those transitions burns coordination cost — restating the goal, re-reading the diff, re-deriving the gotchas you already paid for once. sessionkit’s job is to make that cost trivial.&lt;/p&gt;
+&lt;p&gt;This is a tour of three sessionkit surfaces that earn their keep on a real workday. The anatomy of &lt;code&gt;HANDOFF.md&lt;/code&gt; and the task round-trip that pickup performs. The overlap check inside &lt;code&gt;/sessionkit:skillit&lt;/code&gt; that refuses to propose duplicate skills. And &lt;code&gt;/sessionkit:retro&lt;/code&gt; as a router — not a journal — that turns each finding into a one-keystroke action.&lt;/p&gt;
+&lt;p&gt;Each section walks you through the contract sessionkit ships, with citations from the kit’s own &lt;code&gt;SKILL.md&lt;/code&gt; files so you can verify the behaviour against source.&lt;/p&gt;
+&lt;h2 id=&quot;handoffmd-is-a-contract-not-a-diary&quot;&gt;HANDOFF.md is a contract, not a diary&lt;/h2&gt;
+&lt;p&gt;The premise is simple. &lt;code&gt;/sessionkit:handoff&lt;/code&gt; writes one Markdown file at &lt;code&gt;.sessionkit/HANDOFF.md&lt;/code&gt;. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that file in a new session and rehydrates the agent. The interesting part is what the file actually contains and what survives the round-trip.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; The handoff document is the entire memory blob between sessions. Everything else — the in-flight tools, the open editor buffers, the unsaved scratchpad — is gone. The file is structured so the next agent can reconstruct enough state to make a real decision in two minutes.&lt;/p&gt;
+&lt;p&gt;The section order is fixed:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;## Goal&lt;/code&gt; — one bullet, one sentence. What this session is working toward.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;## Progress&lt;/code&gt; — bullets only. What was completed, decided, or abandoned.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;## Git State&lt;/code&gt; — branch, staged files, unstaged files, recent commits.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;## Remaining Work&lt;/code&gt; — bullets in priority order.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;## Task List&lt;/code&gt; — a fenced JSON block that captures the actual task graph.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;## Context&lt;/code&gt; — bullets only. Decisions, gotchas, dead ends, external references.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That order is not a stylistic choice — it’s enforced by &lt;code&gt;plugins/sessionkit/skills/handoff/SKILL.md&lt;/code&gt; under “Constraints,” and &lt;code&gt;/sessionkit:pickup&lt;/code&gt; parses positionally. Goal first because it answers “why are we even here.” Context last because by the time the next agent reads it, they already know what we were doing and just need the gotchas.&lt;/p&gt;
+&lt;p&gt;The file also carries an HTML-comment header on line 1:&lt;/p&gt;
+&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;text&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span&gt;&amp;lt;!-- handoff-meta gitFingerprint=&amp;lt;sha&amp;gt; taskFingerprint=&amp;lt;sha&amp;gt; --&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That header is what enables delta mode. On the next &lt;code&gt;/sessionkit:handoff&lt;/code&gt; run, the skill compares the prior &lt;code&gt;gitFingerprint&lt;/code&gt; (HEAD sha plus a hash of the staged and unstaged file lists) against the current state. If git hasn’t moved, the &lt;code&gt;## Git State&lt;/code&gt; and &lt;code&gt;## Progress&lt;/code&gt; sections are reused verbatim. Same for &lt;code&gt;taskFingerprint&lt;/code&gt; over the Task List and Remaining Work sections. When both fingerprints match, four of the six sections come straight from the prior file and the synthesis sub-agent is skipped entirely.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Run &lt;code&gt;/sessionkit:handoff&lt;/code&gt; after every meaningful state change — opening a PR, completing a task, locking in a decision. Delta mode keeps the cost trivial. You don’t have to wait for context pressure to capture state.&lt;/p&gt;
+&lt;h3 id=&quot;what-survives-the-task-round-trip&quot;&gt;What survives the task round-trip&lt;/h3&gt;
+&lt;p&gt;The &lt;code&gt;## Task List&lt;/code&gt; section is where the real engineering happens. &lt;code&gt;/sessionkit:handoff&lt;/code&gt; snapshots every non-deleted task into a JSON array inside the fenced &lt;code&gt;json&lt;/code&gt; block. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that block in the next session and recreates the tasks with &lt;code&gt;TaskCreate&lt;/code&gt;, then re-wires the dependency graph with &lt;code&gt;TaskUpdate&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The fields that survive the round-trip, per the table in &lt;code&gt;plugins/sessionkit/README.md&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;id&lt;/code&gt; — preserved in the snapshot so &lt;code&gt;blockedBy&lt;/code&gt; edges can be rewired; the new session assigns a fresh id.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;subject&lt;/code&gt; — the task title.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;description&lt;/code&gt; — the full task description.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;activeForm&lt;/code&gt; — the active-form view state.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;status&lt;/code&gt; — original status (&lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt;); all recreated tasks start as &lt;code&gt;pending&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;blockedBy&lt;/code&gt; — dependency edges; remapped to new ids after all tasks are created.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;blocks&lt;/code&gt; — listed in the snapshot for reference; not re-wired on pickup (the inverse of &lt;code&gt;blockedBy&lt;/code&gt; is implicit and wiring both directions would double-write the graph).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;What does &lt;strong&gt;not&lt;/strong&gt; survive: &lt;code&gt;owner&lt;/code&gt; and &lt;code&gt;metadata&lt;/code&gt;. And only &lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt; tasks are restored — &lt;code&gt;completed&lt;/code&gt; ones appear in the orientation summary as history but are not recreated. This is deliberate. The task list is the active work plan, not the audit log; resurrecting completed tasks would just clutter the new session’s queue.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; The task graph is the only structural state that survives a context reset. Conversation transcripts, scratchpad notes, even the orientation prose are reconstructed every time. The graph is the spine.&lt;/p&gt;
+&lt;p&gt;The pickup pass is two-pass on purpose. Pass 1 calls &lt;code&gt;TaskCreate&lt;/code&gt; for each &lt;code&gt;pending&lt;/code&gt; or &lt;code&gt;in_progress&lt;/code&gt; task and records an &lt;code&gt;oldId → newId&lt;/code&gt; map. Pass 2 walks the same set, remaps each &lt;code&gt;blockedBy&lt;/code&gt; array through the map, and calls &lt;code&gt;TaskUpdate&lt;/code&gt; with &lt;code&gt;addBlockedBy&lt;/code&gt; for the new task id. The handoff snapshot doesn’t carry the new ids — those don’t exist yet — so the rewire has to wait until every task is created.&lt;/p&gt;
+&lt;p&gt;There’s also a graceful back-compat clause. Legacy &lt;code&gt;HANDOFF.md&lt;/code&gt; files written before task-list support existed (no &lt;code&gt;## Task List&lt;/code&gt; section) are valid input. &lt;code&gt;/sessionkit:pickup&lt;/code&gt; emits one warning line — &lt;code&gt;No task list snapshot — skipping hydration&lt;/code&gt; — and continues with the orientation summary. That tiny touch matters: handoff files in the wild outlive their schema.&lt;/p&gt;
+&lt;h3 id=&quot;one-subtle-invariant&quot;&gt;One subtle invariant&lt;/h3&gt;
+&lt;p&gt;The &lt;code&gt;## Goal&lt;/code&gt; and &lt;code&gt;## Context&lt;/code&gt; sections are always refreshed on a new &lt;code&gt;/sessionkit:handoff&lt;/code&gt; run, even when both fingerprints match. Goal because it incorporates &lt;code&gt;$ARGUMENTS&lt;/code&gt; when present (the freeform notes you fold in to steer the next agent). Context because the gotchas drift faster than the structural state — a decision made twenty minutes ago might be the most important thing the next agent reads.&lt;/p&gt;
+&lt;p&gt;Everything else can be reused verbatim. That’s the asymmetry that makes delta mode safe: structural state is content-addressed, narrative state is always fresh.&lt;/p&gt;
+&lt;h2 id=&quot;skillit-refuses-to-propose-duplicates&quot;&gt;/skillit refuses to propose duplicates&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;/sessionkit:skillit&lt;/code&gt; reflects on the current session and proposes new skills worth encoding. Most “agent reflection” tools are unbounded — they will happily generate the tenth variation of a skill you wrote three weeks ago. &lt;code&gt;skillit&lt;/code&gt; won’t.&lt;/p&gt;
+&lt;p&gt;The contract from &lt;code&gt;plugins/sessionkit/skills/skillit/SKILL.md&lt;/code&gt; is four steps. The third step is the one that earns the kit:&lt;/p&gt;
+&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;bash&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; ~/.claude/skills&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;SKILL.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; .claude/skills&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;SKILL.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span style=&quot;color:#6F42C1&quot;&gt;find&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; ~/.claude/commands&lt;/span&gt;&lt;span style=&quot;color:#005CC5&quot;&gt; -name&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt; &amp;quot;*.md&amp;quot;&lt;/span&gt;&lt;span style=&quot;color:#D73A49&quot;&gt; 2&amp;gt;&lt;/span&gt;&lt;span style=&quot;color:#032F62&quot;&gt;/dev/null&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;/skillit&lt;/code&gt; scans the user-global skill library, the project-local skill library, and the legacy commands directory. It reads the &lt;code&gt;name&lt;/code&gt; and &lt;code&gt;description&lt;/code&gt; frontmatter of any candidates that look relevant, and surfaces close matches to you &lt;strong&gt;before&lt;/strong&gt; proposing anything new.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Capturing a reusable skill is easy. &lt;em&gt;Not&lt;/em&gt; capturing one that already exists — that’s the hard part. Without the overlap check, every session ends with a fresh skill proposal that overlaps the existing library at 80% and just hasn’t been noticed.&lt;/p&gt;
+&lt;p&gt;The presentation step is structured to make that explicit:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;What it would do&lt;/strong&gt; — one sentence.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Why it’s worth encoding&lt;/strong&gt; — what friction it removes.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Overlap risk&lt;/strong&gt; — does it duplicate or extend an existing skill?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The “extend an existing skill” branch is where overlap turns into a positive. If the conversation surfaced a pattern that’s 60% covered by an existing skill plus a new wrinkle, &lt;code&gt;/skillit&lt;/code&gt; offers to modify the existing skill rather than ship a near-duplicate. That keeps the library coherent over months.&lt;/p&gt;
+&lt;p&gt;The constraints at the bottom of the SKILL file lock the discipline in:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Always&lt;/em&gt; check for existing skills before proposing something new.&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Never&lt;/em&gt; create a skill file without user approval.&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Identify at least one candidate&lt;/em&gt; before concluding — never report “nothing found.”&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The first two are obvious. The third is doing more work than it looks. Without it, &lt;code&gt;/skillit&lt;/code&gt; could just shrug and exit when the session was uneventful — and you’d never get the small wins (the recurring command sequence you didn’t notice was a pattern). Forcing one candidate per run keeps the library growing.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Run &lt;code&gt;/skillit&lt;/code&gt; at the end of any session that involved a non-trivial workflow. The overlap check is what makes it safe to run often.&lt;/p&gt;
+&lt;h2 id=&quot;retro-is-a-router-not-a-journal&quot;&gt;/retro is a router, not a journal&lt;/h2&gt;
+&lt;p&gt;The temptation in any retro tooling is to write a long markdown summary you’ll never re-read. &lt;code&gt;/sessionkit:retro&lt;/code&gt; does the opposite. It produces a short inline summary, then asks one question with a one-keystroke answer. Each finding has a delegation target — a downstream skill that owns the action.&lt;/p&gt;
+&lt;p&gt;Per &lt;code&gt;plugins/sessionkit/skills/retro/SKILL.md&lt;/code&gt;, the input surfaces are four:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Conversation transcript&lt;/strong&gt; — repeated corrections, friction loops, mid-flight self-corrections.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Task list&lt;/strong&gt; — &lt;code&gt;TaskList&lt;/code&gt; plus per-task &lt;code&gt;TaskGet&lt;/code&gt; to find stalls, scope revisions, completed-vs-cancelled patterns.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Git activity within the session window&lt;/strong&gt; — &lt;code&gt;git log --since=&amp;quot;8 hours ago&amp;quot;&lt;/code&gt;, current branch, stashes, recent PRs.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Hook and tool-denial events&lt;/strong&gt; — scanned from the most recent &lt;code&gt;~/.claude/projects/&amp;lt;encoded-cwd&amp;gt;/*.jsonl&lt;/code&gt; files for &lt;code&gt;permission denied&lt;/code&gt;, &lt;code&gt;tool denied&lt;/code&gt;, or &lt;code&gt;hook blocked&lt;/code&gt; patterns.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That fourth surface is the one most retro tools miss. A &lt;code&gt;permission denied&lt;/code&gt; you approved twice this session is a strong signal — the next session will burn the same approval friction unless you ship a permission tweak now.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Retro isn’t lessons-learned theatre. Every signal has a downstream action; the retro’s job is to route, not narrate.&lt;/p&gt;
+&lt;p&gt;The synthesis step organizes findings into three buckets — &lt;strong&gt;What went well&lt;/strong&gt;, &lt;strong&gt;What didn’t go well&lt;/strong&gt;, &lt;strong&gt;Recommended actions&lt;/strong&gt; — and the third bucket is where the routing happens. The mapping table in the SKILL file is exact:&lt;/p&gt;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Pattern&lt;/th&gt;&lt;th&gt;Delegation target&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Repeated command sequence worth automating&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:skillit&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Repeated permission approvals&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:suggest-permissions&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Context running low or session should be captured&lt;/td&gt;&lt;td&gt;&lt;code&gt;sessionkit:handoff&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Recurring hook-blocked behavior worth enforcing&lt;/td&gt;&lt;td&gt;&lt;code&gt;hookify:hookify&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;A problem worth filing as a tracked issue&lt;/td&gt;&lt;td&gt;&lt;code&gt;speckit:issue&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;A behavioral config worth persisting&lt;/td&gt;&lt;td&gt;&lt;code&gt;update-config&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;No matching skill&lt;/td&gt;&lt;td&gt;Surface as plain-text guidance only&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The actions are capped at four to fit the harness’s &lt;code&gt;AskUserQuestion&lt;/code&gt; option limit. If more than four items qualify, retro keeps the highest-signal ones and reserves the fourth slot for “Other — I’ll handle this manually” when there’s remaining guidance with no skill match. That cap is doing real work: a menu of nine options is functionally identical to no menu at all.&lt;/p&gt;
+&lt;p&gt;The action menu is mandatory. The SKILL file is unambiguous: &lt;em&gt;“Never run delegated skills without explicit user selection. The &lt;code&gt;AskUserQuestion&lt;/code&gt; call in step 4 is mandatory. Skipping it and auto-running skills is a defect.”&lt;/em&gt; The router is opinionated about delegation but conservative about consent.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Retro is a thin reflective layer. It does not absorb &lt;code&gt;skillit&lt;/code&gt;’s encoding logic, it does not absorb &lt;code&gt;suggest-permissions&lt;/code&gt;’ tuning logic, it does not write files. When it recommends “encode X as a skill,” it delegates to &lt;code&gt;/skillit&lt;/code&gt; — it does not author the skill itself.&lt;/p&gt;
+&lt;p&gt;That last constraint matters more than it looks. The temptation is to fold each downstream skill’s logic into retro for convenience. The cost would be every retro change touching every downstream skill’s behaviour. Keeping retro thin keeps the rest of the kit composable.&lt;/p&gt;
+&lt;h3 id=&quot;a-worked-example&quot;&gt;A worked example&lt;/h3&gt;
+&lt;p&gt;Imagine a session that:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Approved &lt;code&gt;Bash(npm run build)&lt;/code&gt; four times.&lt;/li&gt;
+&lt;li&gt;Repeated the same &lt;code&gt;git status &amp;amp;&amp;amp; git diff &amp;amp;&amp;amp; git commit&lt;/code&gt; sequence twice.&lt;/li&gt;
+&lt;li&gt;Hit a &lt;code&gt;tool denied&lt;/code&gt; for a Write tool inside &lt;code&gt;node_modules/&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Surfaced a real bug nobody’s filed yet.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;/sessionkit:retro&lt;/code&gt; produces an inline summary citing each turn, then asks:&lt;/p&gt;
+&lt;pre class=&quot;astro-code github-light&quot; style=&quot;background-color:#fff;color:#24292e;overflow-x:auto&quot; tabindex=&quot;0&quot; data-language=&quot;text&quot;&gt;&lt;code&gt;&lt;span class=&quot;line&quot;&gt;&lt;span&gt;Which of these would you like to action now?&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span&gt;1. Permission tune for `Bash(npm run build)`     → /sessionkit:suggest-permissions&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span&gt;2. Encode the status/diff/commit sequence        → /sessionkit:skillit&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span&gt;3. Hookify the node_modules write block          → /hookify:hookify&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;line&quot;&gt;&lt;span&gt;4. File the bug as a tracked issue               → /speckit:issue&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You pick the ones you want, retro invokes each in turn, and the session ends with concrete artifacts — not a markdown post-mortem you’ll never re-read.&lt;/p&gt;
+&lt;h2 id=&quot;putting-it-together&quot;&gt;Putting it together&lt;/h2&gt;
+&lt;p&gt;sessionkit’s three big surfaces compose cleanly because each one has a narrow, well-defined contract:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/sessionkit:handoff&lt;/code&gt; writes the structural state — git, tasks, gotchas — into a single Markdown file with a fingerprint header that makes the next run cheap.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/sessionkit:pickup&lt;/code&gt; reads that file, rebuilds the task graph (preserving &lt;code&gt;blockedBy&lt;/code&gt; edges across the id remap), and ends by asking what you want to tackle first.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/sessionkit:skillit&lt;/code&gt; reflects on the session, checks the existing skill library for overlap, and proposes one new skill or one extension — never a duplicate.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/sessionkit:retro&lt;/code&gt; scans four signal surfaces (conversation, tasks, git, denials), groups findings into went-well / didn’t-go-well / recommended actions, and routes each action to the right downstream skill via a one-keystroke menu.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The kit doesn’t ship a “session manager” abstraction. It ships four small skills that each own one beat — capture, restore, encode, route — and a Markdown file that’s the entire shared state.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Takeaway:&lt;/strong&gt; Continuity is a discipline, not a feature. sessionkit gives you the contract; the discipline is yours.&lt;/p&gt;
+&lt;p&gt;If you take one thing from this post, take this: the round-trip between &lt;code&gt;/sessionkit:handoff&lt;/code&gt; and &lt;code&gt;/sessionkit:pickup&lt;/code&gt; is the most-overlooked compounding lever in the suite. Run &lt;code&gt;/handoff&lt;/code&gt; after every PR, every decision, every scope change — delta mode keeps the cost near-zero. The next session starts with the goal restated, the task graph rebuilt, the gotchas surfaced. The first ten minutes of a fresh session stop being a tax.&lt;/p&gt;
+&lt;p&gt;Forward pointer: the squadkit deep-dive picks up where this one leaves off — multi-agent coordination layered on top of the sessionkit substrate, with squadkit’s &lt;code&gt;SessionStart&lt;/code&gt; hook re-asserting role context whenever a session resumes via &lt;code&gt;/pickup&lt;/code&gt;. Two kits, one continuity story.&lt;/p&gt;</content:encoded></item><item><title>squadkit: roles, squads, and crews — multi-agent without the chaos</title><link>https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/</link><guid isPermaLink="true">https://smallorbit.github.io/smallorbit-plugins/blog/squadkit-deep-dive/</guid><description>The vocabulary that makes teams legible, the orchestrator-is-lead pattern that avoids a redundant agent, and the detached-HEAD trick that keeps builders from stepping on each other.</description><pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;“Multi-agent” usually means an undefined pile of agents. squadkit names the pile.&lt;/p&gt;
 &lt;p&gt;The premise: when a single problem needs more than one role in the room — an architect to draft, a builder (or three) to implement, a reviewer to gate, a tester to back the verify — you don’t want to re-decide who-does-what every time. You want a vocabulary, a roster shape, and a coordination protocol that’s been thought through once and reused. squadkit is that.&lt;/p&gt;
 &lt;p&gt;This post walks the three design choices that make squadkit work in practice: the &lt;strong&gt;roles → squads → crews&lt;/strong&gt; vocabulary that keeps the model legible, the &lt;strong&gt;orchestrator-is-lead&lt;/strong&gt; pattern that dodges a class of phantom-agent bugs (and ships with a cooperative-shutdown handshake), and the &lt;strong&gt;per-builder detached-HEAD worktrees&lt;/strong&gt; that prevent the branch-ref contention you hit the moment two builders try to share a feature branch.&lt;/p&gt;
 &lt;p&gt;Every claim below is cited from &lt;code&gt;plugins/squadkit/README.md&lt;/code&gt;, &lt;code&gt;plugins/squadkit/skills/spawn-team/SKILL.md&lt;/code&gt;, or &lt;code&gt;plugins/squadkit/agents/team-lead.md&lt;/code&gt;. No invented behaviour.&lt;/p&gt;
