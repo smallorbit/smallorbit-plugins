@@ -369,14 +369,20 @@ EXPLICITLY_CLOSED=$(sort -u "$CLOSED_ISSUES_FILE" 2>/dev/null); rm -f "$CLOSED_I
 
 ### 10. Clean up RC branches for today
 
+The primary RC remote-branch cleanup happens in step 6 via `gh pr merge --delete-branch`, which removes the RC branch as part of the merge. This step is a safety net for RC branches that were ever created but never PR'd, or whose PR was closed without merging — in the happy path it should find nothing to delete. The leading `git fetch --prune` keeps local remote-tracking refs in sync with what step 6 already cleaned up so `git branch -a` stops listing the merged RC.
+
 ```bash
 TODAY=$(date +%Y-%m-%d)
-git ls-remote --heads origin "rc/$TODAY*" \
-  | awk '{print $2}' \
-  | sed 's|refs/heads/||' \
-  | while read rc; do
-      git push origin --delete "$rc" 2>/dev/null || true
-    done
+git fetch --prune origin
+RC_BRANCHES=$(git ls-remote --heads origin "rc/$TODAY*" | awk '{print $2}' | sed 's|refs/heads/||')
+if [ -z "$RC_BRANCHES" ]; then
+  echo "No RC branches matching rc/$TODAY* on origin (already cleaned by --delete-branch)"
+else
+  echo "$RC_BRANCHES" | while read rc; do
+    echo "Deleting orphan RC branch: $rc"
+    git push origin --delete "$rc"
+  done
+fi
 ```
 
 ### 11. Back-merge main into develop
