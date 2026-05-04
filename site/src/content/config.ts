@@ -11,16 +11,6 @@ export const KIT_SLUGS = [
   'general',
 ] as const;
 
-export const KIT_ONLY_SLUGS = [
-  'speckit',
-  'swarmkit',
-  'squadkit',
-  'polishkit',
-  'flowkit',
-  'sessionkit',
-  'vaultkit',
-] as const;
-
 export const TAG_VOCAB = [
   'how-to',
   'tutorial',
