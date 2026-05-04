@@ -1,5 +1,6 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { stripExt } from '../../lib/slug';
 
 type KitEntry = CollectionEntry<'kits'>;
 
@@ -16,8 +17,6 @@ const KIT_ORDER = [
   'squadkit',
   'vaultkit',
 ];
-
-const stripExt = (id: string): string => id.replace(/\.(md|mdx)$/, '');
 
 const orderIndex = (id: string): number => {
   const idx = KIT_ORDER.indexOf(stripExt(id));

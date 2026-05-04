@@ -1,6 +1,7 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import PostLayout from '../../layouts/PostLayout.astro';
+import { stripExt } from '../../lib/slug';
 
 export async function getStaticPaths() {
   const entries = await getCollection('posts', ({ data }: CollectionEntry<'posts'>) => {
@@ -8,7 +9,7 @@ export async function getStaticPaths() {
   });
 
   return entries.map((entry: CollectionEntry<'posts'>) => ({
-    params: { slug: entry.id.replace(/\.(md|mdx)$/, '') },
+    params: { slug: stripExt(entry.id) },
     props: { entry },
   }));
 }

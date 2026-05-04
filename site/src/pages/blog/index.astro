@@ -1,6 +1,7 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { stripExt } from '../../lib/slug';
 
 type PostEntry = CollectionEntry<'posts'>;
 
@@ -21,8 +22,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
-
-const slugFor = (id: string): string => id.replace(/\.(md|mdx)$/, '');
 
 const accentFor = (kit: string | undefined): string =>
   kit ? `var(--${kit}, var(--color-accent))` : 'var(--color-accent)';
@@ -52,7 +51,7 @@ const accentFor = (kit: string | undefined): string =>
               class="post-card"
               style={`--post-accent: ${accentFor(post.data.kit)};`}
             >
-              <a class="post-card__link" href={`${baseHref}blog/${slugFor(post.id)}/`}>
+              <a class="post-card__link" href={`${baseHref}blog/${stripExt(post.id)}/`}>
                 <div class="post-card__meta">
                   <time datetime={post.data.date.toISOString()}>
                     {dateFormatter.format(post.data.date)}
