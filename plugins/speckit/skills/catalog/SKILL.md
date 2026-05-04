@@ -23,6 +23,7 @@ Before extracting findings, scan `$ARGUMENTS` for these optional leading tokens 
 
 - `--auto` — skip the approval step in step 3 (see below).
 - `--epic <slug>` — associate the catalogued issues with an epic identified by `<slug>`. The slug drives the epic-label logic in step 2 (ensure `epic:<slug>` exists) and step 4 (apply `epic:<slug>` to every issue in the batch). When invoked from `/speckit:spec`, the approved epic slug is passed through this same public mechanism — there is no private side channel. An optional epic title may accompany the slug (e.g. passed through from `/spec`); it is used as the label description when creating the label.
+- `--split` — disable the consolidation heuristic (see step 1.5 below) and file one issue per row of the source blueprint table. Use this when the rows of a phase really are independent units of work that need separate issues, branches, or owners. Without `--split`, mechanically-related rows in the same phase fold into a single issue per phase (the default).
 
 If `--epic <slug>` is **not** present, behaviour is unchanged from the no-epic flow: no epic label is applied, no warning is emitted, and the rest of the process runs exactly as documented below.
 
@@ -35,6 +36,42 @@ Parse the source into discrete findings. Each finding needs:
 - **Category**: bug, enhancement, refactor, documentation, hygiene
 - **Severity**: high (breaks things, misleads users), medium (degrades quality), low (style, nice-to-have)
 - **Body**: Problem statement, why it matters, suggested fix
+
+When the source is a blueprint with a multi-row "Child issue list" table (or any equivalent phase-grouped row breakdown), the row count is **not** the issue count. Each row is a candidate finding; apply the heuristic in step 1.5 to decide which rows fold together before counting issues.
+
+### 1.5. Consolidate phase-mate findings
+
+If the extracted findings carry phase labels (e.g. `phase:1`, `phase:2`) or were sourced from a blueprint table that groups rows by phase, run a consolidation pass before presenting the catalog. The default behaviour collapses mechanically-related rows in the same phase into a single issue; use `--split` to disable this and file one issue per row.
+
+**Default rule**: rows in the same phase consolidate into one issue when **both** of the following hold:
+
+- **Shared scope** — the rows describe instances of the same mechanical work (e.g. "port shadcn primitive Button", "port shadcn primitive Input", "port shadcn primitive Select" — all the same kind of change against sibling targets), share acceptance criteria, or have near-identical body templates.
+- **No inter-dependency** — no row lists another row in the same phase as a prerequisite, blocker, or strict-ordering dependency. If row B says "after A is merged" or "depends on A", A and B stay split.
+
+Rows that fail either check stay as their own issue. A phase may end up with a mix — e.g. four shadcn primitive ports fold into one issue, while a settings card port in the same phase stays separate because it has different acceptance criteria.
+
+When consolidating, the resulting issue's body lists each folded row as a checklist item under `## Suggested fix`, preserving the row text verbatim. The title summarises the group (e.g. "Phase 2: port shadcn primitives — Button, Input, Select, Switch") rather than naming a single row.
+
+If `--split` is in `$ARGUMENTS`, skip this entire step — every extracted row becomes its own issue (the legacy behaviour).
+
+### 1.6. Print pre-file consolidation summary
+
+Before moving on to step 2, emit a one-line summary per phase showing the consolidation outcome, so the user can redirect with `--split` if the default folding is wrong. Example:
+
+```
+Consolidation summary:
+- Phase 1 (contracts): 2 rows → 2 issues (no consolidation; rows have distinct scope)
+- Phase 2 (UI ports): 5 rows → 2 issues (4 shadcn primitive ports consolidated; 1 settings card kept separate)
+- Phase 3 (integration): 3 rows → 1 issue (all rows share scope and have no inter-dependency)
+```
+
+If `--split` was passed, print a single line instead:
+
+```
+Consolidation summary: --split active; filing 1 issue per row (10 rows → 10 issues).
+```
+
+This summary is informational — it precedes the catalog table in step 3 and does not require its own approval gate (the step 3 `AskUserQuestion` covers the whole batch). When `--auto` is also active, the summary still prints so the run record shows the decision.
 
 ### 2. Check existing labels
 
@@ -212,4 +249,6 @@ Orchestrators (e.g. `/speckit:spec`) parse the JSON inside this block to populat
 - Keep issue bodies concise — problem + impact + fix, nothing more
 - Match the label style already in the repo (don't impose a new scheme)
 - Never parallelize `gh issue create` in a batch; URL↔title mapping breaks
+- Never treat a blueprint row count as the issue count without running step 1.5; the consolidation pass is on by default and only disables under `--split`
+- Always print the step 1.6 consolidation summary before the catalog table, even under `--auto`, so the consolidation decision is visible in the run record
 - Never write `#<number>` tokens in issue bodies unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a token like `#3` in a body about "task 3" will link to unrelated issue 3 in the repo. When referring to sibling tasks from a plan, use "task 3" (no hash) or omit the reference entirely — task-to-task dependencies are wired by the caller (e.g. `/spec`) via the native GitHub blocked-by API, not via issue-body text.
