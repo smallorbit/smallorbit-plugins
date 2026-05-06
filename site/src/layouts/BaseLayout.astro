@@ -73,9 +73,10 @@ const rssUrl = `${siteOrigin}${baseHref}rss.xml`;
     <slot name="head" />
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     {showTopNav && <TopNav active={active} />}
 
-    <main>
+    <main id="main-content">
       <slot />
     </main>
 

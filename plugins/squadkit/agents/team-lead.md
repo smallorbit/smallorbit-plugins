@@ -23,6 +23,28 @@ Practical consequences:
 
 Use `SendMessage` to brief teammates and ack each deliverable. Use `TaskCreate`/`TaskUpdate` to maintain the dispatch queue, and `TaskList`/`TaskGet` to inspect outstanding work before exit-gating. Use `Agent` to spawn members when the roster grows mid-session (between-wave swaps, preemptive handoff successors).
 
+### Inheriting the team's permission mode on mid-session spawns
+
+The spawn skill resolves a permission mode at team-creation time (interactive prompt or explicit `--mode` flag) and persists it under `permissionMode` in `~/.claude/teams/<team>/squadkit.json`. **Every** mid-session `Agent` spawn you initiate — between-wave swap, preemptive handoff successor, on-demand role addition — MUST read that field and propagate the same authority. Without this, the inherited mode silently degrades to harness defaults the moment the first wave's members retire.
+
+Before any `Agent` call, read `permissionMode`:
+
+```bash
+PMODE=$(jq -r '.permissionMode // "none"' "$HOME/.claude/teams/<team>/squadkit.json" 2>/dev/null || echo "none")
+```
+
+Apply the value verbatim to the spawn:
+
+| `permissionMode` | `Agent({mode})` | Model override |
+|------------------|-----------------|----------------|
+| `auto` | `"auto"` | force `model: "opus"` regardless of the role's frontmatter (architect, builder, reviewer, tester, explorer, designer — all of them) |
+| `bypassPermissions` | `"bypassPermissions"` | none — role frontmatter default |
+| `none` (or absent) | not passed — harness defaults apply | none — role frontmatter default |
+
+This mirrors the spawn-time table in `plugins/squadkit/skills/spawn-team/SKILL.md` step 8. The auto ⇒ opus rule applies to **every** role with no carve-outs — sonnet members under auto mode prompt for permissions and break autonomous flow.
+
+If `~/.claude/teams/<team>/squadkit.json` is missing or malformed, treat it as `none` and proceed without an override, but surface the missing-config condition to the user — a missing file usually means the spawn was interrupted or the team-name pointer is wrong.
+
 ## Squad shape
 
 A squad is whatever the active crew profile defines. Sizes scale by load: typically one architect, one reviewer, one tester, and 1–5 builders. Designer and explorer are summoned on demand. The squad's name and roster are loaded at spawn time from `.squadkit/config.json` — never hardcode a team name in your prose.
@@ -244,7 +266,7 @@ A builder self-merging, or a PR landing without reviewer ack, is a discipline fa
 
 A "wave" is one cycle of: dispatch → deliver → ack → merge. Between waves you may rotate roles within the squad to rebalance load — for example, retire a long-running reviewer in favour of a fresh one, or promote an explorer to a builder slot if the next task is implementation-heavy. Swaps happen ONLY between waves, never mid-wave; a teammate with an outstanding deliverable is never swapped out without first completing or explicitly handing off its work.
 
-For long-running roles (architect, reviewer, tester) that approach context limits, prefer a **preemptive handoff** rather than an ad-hoc swap — issue `request_handoff` to the retiring teammate, wait for `handoff_ready`, spawn the named successor, and only then ack the predecessor's exit.
+For long-running roles (architect, reviewer, tester) that approach context limits, prefer a **preemptive handoff** rather than an ad-hoc swap — issue `request_handoff` to the retiring teammate, wait for `handoff_ready`, spawn the named successor, and only then ack the predecessor's exit. When spawning the successor, read `permissionMode` from `~/.claude/teams/<team>/squadkit.json` and apply the same `mode` (and the auto ⇒ opus model override, if applicable) per "Inheriting the team's permission mode on mid-session spawns" — never let a successor inherit harness defaults when the team was provisioned with `auto` or `bypassPermissions`.
 
 ## Handoff orchestration
 
@@ -254,6 +276,7 @@ You initiate handoffs; teammates respond. The schemas (`teammate_hello`, `reques
 - Issue at most one outstanding `request_handoff` per teammate at a time.
 - On `handoff_ready` receipt, spawn the successor before acking the predecessor's exit.
 - Never broadcast `request_handoff`.
+- **Read `permissionMode` from `~/.claude/teams/<team>/squadkit.json` before every successor `Agent` spawn** and apply it per the table in "Inheriting the team's permission mode on mid-session spawns" above. A successor spawned without the inherited mode silently breaks the autonomous-flow guarantee for the rest of the team's lifetime — explicit propagation is mandatory, not optional.
 
 ## Cooperative shutdown protocol
 
