@@ -49,6 +49,7 @@ HEAD_BRANCH=$(gh pr view "$PR_NUM" --json headRefName --jq '.headRefName')
 
 ```bash
 # Returns the worktree path currently checked out on the given branch, or empty.
+# Literal-string `==` compare; safely handles slashed refs (e.g. refs/heads/feat/foo-123).
 _find_worktree_for_branch() {
   git worktree list --porcelain \
     | awk -v target="refs/heads/$1" '
@@ -60,6 +61,8 @@ _find_worktree_for_branch() {
 BLOCKING_WORKTREE=$(_find_worktree_for_branch "$HEAD_BRANCH")
 
 if [ -n "$BLOCKING_WORKTREE" ]; then
+  printf 'Note: branch %s is held by worktree %s.\n' "$HEAD_BRANCH" "$BLOCKING_WORKTREE" >&2
+  printf '  Auto-removing the worktree before merge so the local branch can be deleted cleanly.\n' >&2
   git worktree remove --force "$BLOCKING_WORKTREE"
 fi
 ```
@@ -131,9 +134,13 @@ elif [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "false" ]; then
 fi
 
 if [ "$LOCAL_DELETE_FAILED" = "true" ]; then
-  echo "WARNING: PR #$PR_NUM merged remotely but the local branch \`$HEAD_BRANCH\` could not be deleted." >&2
-  echo "To clean up manually:" >&2
   LEFTOVER=$(_find_worktree_for_branch "$HEAD_BRANCH")
+  if [ -n "$LEFTOVER" ]; then
+    echo "WARNING: Local branch \`$HEAD_BRANCH\` still held by worktree at \`$LEFTOVER\`." >&2
+  else
+    echo "WARNING: PR #$PR_NUM merged remotely but the local branch \`$HEAD_BRANCH\` could not be deleted." >&2
+  fi
+  echo "To clean up manually:" >&2
   [ -n "$LEFTOVER" ] && echo "  git worktree remove --force $LEFTOVER" >&2
   echo "  git branch -D $HEAD_BRANCH" >&2
 fi
