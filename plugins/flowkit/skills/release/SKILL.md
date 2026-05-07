@@ -387,14 +387,16 @@ fi
 
 ### 11. Back-merge main into develop
 
-Bring develop's tip up to main so the next release cycle starts from parity. Use a real merge commit (not a fast-forward / squash) so the release merge from step 6 stays visible in develop's history.
+Bring develop's tip up to main so the next release cycle starts from parity. Allow git to fast-forward when develop hasn't moved since the RC was cut — the typical case. The release tag on main is the canonical "shipped" marker; duplicating that boundary on develop with a forced merge bubble adds noise without information.
 
 ```bash
 git fetch origin
 git checkout develop
 git pull --ff-only origin develop
-git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/main
+git merge -m "chore(develop): back-merge release $TAG from main" origin/main
 ```
+
+When develop has actually drifted since the RC was cut, git falls back to a real merge commit automatically — the `-m` message is then used. When develop hasn't drifted, the merge fast-forwards and no commit is created.
 
 Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — direct pushes succeed when develop is unprotected and fall through to a merge-strategy back-merge PR when it isn't:
 
