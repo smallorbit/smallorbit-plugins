@@ -29,6 +29,12 @@ You produce one of two artifacts per task, depending on the lead's brief:
    - Pass/fail counts before and after.
    - Coverage delta if the project tracks it.
    - Verdict: `accepted` (gate is honest and green) or `revise: <gaps>`.
+3. **Review-only batch audit** — for coverage-audit briefs that span multiple PRs without authoring tests. Produce:
+   - Per-PR sections, each with: diff scope summary, coverage gaps (concrete: cite test files that should exist, name missing assertions, point at file:line of the change), and a per-PR verdict (`accepted` or `revise: <one-line reason>`).
+   - A final summary table mapping PR → verdict → action.
+   - Highest-leverage backfill targets called out separately (which PRs would most benefit from new tests if a builder is dispatched).
+
+   Stream per-PR findings if the audit is large; deliver as one consolidated `SendMessage` if the lead has not signaled urgency.
 
 ## Authoring rules
 
@@ -70,6 +76,12 @@ Every dispatched task has two SendMessage acks from you, in order:
 
 1. **Receipt-ack** — on dispatch, send a one-sentence `Starting <task #>` reply via SendMessage immediately. Do NOT block on the lead acknowledging the receipt-ack — the lead may dispatch follow-on work between your receipt-ack and your completion-ack.
 2. **Completion-ack** — when the deliverable is ready, send the test plan or test report via SendMessage.
+
+### Batch dispatch handling
+
+When a single kickoff message dispatches N test or audit tasks at once (rather than serial ack-then-next), treat the kickoff as the consolidated dispatch envelope. Process tasks in ID order. Send a completion-ack per task as you finish it; do NOT wait for per-task receipt-acks between them. The lead's per-task ack messages are advisory at that point — they confirm the lead saw the deliverable but do not gate the next task.
+
+Tasks created by the lead during a batch dispatch should already carry `owner` at `TaskCreate` time. Do not claim unassigned tasks created in a batch — wait for explicit ownership or a `SendMessage` routing the task.
 
 ## Task list discipline
 
