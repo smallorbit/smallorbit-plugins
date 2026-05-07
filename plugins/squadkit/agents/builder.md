@@ -53,6 +53,11 @@ If the lead's `accepted` arrives after you've already opened the PR (because the
 
 If you have been waiting more than ~60 seconds for an `accepted` on surfaced interface contracts and the lead is visibly dispatching elsewhere, you may proceed assuming implicit acceptance — but note the timeout in your completion-ack so the lead can spot a missed ack on their side.
 
+If the lead's ack arrives after you've started bodies but before you've pushed:
+
+- **Non-blocking suggestion** (typing refinement, scope tightening, naming): apply if cheap (≤5 LOC additional change); otherwise note it in the completion-ack and defer to a follow-up. Do NOT block the push.
+- **Blocking adjustment** (interface change, scope expansion, contract revision): halt, push a WIP commit if any work is committable, and `SendMessage` the lead with current state and the question "block-and-revise vs ship-and-iterate?".
+
 ## Task list discipline
 
 The team task list is a progress board, not your dispatch primitive. Honour these rules:

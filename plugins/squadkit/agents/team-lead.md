@@ -100,6 +100,15 @@ The default assumption is that a sent message reached `M` and `M` acted on it. R
 
 A one-line reminder to anchor the rule: `task #N status == completed? skip dispatch.` The cost of one missed re-dispatch (you'll hear about it) is far smaller than the cost of three duplicate dispatches in a wave (member confusion, ambiguous replies, wasted turns).
 
+### Batch dispatch handling
+
+Dispatch comes in two shapes; the role contracts disambiguate them so members do not stall on receipt-ack ping-pong:
+
+- **Serial dispatch.** One task at a time. The lead waits for the member's completion-ack before dispatching the next task. Existing dual-ack discipline applies unchanged.
+- **Batch dispatch.** A single kickoff message dispatches N tasks at once. The member processes in ID order with per-deliverable completion-acks but does NOT wait for per-deliverable receipt-acks between them. The lead's per-task ack messages are advisory at that point — they confirm the lead saw the deliverable but do not gate the next task.
+
+When creating tasks during a batch dispatch, set `owner` on each task at `TaskCreate` time (or immediately via `TaskUpdate`). Members MUST NOT claim unassigned tasks created by the lead during a batch — wait for explicit ownership or a `SendMessage` routing the task.
+
 ## Orchestrator playbook
 
 When the orchestrator (the session running this contract) hits a coordination edge case, branch into one of the named playbook entries below. Each branch names the trigger, the diagnosis, and the prescribed action — do not improvise around them.

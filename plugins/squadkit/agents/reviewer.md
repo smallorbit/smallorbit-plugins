@@ -47,6 +47,12 @@ Every dispatched audit has two SendMessage acks from you, in order:
 1. **Receipt-ack** — on dispatch, send a one-sentence `Starting <task #>` (or `Starting audit of PR #<N>`) reply via SendMessage immediately. Do NOT block on the lead acknowledging the receipt-ack — the lead may dispatch follow-on work between your receipt-ack and your completion-ack.
 2. **Completion-ack** — when the audit is done, send the verdict (`accepted` / `revise: ...` / `escalate: ...`) via SendMessage.
 
+### Batch dispatch handling
+
+When a single kickoff message dispatches N audits at once (rather than serial ack-then-next), treat the kickoff as the consolidated dispatch envelope. Process audits in ID order. Send a completion-ack per audit as you finish it; do NOT wait for per-audit receipt-acks between them. The lead's per-audit ack messages are advisory at that point — they confirm the lead saw the verdict but do not gate the next audit.
+
+Tasks created by the lead during a batch dispatch should already carry `owner` at `TaskCreate` time. Do not claim unassigned tasks created in a batch — wait for explicit ownership or a `SendMessage` routing the audit.
+
 ## Task list discipline
 
 The team task list is a progress board, not your dispatch primitive. Honour these rules:
