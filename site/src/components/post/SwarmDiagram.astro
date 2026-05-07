@@ -1,0 +1,83 @@
+---
+---
+
+<svg viewBox="0 0 640 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="/swarm batches issues into cycles. In cycle 1, three independent issues spawn three parallel agents, each producing a PR against develop. In cycle 2, two dependent issues wait until cycle 1's PRs exist, then their agents produce PRs targeting those PR branches, forming a stack.">
+  <defs>
+    <marker id="arrow-swarm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a8a29c" />
+    </marker>
+    <marker id="arrow-swarm-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#166534" />
+    </marker>
+  </defs>
+
+  <text class="mono" x="320" y="20" text-anchor="middle" font-size="12" font-weight="500">Cycle 1 — issues with no unmet deps spawn in parallel</text>
+
+  <rect class="node node--issue" x="100" y="36" width="110" height="40" rx="6" />
+  <text class="mono" x="155" y="60" text-anchor="middle" font-size="14">#101</text>
+  <rect class="node node--issue" x="265" y="36" width="110" height="40" rx="6" />
+  <text class="mono" x="320" y="60" text-anchor="middle" font-size="14">#102</text>
+  <rect class="node node--issue" x="430" y="36" width="110" height="40" rx="6" />
+  <text class="mono" x="485" y="60" text-anchor="middle" font-size="14">#103</text>
+
+  <line class="edge" x1="155" y1="76" x2="155" y2="106" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="320" y1="76" x2="320" y2="106" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="485" y1="76" x2="485" y2="106" marker-end="url(#arrow-swarm)" />
+
+  <rect class="node node--accent" x="90" y="116" width="130" height="48" rx="8" />
+  <text x="155" y="138" text-anchor="middle" font-size="12" font-weight="500">agent A</text>
+  <text class="muted" x="155" y="154" text-anchor="middle" font-size="10">isolated worktree</text>
+  <rect class="node node--accent" x="255" y="116" width="130" height="48" rx="8" />
+  <text x="320" y="138" text-anchor="middle" font-size="12" font-weight="500">agent B</text>
+  <text class="muted" x="320" y="154" text-anchor="middle" font-size="10">isolated worktree</text>
+  <rect class="node node--accent" x="420" y="116" width="130" height="48" rx="8" />
+  <text x="485" y="138" text-anchor="middle" font-size="12" font-weight="500">agent C</text>
+  <text class="muted" x="485" y="154" text-anchor="middle" font-size="10">isolated worktree</text>
+
+  <line class="edge" x1="155" y1="164" x2="155" y2="194" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="320" y1="164" x2="320" y2="194" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="485" y1="164" x2="485" y2="194" marker-end="url(#arrow-swarm)" />
+
+  <rect class="node" x="100" y="204" width="110" height="50" rx="6" />
+  <text class="mono" x="155" y="226" text-anchor="middle" font-size="13" font-weight="500">PR #210</text>
+  <text class="muted mono" x="155" y="242" text-anchor="middle" font-size="10">→ develop</text>
+  <rect class="node" x="265" y="204" width="110" height="50" rx="6" />
+  <text class="mono" x="320" y="226" text-anchor="middle" font-size="13" font-weight="500">PR #211</text>
+  <text class="muted mono" x="320" y="242" text-anchor="middle" font-size="10">→ develop</text>
+  <rect class="node" x="430" y="204" width="110" height="50" rx="6" />
+  <text class="mono" x="485" y="226" text-anchor="middle" font-size="13" font-weight="500">PR #212</text>
+  <text class="muted mono" x="485" y="242" text-anchor="middle" font-size="10">→ develop</text>
+
+  <line class="edge edge--ghost" x1="20" y1="278" x2="620" y2="278" />
+  <text class="muted" x="320" y="293" text-anchor="middle" font-size="10" font-style="italic">cycle boundary — wait for cycle 1 PRs to exist before spawning dependents</text>
+
+  <text class="mono" x="320" y="316" text-anchor="middle" font-size="12" font-weight="500">Cycle 2 — dependents spawn against the prior cycle's PR branches</text>
+
+  <rect class="node node--issue" x="160" y="332" width="170" height="46" rx="6" />
+  <text class="mono" x="245" y="354" text-anchor="middle" font-size="14">#104</text>
+  <text class="muted" x="245" y="370" text-anchor="middle" font-size="10" font-style="italic">depends on #101</text>
+  <rect class="node node--issue" x="400" y="332" width="170" height="46" rx="6" />
+  <text class="mono" x="485" y="354" text-anchor="middle" font-size="14">#105</text>
+  <text class="muted" x="485" y="370" text-anchor="middle" font-size="10" font-style="italic">depends on #102</text>
+
+  <line class="edge" x1="245" y1="378" x2="245" y2="406" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="485" y1="378" x2="485" y2="406" marker-end="url(#arrow-swarm)" />
+
+  <rect class="node node--accent" x="180" y="416" width="130" height="48" rx="8" />
+  <text x="245" y="438" text-anchor="middle" font-size="12" font-weight="500">agent D</text>
+  <text class="muted" x="245" y="454" text-anchor="middle" font-size="10">isolated worktree</text>
+  <rect class="node node--accent" x="420" y="416" width="130" height="48" rx="8" />
+  <text x="485" y="438" text-anchor="middle" font-size="12" font-weight="500">agent E</text>
+  <text class="muted" x="485" y="454" text-anchor="middle" font-size="10">isolated worktree</text>
+
+  <line class="edge" x1="245" y1="464" x2="245" y2="494" marker-end="url(#arrow-swarm)" />
+  <line class="edge" x1="485" y1="464" x2="485" y2="494" marker-end="url(#arrow-swarm)" />
+
+  <rect class="node" x="190" y="504" width="110" height="50" rx="6" />
+  <text class="mono" x="245" y="526" text-anchor="middle" font-size="13" font-weight="500">PR #213</text>
+  <text class="muted mono" x="245" y="542" text-anchor="middle" font-size="10">→ PR #210</text>
+  <rect class="node" x="430" y="504" width="110" height="50" rx="6" />
+  <text class="mono" x="485" y="526" text-anchor="middle" font-size="13" font-weight="500">PR #214</text>
+  <text class="muted mono" x="485" y="542" text-anchor="middle" font-size="10">→ PR #211</text>
+
+</svg>

@@ -2,8 +2,6 @@
 import type { CollectionEntry } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
 import Byline from '../components/post/Byline.astro';
-import AudioPlayer from '../components/post/AudioPlayer.astro';
-import InlineSubscribe from '../components/post/InlineSubscribe.astro';
 import TocTicks from '../components/post/TocTicks.astro';
 import { stripExt } from '../lib/slug';
 import '../styles/article.css';
@@ -36,16 +34,11 @@ const resolvedOgImage = ogImage ?? generatedOgImage;
       {draft && <p class="post__draft" aria-label="Draft post">Draft</p>}
 
       <Byline author={author} date={date} readTime={readTime} />
-      <AudioPlayer />
     </header>
 
     <div class="post__body">
       <slot />
     </div>
-
-    <footer class="post__footer">
-      <InlineSubscribe />
-    </footer>
   </article>
 
   <TocTicks contentSelector=".post__body" headingSelector="h2, h3" />

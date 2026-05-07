@@ -1,0 +1,104 @@
+---
+title: "Run a swarm: parallel agents, one merged stack"
+subtitle: "How /swarm and /merge-stack turn a list of issues into a clean release — without the GitHub auto-close cascade."
+kit: swarmkit
+date: 2026-05-06
+author: smallorbit
+readTime: 5
+draft: false
+tags: ["workflow", "how-to"]
+---
+
+import Diagram from '../../components/post/Diagram.astro';
+import SwarmDiagram from '../../components/post/SwarmDiagram.astro';
+import SwarmPlusDiagram from '../../components/post/SwarmPlusDiagram.astro';
+import MergeStackDiagram from '../../components/post/MergeStackDiagram.astro';
+
+Spawning parallel agents is the easy part. The hard part is the merge.
+
+A naive approach: dispatch four agents on four issues, each opens a PR against `develop`, you merge them in any order. This works right up until two agents touch the same file, or until the second merge produces a conflict that didn't exist when the PR was opened. Then you spend the rest of the afternoon untangling it by hand.
+
+`/swarm` picks a different shape. When the batch has dependencies — `Depends on #N` or `Blocked by #N` from `/spec`, or from a native GitHub `blockedBy` link — each dependent PR targets its dependency's branch instead of `develop`, producing a stack rooted at `develop`. Independent issues produce flat sibling PRs against `develop`. Either way, `/merge-stack` walks the result and lands it in one shot.
+
+## The workflow
+
+Say you have an epic from `/spec` — issue `#100`, with five sub-issues `#101`–`#105` wired up. Three are independent (`#101`, `#102`, `#103`); two declare dependencies on the others (`#104` depends on `#101`, `#105` depends on `#102`).
+
+```bash
+/swarm 100            # expand the epic; dispatch in dependency-aware cycles
+/merge-stack          # land the resulting stack onto develop
+```
+
+Two commands. `/swarm` takes a numeric arg as either an issue or an epic — passing an epic expands to its native GitHub sub-issues. You can also pass an explicit list (`/swarm 12 15 18`), a label name (`/swarm priority:high` runs loop mode filtered by label), or no args at all (loop mode over the whole open backlog).
+
+However you scope it, the dependency graph drives the cycles: independent issues spawn together in cycle 1, each in its own isolated worktree. Dependents wait until their dependency's PR exists, then spawn in cycle 2 with their PR's base set to that PR's branch — so the stack falls out of the dependency graph automatically. File overlap is enforced too: in one-shot mode, issues touching the same file get grouped under a single agent; in loop mode they're sequenced across cycles. No two concurrent agents ever share a file.
+
+<Diagram caption="/swarm batches issues into cycles. Independents spawn together; dependents wait until their dependency's PR exists, then spawn against it — so the stack falls out of the dependency graph naturally.">
+  <SwarmDiagram />
+</Diagram>
+
+## The merge gotcha that made stacked PRs the right shape
+
+Here's the failure mode that shapes the whole design.
+
+You have a clean three-PR stack. Root targets `develop`. Middle PR's base is the root's head branch. Leaf's base is the middle PR's head branch. You merge the root the obvious way. GitHub deletes the root's branch. The middle PR's base no longer exists, GitHub interprets that as abandonment, and **auto-closes** the middle PR. The leaf, in turn, depended on the middle PR's branch — so it auto-closes too.
+
+You now have two closed PRs that were perfectly healthy thirty seconds ago.
+
+`/merge-stack` does the obvious fix in a non-obvious place: *before* the first merge runs, it retargets every non-root PR to the base branch.
+
+```bash
+gh pr edit <N> --base develop
+```
+
+Once a child's base is `develop`, deleting its predecessor's branch on merge no longer looks like abandonment. The auto-close cascade simply doesn't fire. After that, every PR in the stack merges with the same boring command:
+
+```bash
+gh pr merge <N> --squash --delete-branch
+```
+
+No per-PR strategy matrix. No intermediate-branch sweep. GitHub parses each PR body's `Closes #N` keywords at merge time, so issues close themselves as the squashes land.
+
+## The other gotcha: rebase between merges
+
+Retargeting prevents the auto-close cascade, but it doesn't solve the *next* problem. Once the root PR squash-merges, every still-open downstream PR has its predecessor's commits in its history under the **old** (pre-squash) SHAs. `develop` now carries the same content under a **new** squash SHA. GitHub flags the next PR as `CONFLICTING` even though the content overlap is benign — and `gh pr update-branch` can't fix it (it fails with `Cannot update PR branch due to conflicts`).
+
+So `/merge-stack` does a local rebase between every pair of merges, for every still-open downstream PR in the chain:
+
+```bash
+git fetch origin <head-branch> develop
+git checkout <head-branch>
+git rebase origin/develop
+git push --force-with-lease origin <head-branch>
+```
+
+`git rebase`'s patch-id matching is what carries the load. It recognizes the predecessor's commits as already applied — under a different SHA — and drops them, emitting `warning: skipped previously applied commit <sha>` for each one. That's the happy path, not an error. The downstream PR then has only its own new commits on top of the fresh `develop`, and the next squash merge runs cleanly.
+
+For independent PRs (no chain), this step is skipped — they target `develop` directly and have no predecessor commits to drop. If a rebase fails with a real content conflict (not a patch-id-matchable duplicate), the chain stops at that PR, the rest of the chain is marked blocked, and unrelated PRs continue.
+
+<Diagram caption="/merge-stack: retarget all non-root PRs to develop first, then walk the chain root-to-leaf, rebasing what's left between each merge.">
+  <MergeStackDiagram />
+</Diagram>
+
+## What you get
+
+After `/merge-stack`:
+
+- One squash commit per issue on `develop`.
+- No orphaned remote branches.
+- No merge bubbles.
+- All referenced issues closed.
+
+If a PR fails review or merge mid-stack, the chain stops cleanly. Because retargeting happened up front, every still-open downstream PR already targets `develop` — resuming is just fixing the conflict and re-running.
+
+## When to reach for it
+
+`/swarm` is for the case you already have: a backlog of small-to-medium issues that are independent enough to parallelize, but related enough that you want them in the same release. Think a sprint's worth of `good-first-issue`-shaped work, or the leaf nodes of an epic that just got dispatched.
+
+`/swarm` itself doesn't review anything — it opens the PRs and stops. From there you have two options. Review them through whatever process you already use (CodeRabbit, a human reviewer, your own eyes) and merge with `/merge-stack` when you're satisfied. Or swap `/swarm` for `/swarm-plus`: same arguments, same final state of open PRs, but each PR gets one automated reviewer pass and one fix-round before it's left for human merge.
+
+<Diagram caption="/swarm-plus per-PR pipeline: one reviewer; concerns trigger one fix-round; nits and approved verdicts terminate. No re-review after a fix.">
+  <SwarmPlusDiagram />
+</Diagram>
+
+That's the loop. Three commands, one merged stack, no GitHub foot-gun.

@@ -1,0 +1,105 @@
+---
+interface Props {
+  caption?: string;
+  label?: string;
+}
+
+const { caption, label } = Astro.props;
+---
+
+<figure class="diagram" aria-label={label ?? caption}>
+  <div class="diagram__canvas">
+    <slot />
+  </div>
+  {caption && <figcaption class="diagram__caption">{caption}</figcaption>}
+</figure>
+
+<style is:global>
+  .diagram {
+    margin: 2.25rem 0;
+    padding: 1.5rem 1.25rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+  }
+
+  .diagram__canvas {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .diagram__canvas svg {
+    width: 100%;
+    height: auto;
+    max-width: 640px;
+    display: block;
+  }
+
+  .diagram__canvas svg text {
+    font-family: var(--sans);
+    fill: var(--text-strong);
+  }
+
+  .diagram__canvas svg .mono {
+    font-family: var(--mono);
+  }
+
+  .diagram__canvas svg .muted {
+    fill: var(--text-muted);
+  }
+
+  .diagram__canvas svg .node {
+    fill: var(--bg-raised);
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+
+  .diagram__canvas svg .node--issue {
+    fill: var(--bg-veil);
+  }
+
+  .diagram__canvas svg .node--accent {
+    stroke: var(--post-accent, var(--swarmkit));
+    stroke-width: 1.5;
+  }
+
+  .diagram__canvas svg .edge {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 1.25;
+  }
+
+  .diagram__canvas svg .edge--accent {
+    stroke: var(--post-accent, var(--swarmkit));
+  }
+
+  .diagram__canvas svg .edge--dashed {
+    stroke-dasharray: 4 4;
+  }
+
+  .diagram__canvas svg .edge--ghost {
+    stroke: var(--border);
+    stroke-dasharray: 2 4;
+  }
+
+  .diagram__canvas svg .badge {
+    fill: var(--post-accent, var(--swarmkit));
+  }
+
+  .diagram__canvas svg .badge-text {
+    fill: #ffffff;
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+
+  .diagram__caption {
+    margin: 1rem 0 0;
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.45;
+  }
+</style>

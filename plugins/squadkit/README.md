@@ -2,8 +2,6 @@
 
 A Claude Code plugin for multi-agent team coordination. Squadkit introduces a small vocabulary — **roles**, **squads**, and **crews** — and ships the scaffolding needed to make team-based agent workflows reusable across any repository, regardless of language or tooling.
 
-> Status: **early scaffold.** This release ships the plugin skeleton, the `init` config wizard, role contracts, the `spawn-team` skill, and the starter crew profiles. The `retro` skill lands in a subsequent release.
-
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
@@ -67,8 +65,9 @@ Historically the Claude Code harness augmented the allowlist for some of these t
 |-------|--------|--------------|
 | **init** | `/squadkit:init` | Interview-driven generator that writes `.squadkit/config.json` to the repo root. No per-stack presets — the wizard asks you for the commands directly. |
 | **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member (the harness's readiness signal) before the orchestrator (which IS the lead) enters its dispatch loop. |
+| **agent-team-retro** | `/squadkit:agent-team-retro` | Run a retrospective on the currently-spawned squad. Polls each active member with three fixed questions, aggregates findings into severity-grouped action items, applies approved edits to role contracts, and optionally hands findings off to `speckit:catalog` as GitHub issues. |
 
-More skills (`retro`, `role-spec`) ship in subsequent releases.
+A `role-spec` skill for authoring new role contracts ships in a subsequent release.
 
 ## Crews
 
@@ -79,7 +78,9 @@ A **crew profile** is a YAML file under `plugins/squadkit/crews/` describing a r
 | Profile | Roster | When to use |
 |---------|--------|-------------|
 | **all-rounder** | team-lead, architect, builder×2, reviewer, tester, explorer, designer | Full-spectrum feature work end-to-end. |
+| **builder** | architect, builder×2, reviewer, tester | Straight execution against an already-locked implementation contract. Subset of all-rounder without explorer/designer. |
 | **design** | architect, designer, explorer | Discovery-stage exploration with no implementation yet. Read-only: produces issue comments, no worktrees, no epic branch. (`kind: discovery`) |
+| **discovery-3-role** | architect, explorer, designer | Read-only early-stage discovery — architect frames the system, explorer investigates prior art, designer shapes the surface. Deliverables are issue comments. (`kind: discovery`) |
 | **qa** | team-lead, reviewer, tester, builder×1 | Hardening, regression, bug-fix sweeps. |
 
 ### Schema
@@ -178,7 +179,7 @@ Squadkit reads its per-repo configuration from `.squadkit/config.json` at the re
 
 ### Init walkthrough
 
-Run `/squadkit:init` once per repo. The wizard is fully interview-driven — there are no per-stack presets and no auto-detection. It asks four questions sequentially and surfaces the running config back to you after each answer:
+Run `/squadkit:init` once per repo. The wizard is fully interview-driven — there are no per-stack presets and no auto-detection. It asks five questions sequentially and surfaces the running config back to you after each answer:
 
 1. **Typecheck command** — e.g. `npm run typecheck`, `mypy .`, `cargo check`. Empty answer means "this repo has no typecheck step."
 2. **Test command** — e.g. `npm test`, `pytest`, `cargo test`. Empty answer means "no test step."
@@ -226,7 +227,6 @@ Squadkit complements the rest of the suite:
 
 ## Roadmap
 
-- `retro` skill for post-crew reflection and skill discovery.
 - `role-spec` skill for authoring new role contracts.
 - Additional starter crew profiles (e.g. spike, migration, hotfix).
 
