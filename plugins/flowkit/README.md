@@ -218,7 +218,7 @@ Release candidates are named by date and sequence number (e.g., `rc/2026-04-16.1
 
 ### Tag Format: `vYYYY.M.D`
 
-Production releases are tagged with a calendar-versioned tag (e.g., `v2026.4.16`). Multiple releases on the same day append a counter (e.g., `v2026.4.16-2`).
+Production releases are tagged with a calendar-versioned tag (e.g., `v2026.4.16`). Multiple releases on the same day append a counter (e.g., `v2026.4.16.1`).
 
 ### Hotfix Tags
 

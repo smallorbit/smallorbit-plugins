@@ -33,6 +33,5 @@ do not enable per-folder Pages serving for `docs/` once the cutover lands.
 - `src/pages/` — Astro routes.
 - `src/layouts/BaseLayout.astro` — site-wide HTML shell, meta tags, header
   nav, footer, and light-theme CSS custom properties.
-- `src/styles/` — global stylesheets (added in follow-up issues).
-- `src/content/` — content collections for `posts` and `kits` (added in
-  follow-up issues).
+- `src/styles/` — global stylesheets.
+- `src/content/` — content collections for `posts`, `kits`, and `transcripts`.

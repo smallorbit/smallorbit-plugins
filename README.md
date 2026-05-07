@@ -88,24 +88,31 @@ Filed children:
 
 ### 3. Resolve the epic with `/swarm`
 
-Swarm the child issues in parallel:
+Pass the epic number — swarmkit expands it to its sub-issues automatically and dispatches them in dependency-aware cycles:
 
 ```
-/swarm 102 103 104 105
+/swarm 101
 ```
 
-swarmkit spawns one isolated-worktree agent per issue, each on its own `worktree-agent-<n>` branch. Agents work concurrently, commit with conventional-commit messages, and open stacked PRs:
+(You can also pass an explicit list — `/swarm 102 103 104 105` — or a label name for loop mode.)
+
+swarmkit spawns one isolated-worktree agent per ready issue, each on its own `worktree-agent-<n>` branch. Independent issues run in the same cycle; dependents wait until their dependency's PR exists, then their PR's base is set to that PR's branch — so the stack falls out of the dependency graph automatically:
 
 ```
-Swarm complete — 4 PRs opened:
+Cycle 1 — #102 spawned (no unmet deps).
 
   #210 feat(notes): extend Note schema with tags field        → develop
+
+Cycle 2 — #103, #104, #105 spawned (deps on #102 satisfied).
+
   #211 feat(notes): add tag input to NoteEditor               → worktree-agent-102
-  #212 feat(notes): render tag chips on note cards            → worktree-agent-103
-  #213 feat(notes): filter notes by tag from the sidebar      → worktree-agent-104
+  #212 feat(notes): render tag chips on note cards            → worktree-agent-102
+  #213 feat(notes): filter notes by tag from the sidebar      → worktree-agent-102
 
 Stack root: #210. Run /merge-stack to merge bottom-up.
 ```
+
+For the full mechanics — including how `/merge-stack` retargets PRs and rebases between merges to dodge GitHub's auto-close cascade — see the [Run a swarm](https://smallorbit.github.io/smallorbit-plugins/blog/run-a-swarm/) blog post.
 
 ### 4. Ship it (optional — use your own process if you prefer)
 
