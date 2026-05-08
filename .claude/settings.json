@@ -24,8 +24,11 @@
       "Bash($SKILL_DIR/scripts/classify.sh:*)",
       "Bash($SKILL_DIR/scripts/delete.sh:*)",
       "Bash($SKILL_DIR/scripts/detect_changed.sh:*)",
+      "Bash($SKILL_DIR/scripts/with_clean_workspace.sh:*)",
       "Bash(plugins/flowkit/skills/push-or-pr/scripts/push_or_pr.sh:*)",
-      "Bash(*/plugins/flowkit/skills/push-or-pr/scripts/push_or_pr.sh:*)"
+      "Bash(*/plugins/flowkit/skills/push-or-pr/scripts/push_or_pr.sh:*)",
+      "Bash(plugins/flowkit/skills/with-clean-workspace/scripts/with_clean_workspace.sh:*)",
+      "Bash(*/plugins/flowkit/skills/with-clean-workspace/scripts/with_clean_workspace.sh:*)"
     ]
   }
 }
