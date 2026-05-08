@@ -1,6 +1,6 @@
 {
   "name": "flowkit",
-  "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship \u2014 with runtime staging detection.",
+  "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship.",
   "version": "3.11.0",
   "license": "MIT",
   "author": {

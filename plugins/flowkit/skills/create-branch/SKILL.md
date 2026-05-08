@@ -43,7 +43,6 @@ Reject the following names outright — do not create them:
 - `main`
 - `master`
 - `develop`
-- `staging`
 
 If the inferred or provided name matches one of these, stop and ask the user for a different name.
 

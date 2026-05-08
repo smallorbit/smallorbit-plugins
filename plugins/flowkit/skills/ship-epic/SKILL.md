@@ -19,7 +19,7 @@ After this skill runs: `develop`'s first-parent line stays linear (one squashed 
 
 `$ARGUMENTS` — optional. Either:
 
-1. `--epic <branch>` — explicit epic branch override. Must start with `feature/` and must not equal `develop`, `main`, `master`, or `staging`.
+1. `--epic <branch>` — explicit epic branch override. Must start with `feature/` and must not equal `develop`, `main`, or `master`.
 2. Empty — resolved from `git config --get claude.flowkit.prBase`. If unset or equal to `develop`, the skill stops:
 
 > No epic in flight. `claude.flowkit.prBase` is unset (or equals `develop`) and no `--epic` flag was passed. Run `/cut-epic` first, pass `--epic <branch>`, or check out the epic branch.

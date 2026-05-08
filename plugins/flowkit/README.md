@@ -40,11 +40,10 @@ claude --plugin-dir /path/to/flowkit
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees). |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
-| **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
-| **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
-| **release** | `/release` | Detect staging at runtime, merge to `main`, tag, close issues, clean up RC branches. |
+| **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`. |
+| **release** | `/release` | Merge the newest RC to `main`, tag, close issues, clean up RC branches. |
 | **ship** | `/ship` | Repo-level skill: `merge-stack` → `cut` → `release`. Run after a swarm to merge everything. |
-| **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs/staging awaiting release, and the most recent tag. |
+| **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs awaiting release, and the most recent tag. |
 
 ### Sub-Skills (internal)
 
@@ -111,28 +110,13 @@ Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` 
 /open-pr                         # push + open PR targeting develop
 /merge-pr                        # squash-merge, delete remote branch
 /sync                            # pull develop, prune branches
-/cut                             # create rc/2026-04-16.1, auto-stage if staging exists
+/cut                             # create rc/2026-04-16.1
 /release                         # promote to main, tag v2026.4.16, close issues
 ```
 
 ## Ship boundaries
 
 `/ship` only handles the merge-cut-release cascade. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. If `merge-stack` hits a conflict, `/ship` stops before cutting or releasing.
-
-## How Runtime Staging Detection Works
-
-`/cut`, `/stage`, `/release`, and `/pipeline-status` all check at runtime whether `origin/staging` exists. No configuration is required — branch presence is the sole signal.
-
-- **Staging exists**: `/cut` pushes the RC to `staging`. `/release` merges `staging` → `main`.
-- **Staging absent**: the RC merges directly to `main` without a staging step.
-
-To add a staging environment:
-
-```bash
-git checkout -b staging main && git push -u origin staging
-```
-
-From that point on, all release skills pick it up automatically.
 
 ## Configuration
 
@@ -192,13 +176,13 @@ The legacy fallback is a soft deprecation and will be kept indefinitely — no h
 
 Flowkit is opinionated. Understanding these assumptions upfront will save you friction.
 
-### Branching Model: `develop` → `main` (with optional staging)
+### Branching Model: `develop` → `main`
 
-Feature work merges into `develop`. Release candidates are cut from `develop`. Staging (if present) is an intermediate promotion gate. `main` always reflects what's in production.
+Feature work merges into `develop`. Release candidates are cut from `develop`. `main` always reflects what's in production.
 
 ### Default Branch (Current Assumption)
 
-Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle.
+Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the RC→`main` merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle.
 
 If you've configured `develop` (or any non-`main` branch) as the GitHub default, the auto-close path on the release PR silently no-ops and aggregated issues stay open. To stay safe regardless of which branch is set as default, `/release` runs an explicit `gh issue close` loop after the merge succeeds — closing every aggregated issue directly so the lifecycle works on either configuration. Issues that were closed earlier (e.g., already resolved) are skipped idempotently.
 

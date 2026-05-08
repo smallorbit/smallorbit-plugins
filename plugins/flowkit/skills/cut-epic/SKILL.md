@@ -56,7 +56,7 @@ Examples:
 ### 2. Validate
 
 Reject the following outright — do not create them:
-- `main`, `master`, `develop`, `staging`
+- `main`, `master`, `develop`
 - Any name without the `feature/` prefix (after auto-prefixing in step 1)
 
 The full branch name must be 60 characters or fewer. If the slug pushes it over, truncate the slug, not the issue number.

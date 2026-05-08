@@ -25,7 +25,7 @@ Convenience orchestrator that runs `/create-branch`, `/commit`, and `/open-pr` i
 git rev-parse --abbrev-ref HEAD
 ```
 
-If the current branch is already a non-protected branch (not `develop`, `main`, `master`, or `staging`), skip step 2 and go directly to step 3.
+If the current branch is already a non-protected branch (not `develop`, `main`, or `master`), skip step 2 and go directly to step 3.
 
 ### 2. Create branch (if on a protected branch)
 
