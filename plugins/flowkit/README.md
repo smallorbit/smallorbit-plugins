@@ -43,7 +43,7 @@ claude --plugin-dir /path/to/flowkit
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`. |
 | **release** | `/release` | Merge the newest RC to `main`, tag, close issues, clean up RC branches. |
-| **ship** | `/ship` | Repo-level skill: `merge-stack` → `cut` → `release`. Run after a swarm to merge everything. |
+| **ship** | `/ship` | Repo-level orchestrator. Chains `merge-stack → ship-epic (when epic in flight) → cut → release`. End-state: linear `develop`, linear `main`, prBase unset. |
 | **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs awaiting release, and the most recent tag. |
 
 ### Sub-Skills (internal)
@@ -61,7 +61,7 @@ These are called by the skills above — you don't invoke them directly.
 ### After a swarm run
 
 ```
-/ship                            # merge-stack → cut → release
+/ship                            # merge-stack → ship-epic → cut → release (auto-detects feature branch)
 ```
 
 ### Standard release (no swarm)
@@ -100,7 +100,7 @@ The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flo
 
 Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` for the full Model A vs. Model B detection rules.
 
-> Do not run `/ship` while an epic is in flight unless you intend to ship the epic. `/ship` will rescope `claude.flowkit.prBase` to `develop` for its own flow.
+> `/ship` from an epic branch (or with `claude.flowkit.prBase` pinned to a `feature/*`) automatically inserts `ship-epic` between `merge-stack` and `cut`. The epic branch is rebase-merged to `develop`, the pin is cleared, and the chain continues with the freshly-updated `develop`. Run `/preview-epic` first to verify the integrated state — `/ship` does not auto-verify.
 
 ### Mid-review restack
 
@@ -128,7 +128,7 @@ The subtree is walked breadth-first: siblings continue independently if one bran
 
 ## Ship boundaries
 
-`/ship` only handles the merge-cut-release cascade. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. If `merge-stack` hits a conflict, `/ship` stops before cutting or releasing.
+`/ship` orchestrates `merge-stack → ship-epic (conditional) → cut → release`. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. If any step fails, `/ship` stops before the next step; state is left recoverable for re-run after the operator resolves the failure.
 
 ## Configuration
 
@@ -136,7 +136,7 @@ Flowkit reads one repo-local git config key:
 
 | Key | Purpose | Default |
 |-----|---------|---------|
-| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/ship`, `/swarm` loop mode, and `/cut-epic`; unset on teardown. | `develop` |
+| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/cut-epic`, `/swarm` (loop mode), and `squadkit:spawn-team --epic`; unset by `/ship-epic` (and therefore by `/ship` when an epic is in flight). | `develop` |
 
 Inspect or set manually:
 
@@ -245,7 +245,7 @@ Flowkit handles the shipping half of the development loop. Use it with speckit a
 ```
 /spec add CSV export              # Plan the feature, file issues  (speckit)
 /swarm                            # Resolve issues with parallel agents  (swarmkit)
-/ship                             # Merge stack → cut → release  (flowkit)
+/ship                             # merge-stack → ship-epic → cut → release  (flowkit)
 ```
 
 The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it. Use [sessionkit](../sessionkit)'s `/handoff` if a release session runs long, and `/skillit` afterwards to capture any new conventions or one-off scripts worth keeping.
