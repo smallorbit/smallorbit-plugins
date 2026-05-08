@@ -43,7 +43,6 @@ claude --plugin-dir /path/to/flowkit
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
 | **release** | `/release` | Detect staging at runtime, merge to `main`, tag, close issues, clean up RC branches. |
 | **ship** | `/ship` | Repo-level skill: `merge-stack` → `cut` → `release`. Run after a swarm to merge everything. |
-| **hotfix** | `/hotfix` | Emergency fix: branch off `main`, apply fix, PR to `main`, tag, back-merge to `develop`. |
 | **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs/staging awaiting release, and the most recent tag. |
 
 ### Sub-Skills (internal)
@@ -52,7 +51,7 @@ These are called by the skills above — you don't invoke them directly.
 
 | Skill | Used by | Purpose |
 |-------|---------|---------|
-| **git-sync-main** | release, hotfix | Checkout `main` and pull latest from origin. |
+| **git-sync-main** | release | Checkout `main` and pull latest from origin. |
 | **pr-base-scope** | swarm | Set/unset `claude.flowkit.prBase` git config for scoped PR targeting. |
 | **with-clean-workspace** | merge-pr, release | Auto-stash dirty workspace around implicit post-merge pull via `scripts/with_clean_workspace.sh -- <command ...>`. |
 
@@ -75,12 +74,6 @@ These are called by the skills above — you don't invoke them directly.
 
 ```
 /pipeline-status                 # see open PRs, develop, RCs, and last release at a glance
-```
-
-### Emergency hotfix
-
-```
-/hotfix fix login redirect       # branch off main, apply fix, ship, back-merge
 ```
 
 ### Epic flow (long-lived feature branch)
@@ -128,7 +121,7 @@ Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` 
 
 ## How Runtime Staging Detection Works
 
-`/cut`, `/stage`, `/release`, `/pipeline-status`, and `/hotfix` all check at runtime whether `origin/staging` exists. No configuration is required — branch presence is the sole signal.
+`/cut`, `/stage`, `/release`, and `/pipeline-status` all check at runtime whether `origin/staging` exists. No configuration is required — branch presence is the sole signal.
 
 - **Staging exists**: `/cut` pushes the RC to `staging`. `/release` merges `staging` → `main`.
 - **Staging absent**: the RC merges directly to `main` without a staging step.
@@ -205,9 +198,9 @@ Feature work merges into `develop`. Release candidates are cut from `develop`. S
 
 ### Default Branch (Current Assumption)
 
-Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle. Likewise, `/hotfix` relies on the merge into `main` to close hotfix-referenced issues.
+Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the staging→`main` (or RC→`main`) merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle.
 
-If you've configured `develop` (or any non-`main` branch) as the GitHub default, the auto-close path on the release PR silently no-ops and aggregated issues stay open. To stay safe regardless of which branch is set as default, `/release` and `/hotfix` run an explicit `gh issue close` loop after the merge succeeds — closing every aggregated issue directly so the lifecycle works on either configuration. Issues that were closed earlier (e.g., already resolved) are skipped idempotently.
+If you've configured `develop` (or any non-`main` branch) as the GitHub default, the auto-close path on the release PR silently no-ops and aggregated issues stay open. To stay safe regardless of which branch is set as default, `/release` runs an explicit `gh issue close` loop after the merge succeeds — closing every aggregated issue directly so the lifecycle works on either configuration. Issues that were closed earlier (e.g., already resolved) are skipped idempotently.
 
 If you set a non-`main` default branch, also note the `/open-pr` warning: when a feature PR targeting `develop` includes `Closes #N` keywords, those won't auto-close at squash-merge time — they'll close when `/release` later runs the explicit close loop.
 
@@ -218,12 +211,6 @@ Release candidates are named by date and sequence number (e.g., `rc/2026-04-16.1
 ### Tag Format: `vYYYY.M.D`
 
 Production releases are tagged with a calendar-versioned tag (e.g., `v2026.4.16`). Multiple releases on the same day append a counter (e.g., `v2026.4.16.1`).
-
-### Hotfix Tags
-
-First hotfix on 2026-04-16: tag `v2026.4.16` + companion `hotfix/v2026.4.16`. A second hotfix the same day: `v2026.4.16.1` + companion `hotfix/v2026.4.16.1`.
-
-The `.N` suffix keeps hotfixes sorting alongside scheduled releases in the tag history. The companion `hotfix/` tag makes them discoverable via `git tag -n` and `git tag --list 'hotfix/*'`.
 
 ### Commit Format: Conventional Commits
 
@@ -237,7 +224,7 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 
 ### Issue Lifecycle
 
-`/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` (or `/hotfix`) when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
+`/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
 
 ### Default Branch (Recommendation for New Users)
 
@@ -246,7 +233,7 @@ While the `main`-as-default configuration described above is fully supported, fo
 The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit will surface a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). The prompt has three options:
 
 - **Switch to develop** — runs `gh repo edit --default-branch develop` after a second confirmation.
-- **Keep main as default** — keeps the current configuration; the prompt won't reappear. Flowkit's `/release` and `/hotfix` skills already run an explicit `gh issue close` loop, so the issue lifecycle still completes on either configuration.
+- **Keep main as default** — keeps the current configuration; the prompt won't reappear. Flowkit's `/release` skill already runs an explicit `gh issue close` loop, so the issue lifecycle still completes on either configuration.
 - **Don't ask again** — silences the prompt without recording a deliberate choice.
 
 The choice is persisted via `git config claude.flowkit.defaultBranchPrompted=true`, so subsequent `/open-pr` invocations stay silent. To re-surface the prompt (e.g., after revisiting the question), unset the marker:

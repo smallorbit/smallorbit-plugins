@@ -12,7 +12,7 @@
     {
       "name": "flowkit",
       "source": "./plugins/flowkit",
-      "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection and a one-command hotfix flow."
+      "description": "Git/release lifecycle for Claude Code. Branch, commit, open PRs, merge, cut releases, and ship — with runtime staging detection."
     },
     {
       "name": "sessionkit",

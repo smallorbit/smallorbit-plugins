@@ -1,6 +1,6 @@
 ---
 name: push-or-pr
-description: Publish pending commits on the current branch by creating a feature branch and opening a PR against --base — never push directly to the checked-out branch. Sub-skill used by /bump-versions, /flowkit:release, and /flowkit:hotfix.
+description: Publish pending commits on the current branch by creating a feature branch and opening a PR against --base — never push directly to the checked-out branch. Sub-skill used by /bump-versions and /flowkit:release.
 ---
 
 # push-or-pr
@@ -23,7 +23,7 @@ RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
 
 `$SKILL_DIR` is the absolute path of the *push-or-pr* skill on disk. Callers resolve it as follows:
 
-- **Sibling skills inside flowkit** (`release`, `hotfix`): `SKILL_DIR="$(dirname "$CALLER_SKILL_DIR")/push-or-pr"`, where `$CALLER_SKILL_DIR` is the caller's own `Base directory for this skill` value.
+- **Sibling skills inside flowkit** (`release`): `SKILL_DIR="$(dirname "$CALLER_SKILL_DIR")/push-or-pr"`, where `$CALLER_SKILL_DIR` is the caller's own `Base directory for this skill` value.
 - **Repo-local skills** (e.g. `.claude/skills/bump-versions/`): hardcode `SKILL_DIR="plugins/flowkit/skills/push-or-pr"` relative to the repo root. The skill is project-local so it always knows where flowkit lives.
 
 ## Arguments

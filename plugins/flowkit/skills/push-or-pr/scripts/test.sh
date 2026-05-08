@@ -10,8 +10,8 @@ set -uo pipefail
 # Happy paths for push_or_pr.sh require a live git remote, branch-protection
 # rules, and `gh` auth. They cannot run from a smoke harness, so this file
 # covers the deterministic argument-validation surface only. End-to-end
-# behavior is exercised by the calling skills (bump-versions, release,
-# hotfix) when they run against the live repo.
+# behavior is exercised by the calling skills (bump-versions, release) when
+# they run against the live repo.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PASS=0
