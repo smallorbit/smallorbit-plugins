@@ -231,9 +231,6 @@ Example: "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow t
 
 # --- assemble PR body ---
 # <!-- include: plugins/_shared/pr-body.md -->
-# The body shape below follows the canonical PR body spec defined in
-# plugins/_shared/pr-body.md: Summary → Release summary → Version bumps →
-# Release notes → issue-reference footer. Keep that order.
 PR_BODY="## Summary
 
 $NARRATIVE_SUMMARY
@@ -285,7 +282,7 @@ Capture the PR number from the URL output.
 
 ### 6. Merge the PR
 
-`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` script so any dirty state is auto-stashed and restored:
+`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the [`flowkit:with-clean-workspace`](../../with-clean-workspace/SKILL.md) script so any dirty state is auto-stashed and restored:
 
 ```bash
 WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
