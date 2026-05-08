@@ -380,6 +380,6 @@ When an issue fails at any point:
 - Never mention Claude or add co-author lines in commit messages
 - Agents spawn with `mode: "bypassPermissions"` so they can push and create PRs without prompting
 - Never commit directly to develop or main — always work on the `worktree-agent-<issue>` branch
-- **Never close issues** — issues are closed by the release process when staging merges to main
+- **Never close issues** — issues are closed by the release process when the release merges to main
 - **Never pass absolute repo paths to spawned agents** — always instruct them to use relative paths from their CWD to ensure edits land in the isolated worktree, not the main directory
 - **Never merge a PR mid-swarm**, even when a downstream agent needs files produced by an upstream agent. Dependent agents branch from `origin/worktree-agent-<dependency>` and already have access to the upstream output. Merging to unblock a downstream agent bypasses the user's review gate and is never acceptable.

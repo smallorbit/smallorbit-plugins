@@ -36,7 +36,7 @@ This nudge is fire-and-forget — open-pr does not branch on its outcome. After 
 git rev-parse --abbrev-ref HEAD
 ```
 
-If the current branch is `develop`, `main`, `master`, or `staging`, stop immediately and report:
+If the current branch is `develop`, `main`, or `master`, stop immediately and report:
 
 > Cannot open a PR from a protected branch. Check out a feature branch first.
 
@@ -130,7 +130,7 @@ The body shape, footer grammar, and worked example live in [`plugins/_shared/pr-
 
 ### 7. Warn when closing keywords target a non-default branch
 
-GitHub's auto-close keywords (`Closes/Fixes/Resolves #N`) only fire when a PR merges into the repo's default branch. If the assembled body contains any closing keyword and `$BASE` is not the GitHub default, emit a one-line note pointing the user at `/flowkit:release`, which runs an explicit `gh issue close` loop after the staging→main merge:
+GitHub's auto-close keywords (`Closes/Fixes/Resolves #N`) only fire when a PR merges into the repo's default branch. If the assembled body contains any closing keyword and `$BASE` is not the GitHub default, emit a one-line note pointing the user at `/flowkit:release`, which runs an explicit `gh issue close` loop after the release→main merge:
 
 ```bash
 if printf '%s\n' "$PR_BODY" | grep -qiE '(closes|fixes|resolves) #[0-9]+'; then
@@ -181,6 +181,6 @@ Output the PR URL returned by `gh pr create`.
 
 - Always resolve `--base` before calling `gh pr create` per [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md) (plus the legacy `claude.prBase` deviation documented in step 2). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
 - Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
-- Never open a PR from a protected branch (`develop`, `main`, `master`, `staging`)
+- Never open a PR from a protected branch (`develop`, `main`, `master`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
 - Do not force-push; use a plain `git push -u origin HEAD`

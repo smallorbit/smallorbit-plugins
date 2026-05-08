@@ -130,7 +130,7 @@ Then merge everything in three commands:
 /release         # promote to main, tag the release, close referenced issues
 ```
 
-Or collapse all three into a single `/ship`. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle, RC naming, and staging support.
+Or collapse all three into a single `/ship`. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle and RC naming.
 
 ## How the Plugins Compose
 
