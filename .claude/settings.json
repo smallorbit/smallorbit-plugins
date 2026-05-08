@@ -31,7 +31,10 @@
       "Bash(*/plugins/flowkit/skills/with-clean-workspace/scripts/with_clean_workspace.sh:*)",
       "Bash($SKILL_DIR/scripts/merge_pr.sh:*)",
       "Bash(plugins/flowkit/skills/merge-pr/scripts/merge_pr.sh:*)",
-      "Bash(*/plugins/flowkit/skills/merge-pr/scripts/merge_pr.sh:*)"
+      "Bash(*/plugins/flowkit/skills/merge-pr/scripts/merge_pr.sh:*)",
+      "Bash($SKILL_DIR/scripts/ship_epic.sh:*)",
+      "Bash(plugins/flowkit/skills/ship-epic/scripts/ship_epic.sh:*)",
+      "Bash(*/plugins/flowkit/skills/ship-epic/scripts/ship_epic.sh:*)"
     ]
   }
 }

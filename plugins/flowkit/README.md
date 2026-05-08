@@ -34,6 +34,7 @@ claude --plugin-dir /path/to/flowkit
 | **commit** | `/commit` | Stage and commit changes with conventional commit format. Infers logical groupings and writes `type(scope): description` messages. |
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
 | **cut-epic** | `/cut-epic` | Cut a long-lived `feature/<slug>-<issue>` branch from `develop`, push it, and pin `claude.flowkit.prBase` so subsequent PRs target it. |
+| **ship-epic** | `/ship-epic` | Promote a `feature/<slug>-<N>` epic to `develop` via rebase-merge, unset `claude.flowkit.prBase`, delete the epic branch. Closer for `cut-epic`. |
 | **preview-epic** | `/preview-epic` | Build a local preview branch combining every open PR in an epic stack via octopus merge (sequential fallback), then run configurable verify commands to validate the epic end-to-end. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
@@ -87,8 +88,7 @@ When a feature spans multiple PRs and needs to stay isolated from `develop` unti
 /pr wire exporter into UI        # next sub-PR, also targets the epic branch
 # When ready to ship:
 /preview-epic                    # verify the integrated state before promoting
-gh pr create --base develop --head feature/<slug>-1264
-git config --unset claude.flowkit.prBase
+/ship-epic                       # rebase-merge to develop, unset prBase, delete epic branch
 ```
 
 The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flowkit.prBase` is set will open PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
