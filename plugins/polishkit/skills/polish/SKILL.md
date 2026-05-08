@@ -77,7 +77,7 @@ Pass the resolved verify commands to the agent prompt as `VERIFY_COMMANDS`.
 
 The agent's branch must be cut from the project's PR base, and `gh pr create` must explicitly target the same branch (otherwise it falls through to the GitHub default — usually `main` — which silently produces wrong-base PRs against repos that develop on a non-default branch).
 
-Polishkit resolves the base standalone — no other plugin is required. If flowkit is also installed and has set its own per-session base, polishkit silently honors it as a courtesy, but never depends on it.
+Implements the canonical chain at [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md), with one polishkit-specific variation: a polishkit-scoped key (`claude.polishkit.prBase`) is checked at step 2 before the optional flowkit-interop slot. The flowkit courtesy read (`claude.flowkit.prBase`) is placed after polishkit's own key and before the `develop` fallback, as documented in the canonical spec's cross-plugin courtesy interop section. Polishkit works correctly without flowkit installed.
 
 Resolve `BASE` in this order:
 

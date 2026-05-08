@@ -35,15 +35,7 @@ git config --unset claude.flowkit.prBase
 
 ### Read
 
-Resolution order (authoritative spec in [`open-pr/SKILL.md`](../open-pr/SKILL.md) step 2):
-
-1. `--base <branch>` in `$ARGUMENTS`
-2. `claude.flowkit.prBase`
-3. `claude.prBase` — legacy fallback (emits deprecation notice)
-4. `develop` if it exists on the remote
-5. Repo default branch via `gh repo view` (with warning)
-
-`$BASE` is always non-empty after resolution.
+Resolution order is the canonical chain at [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md). This skill writes only to `claude.flowkit.prBase`; the legacy `claude.prBase` key is read as a deprecation fallback by `open-pr` (removed by [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896)).
 
 ## Constraints
 
