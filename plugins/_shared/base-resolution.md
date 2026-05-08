@@ -25,12 +25,12 @@ A consuming plugin MAY check a sibling plugin's scoped key as a courtesy slot �
 
 ## Reference implementations
 
-- [`plugins/flowkit/skills/open-pr/SKILL.md`](../flowkit/skills/open-pr/SKILL.md) — flowkit implementation (includes legacy `claude.prBase` deviation until [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896) lands).
+- [`plugins/flowkit/skills/open-pr/SKILL.md`](../flowkit/skills/open-pr/SKILL.md) — flowkit implementation.
 - [`plugins/polishkit/skills/polish/SKILL.md`](../polishkit/skills/polish/SKILL.md) — polishkit implementation (includes optional flowkit courtesy interop slot).
 
 ## Anti-patterns
 
 - **Do not hardcode `develop`** — always use the resolution algorithm so repos without a `develop` branch fall through gracefully.
 - **Do not skip the `$BASE` non-empty check** — an empty `$BASE` silently targets the GitHub default, which is almost always wrong in a feature-branch workflow.
-- **Do not write to `claude.prBase`** — the legacy unscoped key is read-only for backward compatibility. All new writes go to `claude.<plugin>.prBase`.
+- **Do not write to or rely on `claude.prBase`** — the unscoped legacy key is no longer read by any plugin. All writes go to `claude.<plugin>.prBase`.
 - **Do not add new fallback layers without updating this doc first** — the algorithm is the contract; undocumented layers create invisible precedence conflicts across plugins.
