@@ -26,7 +26,7 @@ Three things never happen:
 
 1. `/bump-versions` is never run when an RC already exists — the RC has the bumps baked in; a second bump would drift develop.
 2. `/cut` is never run when develop is in sync with main and there's no existing RC.
-3. `/release` is never run when there's no RC and no staging.
+3. `/release` is never run when there's no RC.
 
 ## Process
 
@@ -73,6 +73,27 @@ done
 - If `CHANGED_PLUGINS` is non-empty: follow `/bump-versions` (project-local skill).
 - Else: announce `"Stage 3 skipped: no plugin changes since last per-plugin tags"` and continue.
 
+### Stage 3.5 — Ship epic (conditional)
+
+Resolve `$EPIC_BRANCH` using the same two-signal logic as `flowkit:ship`:
+
+```bash
+EPIC_BRANCH=""
+PINNED=$(git config --get claude.flowkit.prBase 2>/dev/null || true)
+if [[ -n "$PINNED" && "$PINNED" =~ ^feature/ ]]; then
+  EPIC_BRANCH="$PINNED"
+fi
+if [[ -z "$EPIC_BRANCH" ]]; then
+  CURRENT=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+  if [[ "$CURRENT" =~ ^feature/ ]]; then
+    EPIC_BRANCH="$CURRENT"
+  fi
+fi
+```
+
+- If `$EPIC_BRANCH` is non-empty: follow `flowkit:ship-epic`.
+- Else: announce `"Stage 3.5 skipped: no epic in flight"` and continue.
+
 ### Stage 4 — Cut a release candidate
 
 ```bash
@@ -86,10 +107,9 @@ AHEAD=$(git log origin/main..origin/develop --oneline | wc -l | tr -d ' ')
 
 ```bash
 HAS_RC=$(git ls-remote --heads origin "rc/*" | head -1)
-HAS_STAGING=$(git ls-remote --exit-code origin staging &>/dev/null && echo yes || echo no)
 ```
 
-- If both empty: announce `"Stage 5 skipped: no RC and no staging to release"` and stop.
+- If `HAS_RC` is empty: announce `"Stage 5 skipped: no RC to release"` and stop.
 - Else: follow `flowkit:release`.
 
 ### Stage 6 — Report
@@ -98,11 +118,12 @@ Print a per-stage summary. Use `—` for skipped stages:
 
 ```
 ── Ship Plugins ───────────────────────────────────
-1. merge-stack     : merged 3 PRs (#471 #472 #473)
-2. rc skip-ahead   : no existing RC
-3. bump-versions   : swarmkit 2.7.1→2.7.2, flowkit 2.0.4→2.1.0
-4. cut             : rc/2026-04-19.15
-5. release         : v2026.4.19.13 (closed #471 #472 #473)
+1.   merge-stack     : merged 3 PRs (#471 #472 #473)
+2.   rc skip-ahead   : no existing RC
+3.   bump-versions   : swarmkit 2.7.1→2.7.2, flowkit 2.0.4→2.1.0
+3.5  ship-epic       : skipped (no epic in flight)
+4.   cut             : rc/2026-04-19.15
+5.   release         : v2026.4.19.13 (closed #471 #472 #473)
 ───────────────────────────────────────────────────
 ```
 
@@ -112,7 +133,7 @@ Include a one-line reason for every skipped stage so the user can reason about w
 
 - Never run `/bump-versions` when an RC already exists on origin
 - Never cut when develop is in sync with main and there is no existing RC
-- Never release when there's no RC and no staging
+- Never release when there's no RC
 - Always continue past a stage with nothing to do; never error on "empty input"
 - Always print a final report listing every stage and its outcome (ran / skipped + reason)
 - Project-scoped: this skill is specific to `smallorbit-plugins`. Do not move it into flowkit — other flowkit consumers don't have `/bump-versions`
