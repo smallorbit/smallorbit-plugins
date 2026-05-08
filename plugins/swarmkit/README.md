@@ -50,7 +50,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Supports one-shot mode (specific issues) and loop mode (clear the board). Auto-creates PRs targeting `develop`. |
+| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch and route all child PRs to it (run `/ship-epic` to close out). Single-issue one-shot runs target `develop` directly. |
 | **swarm-plus** | `/swarm-plus` | Wraps `/swarm` with an automatic review/fix pass. After each swarm PR opens, dispatches the vendored `swarm-reviewer` agent per PR; if the reviewer flags blockers or concerns, dispatches a worker to push follow-up commits. Single pass per PR. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when any `worktree-agent-*` paths remain. |
@@ -79,9 +79,11 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 ```
 /next-issue                          # See what's ready to work on
-/swarm 12 15 18                      # Resolve specific issues in parallel
-/merge-pr       # If one PR — merge it directly (flowkit skill)
-/merge-stack    # If two or more PRs — retargets non-root PRs to $BASE, merges bottom-up: root first, leaves last
+/swarm 12 15 18                      # Auto-cuts feature branch, opens PRs against it
+/merge-stack                         # Fan child PRs into the epic branch bottom-up
+/ship-epic                           # Rebase-merge epic → develop, clear pin, delete epic branch
+/swarm 12                            # Single issue — flat to develop, no epic cut
+/merge-pr                            # Merge the one PR directly (flowkit skill)
 /swarm                               # Or clear the entire board in a loop
 /clean-worktrees                     # Tidy up after a swarm run
 ```
@@ -90,19 +92,23 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 1. Ensures a `develop` branch exists (creates from `main` if needed)
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
-3. Spawns one agent per issue (or grouped set) in isolated git worktrees
-4. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-5. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge into `develop` — bottom-up: root PRs first, leaves last, after retargeting non-root PRs to `develop`
-6. Cleans up worktrees and orphaned branches
+3. If the run will spawn ≥2 agents, cuts a `feature/<slug>-<N>` branch via `flowkit:cut-epic` and pins `claude.flowkit.prBase` to it — all spawned PRs target the epic branch
+4. Spawns one agent per issue (or grouped set) in isolated git worktrees
+5. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
+6. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge child PRs into the epic branch bottom-up; then run `/ship-epic` to rebase-merge the epic onto `develop`
+7. Cleans up worktrees and orphaned branches
 
-**One-shot mode**: `/swarm 12 15 18` — resolve those issues and stop.
-**Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear.
+**One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack → /ship-epic` to land.
+**Single issue (one-shot)**: `/swarm 12` — flat to `develop`, no epic cut; use `/merge-pr` to merge.
+**Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear; epic branch is cut once and reused across cycles.
 **Label filter**: `/swarm bug` — loop mode, but only `bug`-labeled issues.
 
 ### Flags
 
 - `--model <sonnet|opus>` — override model selection for all agents
-- `--base <branch>` — override the default base branch (`develop`)
+- `--base <branch>` — override the default base branch (`develop`); also suppresses the epic cut
+- `--no-epic` — suppress feature-branch mode for this run; PRs target `$BASE` directly
+- `--epic <slug>` — explicit slug for the auto-cut epic branch
 
 ## How Swarm Plus Works
 
