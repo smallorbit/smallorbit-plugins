@@ -42,13 +42,11 @@ If the current branch is `develop`, `main`, `master`, or `staging`, stop immedia
 
 ### 2. Determine base branch
 
-Resolve the base branch using the following precedence order:
+Resolve `$BASE` per the canonical chain at [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md).
 
-1. **Explicit caller arg** — if `$ARGUMENTS` contains a `--base <branch>` flag, extract and use it.
-2. **`claude.flowkit.prBase`** — per-session config key (set by swarm loop / cut-epic).
-3. **Legacy `claude.prBase`** — deprecated key (with migration notice).
-4. **`develop` if it exists on the remote** — check with `git ls-remote`.
-5. **GitHub default** — fall through to gh CLI default, but emit a one-line warning.
+<!-- include: plugins/_shared/base-resolution.md -->
+
+**Deviation: legacy `claude.prBase` fallback.** This skill additionally reads the unscoped `claude.prBase` key between the scoped key (`claude.flowkit.prBase`) and the `develop` fallback, emitting a deprecation notice when found. This extra step is a backward-compatibility deviation not present in the canonical algorithm. It is removed by [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896).
 
 ```bash
 # 1. Explicit caller arg
@@ -87,8 +85,6 @@ if [ -z "$BASE" ]; then
   BASE="$REPO_DEFAULT"
 fi
 ```
-
-`$BASE` is always non-empty after step 2 — pass it explicitly as `--base "$BASE"` to `gh pr create`. This respects any scoped override set by the `pr-base-scope` sub-skill.
 
 ### 3. Push branch to origin
 
@@ -183,7 +179,7 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
-- Always resolve `--base` before calling `gh pr create` using the precedence: explicit caller arg → `claude.flowkit.prBase` → legacy `claude.prBase` → `develop` (if remote exists) → repo default (with warning). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
+- Always resolve `--base` before calling `gh pr create` per [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md) (plus the legacy `claude.prBase` deviation documented in step 2). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
 - Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
 - Never open a PR from a protected branch (`develop`, `main`, `master`, `staging`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
