@@ -169,20 +169,16 @@ queue
 
 When the file is present, `/release` uses it verbatim and skips auto-detection. Use the same token you put in commit messages and PR titles.
 
-### Migrating from `claude.prBase`
+### Removed: `claude.prBase` (legacy)
 
-The legacy key `claude.prBase` is still read as a fallback so existing setups don't break. When flowkit falls back to the legacy key, it emits a one-line deprecation notice with the exact commands below. Migrate at your convenience:
+The unscoped legacy key `claude.prBase` is no longer read by any flowkit skill (removed in [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896)). If you have it set in a repo, clear it once and adopt the scoped key instead:
 
 ```bash
-# Read whatever was set on the legacy key
-LEGACY=$(git config claude.prBase)
-
-# Remove the legacy key and write the new one
 git config --unset claude.prBase
-git config claude.flowkit.prBase "$LEGACY"
+git config claude.flowkit.prBase develop   # or whatever value you had
 ```
 
-The legacy fallback is a soft deprecation and will be kept indefinitely — no hard break is planned. The new key aligns with the `claude.<plugin>.<key>` convention used across smallorbit plugins.
+Use the same `claude.<plugin>.prBase` convention for any other plugin that needs a session-pinned base.
 
 ## Assumptions & Conventions
 

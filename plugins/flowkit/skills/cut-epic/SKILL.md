@@ -140,6 +140,6 @@ To close out by hand (manual fallback):
 
 - Always branch from `origin/develop`, never from a local `develop` (which may be behind).
 - Never write a non-`feature/` prefix — this skill is purposely narrow.
-- Never modify `claude.prBase` (the legacy key) — only `claude.flowkit.prBase`. See `pr-base-scope` for the rationale.
+- Never modify `claude.prBase` (the legacy unscoped key, no longer read by any plugin) — only `claude.flowkit.prBase`. See `pr-base-scope` for the rationale.
 - Idempotent: re-running with the same arguments must not error if the branch already exists.
 - This skill does not open a PR. It only sets up the branch and scope. Use `flowkit:pr` / `flowkit:open-pr` for sub-work.
