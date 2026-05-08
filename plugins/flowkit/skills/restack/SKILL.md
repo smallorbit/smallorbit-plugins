@@ -18,7 +18,7 @@ Rebase the open descendant PRs of a parent PR onto its updated head and force-pu
 `$ARGUMENTS` — required. One of:
 
 - `--pr <N>` — PR whose descendant subtree is rebased onto its head. Recursive.
-- Empty — auto-resolve the PR for the current branch (`gh pr list --head $BRANCH`); equivalent to passing the resolved PR as `--pr`.
+- Empty — auto-resolve the PR for the current branch (`gh pr list --head $BRANCH`); equivalent to passing the resolved PR as `--pr`. Empty args resolve to `--pr <N>` and execute mode 1 — they are not a third invocation mode.
 
 The `--branch <head> --upstream <ref>` form is a cross-plugin entry point used by `swarmkit:merge-stack` step 5e. Operators don't pass it directly; documented here for completeness.
 
