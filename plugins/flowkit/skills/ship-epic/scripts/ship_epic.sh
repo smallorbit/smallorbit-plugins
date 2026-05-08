@@ -63,7 +63,7 @@ else
   EPIC=$(git config --get claude.flowkit.prBase 2>/dev/null || true)
 fi
 
-if [[ -z "$EPIC" || "$EPIC" == "develop" || "$EPIC" == "main" || "$EPIC" == "master" || "$EPIC" == "staging" ]]; then
+if [[ -z "$EPIC" || "$EPIC" == "develop" || "$EPIC" == "main" || "$EPIC" == "master" ]]; then
   echo "ship_epic: No epic in flight. claude.flowkit.prBase is unset (or equals develop) and no --epic flag was passed. Run /cut-epic first, pass --epic <branch>, or check out the epic branch." >&2
   exit 1
 fi

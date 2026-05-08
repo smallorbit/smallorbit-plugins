@@ -1,6 +1,6 @@
 ---
 name: cut
-description: Create a release candidate branch from origin/develop. Detects staging at runtime and auto-stages the RC if origin/staging exists.
+description: Create a release candidate branch from origin/develop.
 triggers:
   - "/cut"
   - "cut a release"
@@ -11,11 +11,11 @@ allowed-tools: Bash
 
 # Cut
 
-Create a versioned release candidate branch from `origin/develop`, then automatically stage it if `origin/staging` exists.
+Create a versioned release candidate branch from `origin/develop`.
 
 ## Input
 
-`$ARGUMENTS` — optional RC label or notes (e.g. "skip staging"). If omitted, all values are auto-derived.
+`$ARGUMENTS` — optional RC label or notes. If omitted, all values are auto-derived.
 
 ## Process
 
@@ -53,21 +53,10 @@ git push origin "refs/tags/$RC_BRANCH"
 
 The tag (`rc/YYYY-MM-DD.N`) shares the branch name; push it via full `refs/tags/` path to avoid the ambiguous-refspec error. The tag is pushed immediately so future cuts count it correctly even after the branch is deleted.
 
-### 4. Runtime staging detection
-
-```bash
-git ls-remote --exit-code origin staging &>/dev/null && STAGING_EXISTS=true || STAGING_EXISTS=false
-```
-
-### 5. Auto-stage if staging exists
-
-If `STAGING_EXISTS=true`, immediately follow the `/stage` skill with `$RC_BRANCH` as the argument.
-
-### 6. Report
+### 4. Report
 
 Output:
 - RC branch name created (e.g. `rc/2026-04-16.1`)
-- Whether `origin/staging` was detected and updated
 
 ## Constraints
 

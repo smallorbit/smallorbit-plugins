@@ -30,11 +30,9 @@ Follow `swarmkit:merge-stack`.
 
 Follow `flowkit:cut` to create an `rc/YYYY-MM-DD.N` branch from `origin/develop`.
 
-- If `origin/staging` exists, `/cut` will auto-stage the RC.
-
 ### 3. Release
 
-Follow `flowkit:release` to merge the RC (or staging) to `main`, create the version tag, close referenced issues, and clean up RC branches.
+Follow `flowkit:release` to merge the RC to `main`, create the version tag, close referenced issues, and clean up RC branches.
 
 Pass `$ARGUMENTS` as the argument if provided.
 
