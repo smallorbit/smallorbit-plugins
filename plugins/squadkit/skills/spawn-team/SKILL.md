@@ -263,28 +263,31 @@ If `--epic <slug>` was provided, the skill cuts the epic branch. Otherwise promp
 When cutting an epic:
 
 1. Resolve `<issue>` from `--epic` arguments or prompt for it. The expected slug is kebab-case (`[a-z0-9-]+`).
-2. Compose `FEATURE_BRANCH="feature/<slug>-<issue>"`.
-3. Cut it from the configured base branch — idempotent against existing branches:
+2. **Cross-pin guard.** Before invoking cut-epic, read the existing pin:
 
-```bash
-git fetch origin "${BASE_BRANCH}"
-if git show-ref --verify --quiet "refs/heads/${FEATURE_BRANCH}"; then
-  git checkout "${FEATURE_BRANCH}"
-elif git show-ref --verify --quiet "refs/remotes/origin/${FEATURE_BRANCH}"; then
-  git checkout -b "${FEATURE_BRANCH}" "origin/${FEATURE_BRANCH}"
-else
-  git checkout -b "${FEATURE_BRANCH}" "origin/${BASE_BRANCH}"
-fi
-git push -u origin "${FEATURE_BRANCH}"
-```
+   ```bash
+   EXISTING_PIN=$(git config --local --get claude.flowkit.prBase 2>/dev/null || true)
+   if [[ -n "$EXISTING_PIN" && "$EXISTING_PIN" =~ ^feature/ && "$EXISTING_PIN" != "feature/${slug}-${issue}" ]]; then
+     echo "spawn-team: an epic is already pinned (\`$EXISTING_PIN\`)." >&2
+     echo "  Re-run without --epic and answer \`Use \${BASE_BRANCH}\` to spawn against the base branch instead," >&2
+     echo "  or re-run with --epic matching the pinned slug to reuse it." >&2
+     exit 1
+   fi
+   ```
 
-4. Pin the PR base for the session:
+   When the existing pin matches the resolved feature branch, proceed silently — cut-epic is idempotent and will reuse the branch.
 
-```bash
-git config --local claude.flowkit.prBase "${FEATURE_BRANCH}"
-```
+3. Invoke `flowkit:cut-epic` via the Skill tool, forwarding the resolved slug and issue number verbatim (cut-epic input shape 2 — issue + slug pair):
 
-The pin is local to the repo (not the worktree) so every member inherits it. `WORK_BRANCH=${FEATURE_BRANCH}` from here on; if no epic was cut, `WORK_BRANCH=${BASE_BRANCH}`.
+   ```
+   Skill({skill: "flowkit:cut-epic", arguments: "<slug> <issue>"})
+   ```
+
+   cut-epic owns the rest: idempotent branch create-or-reuse from `origin/${BASE_BRANCH}`, push to origin, and pin `claude.flowkit.prBase` to `feature/<slug>-<issue>`. Surface cut-epic's report in spawn-team's final summary.
+
+4. Set `WORK_BRANCH=feature/<slug>-<issue>`. The pin is now live; every member's `flowkit:open-pr` invocation in this session targets the epic branch automatically.
+
+`WORK_BRANCH=${FEATURE_BRANCH}` from here on; if no epic was cut, `WORK_BRANCH=${BASE_BRANCH}`.
 
 ### 6.5 Stale-worktree pre-flight
 
@@ -616,7 +619,7 @@ These are observed limitations of the `Agent` and `TeamCreate` primitives at the
 
 | Caller | Behavior |
 |--------|----------|
-| `flowkit:cut-epic` | Equivalent epic-cutting flow when run standalone. `spawn-team --epic` performs the same operation inline so the team is born on the epic branch. |
+| `flowkit:cut-epic` | The canonical epic-cutting primitive. `spawn-team --epic` invokes this skill via the Skill tool so both entry points share one implementation. |
 | `flowkit:preview-epic` | Run after the team has merged sub-PRs to preview the epic-to-`${BASE_BRANCH}` diff. |
 | `flowkit:open-pr` / `flowkit:pr` | Member PRs target `claude.flowkit.prBase` automatically once the spawn pins it. |
 | `swarmkit:gh-fetch-issues` | Resolves `--issues <range>` into a filtered (open + non-on-hold) list for the lead's first dispatch prompt. |
