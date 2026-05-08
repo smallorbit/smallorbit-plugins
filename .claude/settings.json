@@ -34,7 +34,10 @@
       "Bash(*/plugins/flowkit/skills/merge-pr/scripts/merge_pr.sh:*)",
       "Bash($SKILL_DIR/scripts/ship_epic.sh:*)",
       "Bash(plugins/flowkit/skills/ship-epic/scripts/ship_epic.sh:*)",
-      "Bash(*/plugins/flowkit/skills/ship-epic/scripts/ship_epic.sh:*)"
+      "Bash(*/plugins/flowkit/skills/ship-epic/scripts/ship_epic.sh:*)",
+      "Bash($SKILL_DIR/scripts/restack.sh:*)",
+      "Bash(plugins/flowkit/skills/restack/scripts/restack.sh:*)",
+      "Bash(*/plugins/flowkit/skills/restack/scripts/restack.sh:*)"
     ]
   }
 }
