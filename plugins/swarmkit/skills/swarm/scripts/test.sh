@@ -63,9 +63,10 @@ assert_invalid_args preflight.sh "unknown-flag"      --not-a-flag
 assert_invalid_args preflight.sh "missing-value"     --base
 assert_invalid_args preflight.sh "extra-positional"  positional-not-allowed
 
-# teardown.sh — accepts --base <value>.
-assert_invalid_args teardown.sh "unknown-flag"   --not-a-flag
-assert_invalid_args teardown.sh "missing-value"  --base
+# teardown.sh — accepts --base <value>, --keep-pr-base (no value).
+assert_invalid_args teardown.sh "unknown-flag"              --not-a-flag
+assert_invalid_args teardown.sh "missing-value"             --base
+assert_invalid_args teardown.sh "keep-pr-base-extra-positional" --keep-pr-base extra-positional
 
 # verify_agent.sh — exactly one positive integer.
 assert_invalid_args verify_agent.sh "no-args"
