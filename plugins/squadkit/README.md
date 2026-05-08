@@ -142,16 +142,14 @@ It scans `~/.claude/teams/<repo>-*` and picks the first letter without a `config
 
 `spawn-team` integrates with the flowkit epic flow. When you pass `--epic <slug>`, the skill:
 
-1. Reads `baseBranch` from `.squadkit/config.json` (defaults to `develop` if missing).
-2. Cuts `feature/<slug>-<issue>` from `origin/<baseBranch>` (idempotent against existing branches).
-3. Pushes the branch to origin.
-4. Pins `claude.flowkit.prBase` so every member PR opened during the session targets the epic branch.
+1. Resolves `<issue>` from the `--epic` argument shape (or prompts when omitted).
+2. Invokes `flowkit:cut-epic` (idempotent against existing branches; pins `claude.flowkit.prBase`; pushes to origin).
 
 If `--epic` is not provided, the skill prompts whether to cut one or run on the base branch directly.
 
 See the related flowkit skills:
 
-- [`flowkit:cut-epic`](../flowkit/skills/cut-epic/SKILL.md) — standalone epic cut, equivalent to the inline cut performed by `spawn-team --epic`.
+- [`flowkit:cut-epic`](../flowkit/skills/cut-epic/SKILL.md) — the primitive that `spawn-team --epic` invokes.
 - [`flowkit:preview-epic`](../flowkit/skills/preview-epic/SKILL.md) — preview the epic-to-base diff before opening the final integration PR.
 
 ### Idempotency and per-builder worktrees
