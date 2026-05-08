@@ -85,7 +85,7 @@ Failure is handled explicitly rather than by retrying. If an issue fails during 
 
 A small set of failures are treated as unrecoverable and halt the loop immediately: an agent that crashed without producing a PR (there is nothing to review, so there is nothing to proceed from) and the base branch being deleted or corrupted externally (the premise of the loop is gone). Everything else is recoverable and surfaces in the checkpoint report.
 
-Loop mode sets `claude.prBase` as a local git config at the start and unsets it in teardown. While it is set, every pull request created in the repository targets that base, which is what keeps independent PRs merging into the intended base branch even when the command line that created them did not specify `--base`. The teardown unset is critical — leaving the config set leaks the scoped base into unrelated PR-creation commands in the same repository.
+Loop mode sets `claude.flowkit.prBase` as a local git config at the start and unsets it in teardown. While it is set, every pull request created in the repository targets that base, which is what keeps independent PRs merging into the intended base branch even when the command line that created them did not specify `--base`. The teardown unset is critical — leaving the config set leaks the scoped base into unrelated PR-creation commands in the same repository.
 
 ## End-to-End Walkthrough
 

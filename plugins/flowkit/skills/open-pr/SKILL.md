@@ -46,8 +46,6 @@ Resolve `$BASE` per the canonical chain at [`plugins/_shared/base-resolution.md`
 
 <!-- include: plugins/_shared/base-resolution.md -->
 
-**Deviation: legacy `claude.prBase` fallback.** This skill additionally reads the unscoped `claude.prBase` key between the scoped key (`claude.flowkit.prBase`) and the `develop` fallback, emitting a deprecation notice when found. This extra step is a backward-compatibility deviation not present in the canonical algorithm. It is removed by [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896).
-
 ```bash
 # 1. Explicit caller arg
 BASE=""
@@ -60,25 +58,14 @@ if [ -z "$BASE" ]; then
   BASE=$(git config claude.flowkit.prBase 2>/dev/null)
 fi
 
-# 3. Legacy claude.prBase (deprecated)
-if [ -z "$BASE" ]; then
-  LEGACY=$(git config claude.prBase 2>/dev/null)
-  if [ -n "$LEGACY" ]; then
-    BASE="$LEGACY"
-    echo "note: claude.prBase is deprecated. Migrate with:" >&2
-    echo "  git config --unset claude.prBase" >&2
-    echo "  git config claude.flowkit.prBase $LEGACY" >&2
-  fi
-fi
-
-# 4. develop if it exists on the remote
+# 3. develop if it exists on the remote
 if [ -z "$BASE" ]; then
   if git ls-remote --heads origin develop | grep -q 'refs/heads/develop'; then
     BASE="develop"
   fi
 fi
 
-# 5. Fallback — use the repo default and warn
+# 4. Fallback — use the repo default and warn
 if [ -z "$BASE" ]; then
   REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
   echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
@@ -179,8 +166,8 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
-- Always resolve `--base` before calling `gh pr create` per [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md) (plus the legacy `claude.prBase` deviation documented in step 2). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
-- Never target `main` directly unless `claude.flowkit.prBase` (or legacy `claude.prBase`) is explicitly set to `main`
+- Always resolve `--base` before calling `gh pr create` per [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
+- Never target `main` directly unless `claude.flowkit.prBase` is explicitly set to `main`
 - Never open a PR from a protected branch (`develop`, `main`, `master`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
 - Do not force-push; use a plain `git push -u origin HEAD`
