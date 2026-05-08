@@ -31,7 +31,7 @@ Run it before staging and committing the release.
 
 **Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. Discovery crews stay on `develop` since they don't produce code. The supporting flow primitives live in flowkit:
 
-- `flowkit:cut-epic` — cut the long-lived feature branch standalone (equivalent to the inline cut performed by `spawn-team --epic`).
+- `flowkit:cut-epic` — cut the long-lived feature branch standalone (the primitive that `spawn-team --epic` invokes).
 - `flowkit:preview-epic` — preview the combined epic-to-base diff before opening the final integration PR.
 
 ## Skill Authoring Conventions
