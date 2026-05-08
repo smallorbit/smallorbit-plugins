@@ -21,7 +21,12 @@ No arguments.
 
 ### 1. Switch to develop and pull
 
-Follow the `git-sync-develop` sub-skill: check out `develop` and pull the latest from origin.
+Check out `develop` and pull the latest from `origin` (never leave `develop` stale before the prune/cleanup steps below):
+
+```bash
+git checkout develop
+git pull origin develop
+```
 
 ### 2. Prune stale remote-tracking refs
 
