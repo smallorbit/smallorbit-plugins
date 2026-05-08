@@ -9,15 +9,16 @@ commands:
   - /flowkit:cut
   - /flowkit:release
   - /flowkit:sync
-  - /flowkit:stage
+  - /flowkit:ship-epic
+  - /flowkit:restack
   - /flowkit:pipeline-status
   - /flowkit:preview-epic
   - /flowkit:cut-epic
 summary: >
   flowkit wraps the full develop → release → main lifecycle into a set of
   Claude Code skills. It handles branch creation, PR opening with structured
-  bodies, squash-merging, staging cuts, and release tagging — so every merge
-  follows the same convention without manual steps.
+  bodies, squash-merging, rebase-merge release tagging, and epic promotion —
+  so every merge follows the same convention without manual steps.
 ---
 
 flowkit is the backbone of the smallorbit release pipeline.
