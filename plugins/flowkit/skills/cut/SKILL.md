@@ -15,7 +15,7 @@ Create a versioned release candidate branch from `origin/develop`, then automati
 
 ## Input
 
-`$ARGUMENTS` — optional RC label or notes (e.g. "hotfix notes", "skip staging"). If omitted, all values are auto-derived.
+`$ARGUMENTS` — optional RC label or notes (e.g. "skip staging"). If omitted, all values are auto-derived.
 
 ## Process
 
