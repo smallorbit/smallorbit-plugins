@@ -7,46 +7,27 @@ description: Auto-stash uncommitted changes around a command that triggers an im
 
 Wrap a command whose side effects include an implicit `git pull` (most notably `gh pr merge --squash --delete-branch` / `--merge --delete-branch`) so a dirty workspace cannot break the post-merge pull with `cannot pull with rebase: You have unstaged changes`.
 
-The guard auto-stashes uncommitted changes (tracked + untracked) before the wrapped command and pops the stash after. If the pop conflicts, it leaves the stash on the stack and surfaces that to the user — never auto-resolves.
+The deterministic stash-guard behavior lives in [`scripts/with_clean_workspace.sh`](./scripts/with_clean_workspace.sh). Callers should invoke that script contract directly rather than re-implementing stash logic inline.
 
-## Process
-
-### 1. Detect dirty workspace before the wrapped command
+## Invocation
 
 ```bash
-DIRTY=false
-if [ -n "$(git status --porcelain)" ]; then
-  DIRTY=true
-  git stash push -u -m "flowkit-auto-stash" >/dev/null
-fi
+bash "$SKILL_DIR/scripts/with_clean_workspace.sh" -- <command> [args...]
 ```
 
-### 2. Run the wrapped command
+`$SKILL_DIR` is the absolute runtime path to the *with-clean-workspace* skill (from the invocation header: `Base directory for this skill: ...`).
 
-Whatever the caller needs to invoke (`gh pr merge ...`, etc.). Capture whether it succeeded:
+For cross-skill callers inside flowkit (for example `merge-pr` and `release`), derive the target skill path from the caller:
 
 ```bash
-if <wrapped-command>; then
-  MERGE_OK=true
-else
-  MERGE_OK=false
-fi
+WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
+bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- <command> [args...]
 ```
 
-### 3. Restore the stash only if the wrapped command succeeded
+## Contract
 
-The pop is conditional on the wrapped command exiting 0. If the command failed (e.g. merge conflict on GitHub, network error), the stash is left on the stack so the user can retry without losing their workspace state:
-
-```bash
-if [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "true" ]; then
-  if ! git stash pop; then
-    echo "WARNING: stash pop conflicted. Your changes are preserved on the stash stack." >&2
-    echo "Run \`git stash list\` to see the saved entry (message: flowkit-auto-stash) and \`git stash pop\` after resolving." >&2
-  fi
-elif [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "false" ]; then
-  echo "WARNING: merge failed — stash preserved. Run \`git stash pop\` after resolving the merge error." >&2
-fi
-
-[ "$MERGE_OK" = "false" ] && exit 1
-```
-
+- Interface: `-- <command ...>`; missing `--` or command exits `2` with stderr usage text.
+- Dirty workspace handling: stashes tracked + untracked changes (`git stash push -u -m "flowkit-auto-stash"`).
+- Success path: restores stash (`git stash pop`).
+- Pop conflict path: warns to stderr and leaves stash on stack.
+- Failure path: keeps stash, warns to stderr, exits with wrapped command's non-zero exit code.
