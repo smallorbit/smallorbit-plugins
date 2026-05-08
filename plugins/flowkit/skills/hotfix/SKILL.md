@@ -165,7 +165,12 @@ Branch on `$PUSH_RESULT`:
 
 ### 13. Sync develop
 
-Follow the `git-sync-develop` sub-skill to confirm a clean local develop state.
+Confirm a clean local `develop` by checking it out and pulling the latest from `origin`:
+
+```bash
+git checkout develop
+git pull origin develop
+```
 
 ### 14. Report
 
