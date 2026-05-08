@@ -45,13 +45,13 @@ You have a clean three-PR stack. Root targets `develop`. Middle PR's base is the
 
 You now have two closed PRs that were perfectly healthy thirty seconds ago.
 
-`/merge-stack` does the obvious fix in a non-obvious place: *before* the first merge runs, it retargets every non-root PR to the base branch.
+`/merge-stack` does the obvious fix in a non-obvious place: *before* the first merge runs, it retargets every non-root PR to the base branch (the feature branch for multi-issue epic swarms; `develop` for flat or `--no-epic` runs).
 
 ```bash
-gh pr edit <N> --base develop
+gh pr edit <N> --base <base-branch>
 ```
 
-Once a child's base is `develop`, deleting its predecessor's branch on merge no longer looks like abandonment. The auto-close cascade simply doesn't fire. After that, every PR in the stack merges with the same boring command:
+Once a child's base is the shared base branch, deleting its predecessor's branch on merge no longer looks like abandonment. The auto-close cascade simply doesn't fire. After that, every PR in the stack merges with the same boring command:
 
 ```bash
 gh pr merge <N> --squash --delete-branch
@@ -66,17 +66,17 @@ Retargeting prevents the auto-close cascade, but it doesn't solve the *next* pro
 So `/merge-stack` does a local rebase between every pair of merges, for every still-open downstream PR in the chain:
 
 ```bash
-git fetch origin <head-branch> develop
+git fetch origin <head-branch> <base-branch>
 git checkout <head-branch>
-git rebase origin/develop
+git rebase origin/<base-branch>
 git push --force-with-lease origin <head-branch>
 ```
 
-`git rebase`'s patch-id matching is what carries the load. It recognizes the predecessor's commits as already applied — under a different SHA — and drops them, emitting `warning: skipped previously applied commit <sha>` for each one. That's the happy path, not an error. The downstream PR then has only its own new commits on top of the fresh `develop`, and the next squash merge runs cleanly.
+`git rebase`'s patch-id matching is what carries the load. It recognizes the predecessor's commits as already applied — under a different SHA — and drops them, emitting `warning: skipped previously applied commit <sha>` for each one. That's the happy path, not an error. The downstream PR then has only its own new commits on top of the fresh base branch, and the next squash merge runs cleanly.
 
 For independent PRs (no chain), this step is skipped — they target `develop` directly and have no predecessor commits to drop. If a rebase fails with a real content conflict (not a patch-id-matchable duplicate), the chain stops at that PR, the rest of the chain is marked blocked, and unrelated PRs continue.
 
-<Diagram caption="/merge-stack: retarget all non-root PRs to develop first, then walk the chain root-to-leaf, rebasing what's left between each merge.">
+<Diagram caption="/merge-stack: retarget all non-root PRs to the base branch first, then walk the chain root-to-leaf, rebasing what's left between each merge.">
   <MergeStackDiagram />
 </Diagram>
 
@@ -84,12 +84,14 @@ For independent PRs (no chain), this step is skipped — they target `develop` d
 
 After `/merge-stack`:
 
-- One squash commit per issue on `develop`.
+- One squash commit per issue on the base branch (the feature branch for multi-issue epic swarms, or `develop` for flat runs).
 - No orphaned remote branches.
 - No merge bubbles.
 - All referenced issues closed.
 
-If a PR fails review or merge mid-stack, the chain stops cleanly. Because retargeting happened up front, every still-open downstream PR already targets `develop` — resuming is just fixing the conflict and re-running.
+For epic swarms, run `/ship-epic` next to rebase-merge the feature branch onto `develop` linearly — so `develop`'s first-parent history stays one squash per issue, with no merge commits.
+
+If a PR fails review or merge mid-stack, the chain stops cleanly. Because retargeting happened up front, every still-open downstream PR already targets the base branch — resuming is just fixing the conflict and re-running.
 
 ## When to reach for it
 

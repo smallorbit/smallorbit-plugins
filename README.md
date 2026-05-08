@@ -122,15 +122,16 @@ Once the PRs look right, merge and release them however you normally would. If y
 /plugin install flowkit@smallorbit-plugins
 ```
 
-Then merge everything in three commands:
+For a multi-issue epic (the default when `/swarm` receives more than one issue), the stack lands on a feature branch. Promote it in four commands:
 
 ```
-/merge-stack     # merge all swarm PRs bottom-up into develop
+/merge-stack     # merge swarm PRs bottom-up into the feature branch
+/ship-epic       # rebase-merge the feature branch onto develop (linear)
 /cut             # create a release candidate from develop
 /release         # promote to main, tag the release, close referenced issues
 ```
 
-Or collapse all three into a single `/ship`. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle and RC naming.
+Or collapse all four into a single `/ship`. For single-issue or `--no-epic` runs, `/merge-stack` lands directly on `develop` and `/ship-epic` is skipped automatically. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle.
 
 ## How the Plugins Compose
 

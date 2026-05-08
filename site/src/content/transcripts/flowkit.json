@@ -35,8 +35,8 @@
     ],
     [
       { "type": "prompt", "text": "✓" },
-      { "type": "text", "text": " staging updated " },
-      { "type": "annotate", "text": "(origin/staging detected)" }
+      { "type": "text", "text": " RC promoted " },
+      { "type": "annotate", "text": "(direct to main)" }
     ],
     [
       { "type": "text", "text": " " }
@@ -48,7 +48,7 @@
     ],
     [
       { "type": "prompt", "text": "✓" },
-      { "type": "text", "text": " merged staging → main · tagged " },
+      { "type": "text", "text": " rebase-merged RC → main · tagged " },
       { "type": "annotate", "text": "v2026.04.17.1" }
     ],
     [
