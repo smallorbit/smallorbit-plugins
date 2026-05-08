@@ -39,6 +39,7 @@ claude --plugin-dir /path/to/flowkit
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees). |
+| **restack** | `/restack` | Rebase open descendant PRs of a parent PR onto its updated head and force-push, recursing through the subtree. Use mid-review after revising a stacked PR. |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`; auto-stages if a staging branch exists. |
 | **stage** | `/stage` | Force-reset the `staging` branch to a release candidate. No-op if staging doesn't exist. |
@@ -101,6 +102,17 @@ The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flo
 Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` for the full Model A vs. Model B detection rules.
 
 > Do not run `/ship` while an epic is in flight unless you intend to ship the epic. `/ship` will rescope `claude.flowkit.prBase` to `develop` for its own flow.
+
+### Mid-review restack
+
+After pushing new commits to a parent PR in a stack, bring every still-open descendant PR up to date in one command:
+
+```
+/restack --pr <N>       # rebase all open descendants of PR N and force-push
+/restack                # auto-resolve the PR for the current branch
+```
+
+The subtree is walked breadth-first: siblings continue independently if one branch hits a conflict. Conflicted branches are reported; the operator resolves by hand and re-runs `/restack`.
 
 ### Feature flow
 

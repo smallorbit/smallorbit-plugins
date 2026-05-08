@@ -157,18 +157,11 @@ After merging a non-leaf PR in a chain, every still-open downstream PR in that c
 For every still-open PR in the chain, from closest-to-root to leaf:
 
 ```bash
-git fetch origin <head-branch> $BASE
-git checkout <head-branch>
-if ! git rebase origin/$BASE; then
-  git rebase --abort
-  # Real content conflict (e.g. add/add on a file two chains both created).
-  # Fall through to 5d: stop this chain, block its dependents, continue with
-  # other chains/independents. Do NOT force-push; leave the PR untouched so
-  # the user can resolve by hand.
-  continue  # or equivalent control flow in the skill's execution loop
-fi
-git push --force-with-lease origin <head-branch>
+RESTACK_SH="plugins/flowkit/skills/restack/scripts/restack.sh"
+bash "$RESTACK_SH" --branch "<head-branch>" --upstream "origin/$BASE"
 ```
+
+Implementation lives at [`flowkit:restack`](../../../flowkit/skills/restack/SKILL.md). The same script powers `/restack --pr N` for mid-review use.
 
 `git rebase` will emit `warning: skipped previously applied commit <sha>` for each predecessor commit it drops via patch-id — that's the expected happy path, not an error. A non-zero exit from `git rebase` means a real merge conflict git could not auto-resolve; handle it per 5d. Always `git rebase --abort` before falling through so the branch returns to its pre-rebase state and no partial work is pushed.
 
