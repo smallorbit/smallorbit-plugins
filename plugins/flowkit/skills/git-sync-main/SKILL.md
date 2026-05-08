@@ -1,6 +1,6 @@
 ---
 name: git-sync-main
-description: Check out main and pull the latest from origin. Sub-skill used by release and hotfix.
+description: Check out main and pull the latest from origin. Sub-skill used by release.
 ---
 
 # git-sync-main

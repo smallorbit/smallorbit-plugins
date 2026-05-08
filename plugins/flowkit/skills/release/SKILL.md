@@ -223,11 +223,11 @@ RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE"); rm -f "$RELEASE_NOTES_FILE"
 # --- narrative summary ---
 # Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
 # and version bumps. State what this release contains overall — e.g.
-# "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up."
+# "Ship swarmkit stacked-merge bugfix alongside flowkit pipeline-status tidy-up."
 # Do not list individual file paths or repeat the title. Keep it to 3 sentences max.
 NARRATIVE_SUMMARY="<!-- Write 1–3 sentences summarising what this release contains.
 Derive the narrative from the version bumps and release notes computed above.
-Example: "Ship swarmkit stacked-merge bugfix alongside flowkit hotfix workflow tidy-up." -->"
+Example: "Ship swarmkit stacked-merge bugfix alongside flowkit pipeline-status tidy-up." -->"
 
 # --- assemble PR body ---
 # <!-- include: plugins/_shared/pr-body.md -->

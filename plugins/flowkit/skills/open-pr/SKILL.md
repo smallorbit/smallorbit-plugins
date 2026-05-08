@@ -145,7 +145,7 @@ if printf '%s\n' "$PR_BODY" | grep -qiE '(closes|fixes|resolves) #[0-9]+'; then
 fi
 ```
 
-This is informational only — do not abort or rewrite the body. The `/release` and `/hotfix` skills explicitly close aggregated issues after their respective merges, so the lifecycle still completes.
+This is informational only — do not abort or rewrite the body. The `/release` skill explicitly closes aggregated issues after its merge, so the lifecycle still completes.
 
 ### 8. Lint the assembled body for broken closing-keyword footers
 
