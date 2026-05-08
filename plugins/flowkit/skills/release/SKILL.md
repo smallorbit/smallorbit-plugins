@@ -289,13 +289,8 @@ Capture the PR number from the URL output.
 
 ```bash
 WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
-if bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- gh pr merge "$PR_URL" --merge --delete-branch; then
-  MERGE_OK=true
-else
-  MERGE_OK=false
-fi
-
-[ "$MERGE_OK" = "false" ] && exit 1
+bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- \
+  gh pr merge "$PR_URL" --merge --delete-branch || exit 1
 ```
 
 Use `--merge` to preserve the full commit history from the RC branch in main.

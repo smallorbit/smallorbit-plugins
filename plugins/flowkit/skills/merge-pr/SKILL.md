@@ -101,33 +101,32 @@ gh pr list --base "$HEAD_BRANCH" --state open --json number --jq '.[].number' \
 
 ```bash
 WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
-MERGE_STATUS_FILE=$(mktemp)
+set +e
+MERGE_STATUS=$(
+  bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- \
+    bash -c '
+      PR_NUM="$1"
+      if gh pr merge "$PR_NUM" --squash --delete-branch; then
+        printf "%s\n" "ok"
+        exit 0
+      fi
 
-if bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- \
-  bash -lc '
-    PR_NUM="$1"
-    STATUS_FILE="$2"
-    if gh pr merge "$PR_NUM" --squash --delete-branch; then
-      printf "%s\n" "ok" > "$STATUS_FILE"
-      exit 0
-    fi
+      if PR_STATE=$(gh pr view "$PR_NUM" --json state --jq ".state" 2>/dev/null); then
+        if [ "$PR_STATE" = "MERGED" ]; then
+          printf "%s\n" "local-delete-failed"
+          exit 0
+        fi
+      else
+        echo "WARNING: could not query PR #$PR_NUM state after failed merge attempt." >&2
+      fi
 
-    PR_STATE=$(gh pr view "$PR_NUM" --json state --jq ".state" 2>/dev/null || true)
-    if [ "$PR_STATE" = "MERGED" ]; then
-      printf "%s\n" "local-delete-failed" > "$STATUS_FILE"
-      exit 0
-    fi
+      printf "%s\n" "failed"
+      exit 1
+    ' _ "$PR_NUM"
+)
+MERGE_EXIT=$?
+set -e
 
-    printf "%s\n" "failed" > "$STATUS_FILE"
-    exit 1
-  ' _ "$PR_NUM" "$MERGE_STATUS_FILE"; then
-  MERGE_OK=true
-else
-  MERGE_OK=false
-fi
-
-MERGE_STATUS=$(cat "$MERGE_STATUS_FILE" 2>/dev/null || true)
-rm -f "$MERGE_STATUS_FILE"
 LOCAL_DELETE_FAILED=false
 [ "$MERGE_STATUS" = "local-delete-failed" ] && LOCAL_DELETE_FAILED=true
 
@@ -143,7 +142,7 @@ if [ "$LOCAL_DELETE_FAILED" = "true" ]; then
   echo "  git branch -D $HEAD_BRANCH" >&2
 fi
 
-[ "$MERGE_OK" = "false" ] && exit 1
+[ "$MERGE_EXIT" -ne 0 ] && exit 1
 ```
 
 ### 7. Report
