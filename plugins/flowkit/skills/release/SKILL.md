@@ -1,6 +1,6 @@
 ---
 name: release
-description: Merge staging (or RC) to main via PR, tag the release, close referenced issues, and clean up RC branches.
+description: Merge the newest RC to main via PR, tag the release, close referenced issues, and clean up RC branches.
 triggers:
   - "/release"
   - "release this"
@@ -26,26 +26,18 @@ Promote the current release candidate to production: open a PR into `main`, merg
 git fetch origin
 ```
 
-### 2. Runtime staging detection
+### 2. Determine source branch
 
 ```bash
-git ls-remote --exit-code origin staging &>/dev/null && STAGING_EXISTS=true || STAGING_EXISTS=false
-```
-
-### 3. Determine source branch
-
-```bash
-if [ "$STAGING_EXISTS" = "true" ]; then
-  SOURCE="staging"
-else
-  SOURCE=$(git ls-remote --heads --sort=-version:refname origin "rc/*" \
-    | head -1 \
-    | awk '{print $2}' \
-    | sed 's|refs/heads/||')
+SOURCE=$(git ls-remote --heads --sort=-version:refname origin "rc/*" \
+  | head -1 \
+  | awk '{print $2}' \
+  | sed 's|refs/heads/||')
+if [ -z "$SOURCE" ]; then
+  echo "release: no rc/* branch on origin — nothing to release. Run /cut first." >&2
+  exit 1
 fi
 ```
-
-If `SOURCE` is empty, abort with an error — there is nothing to release.
 
 ### 4. Aggregate issue references from merged PRs
 
@@ -417,4 +409,4 @@ Output:
 - Never push directly to `main` — always merge via PR
 - Always create the git tag after the merge, never before
 - Always sync both `main` and `develop` after release
-- If no RC branch exists and staging is absent, abort with a clear error message
+- If no RC branch exists, abort with a clear error message.

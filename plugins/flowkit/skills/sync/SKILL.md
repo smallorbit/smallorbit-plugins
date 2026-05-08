@@ -36,10 +36,10 @@ git fetch --prune
 
 ### 3. Delete merged local branches
 
-List local branches fully merged into `develop` (excluding `develop`, `main`, `staging`, and the current branch), then delete them:
+List local branches fully merged into `develop` (excluding `develop`, `main`, and the current branch), then delete them:
 
 ```bash
-git branch --merged develop | grep -vE '^\*|develop|main|staging' | xargs -r git branch -d
+git branch --merged develop | grep -vE '^\*|develop|main' | xargs -r git branch -d
 ```
 
 ### 4. Report
