@@ -78,7 +78,7 @@ Released: v2026.4.19.12
 
 [In flight] Open PRs → develop (2):
   #471  APPROVED       clean    docs(swarmkit): fix epic loop          (@alice, 2h)
-  #472  DRAFT          —        feat(flowkit): release back-merge      (@bob, 30m)
+  #472  DRAFT          —        feat(flowkit): rebase-merge release flow      (@bob, 30m)
 
 [Awaiting cut] Develop → main (2 commits):
   • chore(deps): bump axios          (1h ago)

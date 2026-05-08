@@ -12,7 +12,7 @@ allowed-tools: Bash
 
 # Release
 
-Promote the current release candidate to production: open a PR into `main`, merge it, tag the commit, close referenced issues, delete RC branches, and sync develop.
+Promote the current release candidate to production: open a PR into `main`, merge it via rebase, tag the commit, close referenced issues, and delete RC branches.
 
 ## Input
 
@@ -38,6 +38,25 @@ if [ -z "$SOURCE" ]; then
   exit 1
 fi
 ```
+
+### 3. Rebase-merge preflight
+
+`gh pr merge --rebase` requires the RC to include every commit on `main`. In the bubble-free flow this is automatic — `main` only changes via release, and the RC is cut from `develop` which is always a superset of `main`. The preflight is a one-line guard against the rare case of a direct hotfix on `main`:
+
+```bash
+if ! git merge-base --is-ancestor origin/main "origin/$SOURCE"; then
+  echo "release: $SOURCE does not include all of origin/main; rebase-merge will fail." >&2
+  echo "Recover with:" >&2
+  echo "  git fetch origin" >&2
+  echo "  git checkout $SOURCE" >&2
+  echo "  git rebase origin/main" >&2
+  echo "  git push --force-with-lease origin $SOURCE" >&2
+  echo "Then re-run /release." >&2
+  exit 1
+fi
+```
+
+The check is cheap (no network beyond the prior `git fetch origin` in step 1) and turns the most common rebase-merge failure mode into a recoverable, well-described abort.
 
 ### 4. Aggregate issue references from merged PRs
 
@@ -274,15 +293,15 @@ Capture the PR number from the URL output.
 
 ### 6. Merge the PR
 
-`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the [`flowkit:with-clean-workspace`](../../with-clean-workspace/SKILL.md) script so any dirty state is auto-stashed and restored:
+`gh pr merge --rebase --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the [`flowkit:with-clean-workspace`](../../with-clean-workspace/SKILL.md) script so any dirty state is auto-stashed and restored:
 
 ```bash
 WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
 bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- \
-  gh pr merge "$PR_URL" --merge --delete-branch || exit 1
+  gh pr merge "$PR_URL" --rebase --delete-branch || exit 1
 ```
 
-Use `--merge` to preserve the full commit history from the RC branch in main.
+Use `--rebase --delete-branch` to replay each commit from the RC linearly onto main. The RC's per-feature squash commits become main's first-parent line in chronological order — main has zero merge bubbles per release, and the per-feature commit messages stay visible exactly as they appeared on develop.
 
 ### 7. Sync main
 
@@ -355,46 +374,7 @@ else
 fi
 ```
 
-### 11. Back-merge main into develop
-
-Bring develop's tip up to main so the next release cycle starts from parity. Use a real merge commit (not a fast-forward / squash) so the release merge from step 6 stays visible in develop's history.
-
-```bash
-git fetch origin
-git checkout develop
-git pull --ff-only origin develop
-git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/main
-```
-
-Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — it always opens a merge-strategy back-merge PR (never pushes directly to develop):
-
-```bash
-PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
-PR_BODY="## Summary
-
-Back-merge release \`$TAG\` from main into develop.
-
-## Test plan
-
-- [ ] Confirm \`git log origin/main..origin/develop\` is empty after merge."
-
-RESULT=$(bash "$PUSH_OR_PR_DIR/scripts/push_or_pr.sh" \
-  --prefix "chore/sync-develop" \
-  --title "chore(develop): back-merge release $TAG from main" \
-  --body "$PR_BODY" \
-  --base "develop")
-
-PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
-NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
-PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
-```
-
-Branch on `$PUSH_RESULT`:
-
-- `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the release merge commit's history). The local working tree is left on `$NEW_BRANCH` — switch back to develop and pull after the merge.
-- `noop` — develop is already at or ahead of main on origin. Skip the publish and continue.
-
-### 12. Report
+### 11. Report
 
 Output:
 
@@ -408,5 +388,5 @@ Output:
 
 - Never push directly to `main` — always merge via PR
 - Always create the git tag after the merge, never before
-- Always sync both `main` and `develop` after release
+- Always pass `--rebase --delete-branch` to `gh pr merge` for the release PR. Never use `--merge` or `--squash` — those reintroduce merge bubbles or collapse per-feature history, both of which the bubble-free invariant forbids.
 - If no RC branch exists, abort with a clear error message.

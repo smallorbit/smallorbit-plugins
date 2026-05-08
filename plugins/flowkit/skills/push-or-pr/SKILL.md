@@ -30,7 +30,7 @@ RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
 
 | Flag | Required | Default | Purpose |
 |------|----------|---------|-------|
-| `--prefix` | when there are pending commits | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`, `chore/sync-develop`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
+| `--prefix` | when there are pending commits | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
 | `--title` | when there are pending commits | — | PR title. |
 | `--body` | when there are pending commits | — | PR body. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). Multi-line strings are fine — the caller quotes the value. |
 | `--base` | always optional | `develop` | Base branch for the PR. |
