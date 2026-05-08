@@ -1,0 +1,76 @@
+---
+---
+
+<svg viewBox="0 0 640 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="/merge-stack first retargets all non-root PRs to develop, then merges bottom-up with a local rebase between each pair of merges to drop the predecessor's commits via patch-id matching.">
+  <defs>
+    <marker id="arrow-ms" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a8a29c" />
+    </marker>
+    <marker id="arrow-ms-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#166534" />
+    </marker>
+  </defs>
+
+  <text class="mono" x="320" y="20" text-anchor="middle" font-size="12" font-weight="500">Phase 1 — retarget non-root PRs to develop (before any merge)</text>
+
+  <text class="muted" x="178" y="48" text-anchor="middle" font-size="11" font-style="italic">stack as opened</text>
+  <rect class="node" x="14" y="60" width="80" height="36" rx="6" />
+  <text class="mono" x="54" y="83" text-anchor="middle" font-size="12">develop</text>
+  <line class="edge" x1="116" y1="78" x2="94" y2="78" marker-end="url(#arrow-ms)" />
+  <rect class="node" x="116" y="60" width="60" height="36" rx="6" />
+  <text class="mono" x="146" y="83" text-anchor="middle" font-size="12">#210</text>
+  <line class="edge" x1="198" y1="78" x2="176" y2="78" marker-end="url(#arrow-ms)" />
+  <rect class="node" x="198" y="60" width="60" height="36" rx="6" />
+  <text class="mono" x="228" y="83" text-anchor="middle" font-size="12">#211</text>
+  <line class="edge" x1="280" y1="78" x2="258" y2="78" marker-end="url(#arrow-ms)" />
+  <rect class="node" x="280" y="60" width="60" height="36" rx="6" />
+  <text class="mono" x="310" y="83" text-anchor="middle" font-size="12">#212</text>
+  <text class="muted" x="178" y="116" text-anchor="middle" font-size="10">arrow: PR → its base branch</text>
+
+  <text class="muted" x="500" y="48" text-anchor="middle" font-size="11" font-style="italic">after retargeting</text>
+  <rect class="node node--accent" x="386" y="86" width="80" height="36" rx="6" />
+  <text class="mono" x="426" y="109" text-anchor="middle" font-size="12">develop</text>
+  <rect class="node" x="514" y="56" width="60" height="36" rx="6" />
+  <text class="mono" x="544" y="79" text-anchor="middle" font-size="12">#210</text>
+  <rect class="node" x="514" y="96" width="60" height="36" rx="6" />
+  <text class="mono" x="544" y="119" text-anchor="middle" font-size="12">#211</text>
+  <rect class="node" x="514" y="136" width="60" height="36" rx="6" />
+  <text class="mono" x="544" y="159" text-anchor="middle" font-size="12">#212</text>
+  <line class="edge edge--accent" x1="514" y1="74" x2="466" y2="100" marker-end="url(#arrow-ms-accent)" />
+  <line class="edge edge--accent" x1="514" y1="114" x2="466" y2="106" marker-end="url(#arrow-ms-accent)" />
+  <line class="edge edge--accent" x1="514" y1="154" x2="466" y2="114" marker-end="url(#arrow-ms-accent)" />
+  <text class="muted" x="500" y="194" text-anchor="middle" font-size="10">all PRs now base = develop</text>
+
+  <line class="edge edge--ghost" x1="20" y1="220" x2="620" y2="220" />
+
+  <text class="mono" x="320" y="246" text-anchor="middle" font-size="12" font-weight="500">Phase 2 — merge bottom-up, rebase downstream between each merge</text>
+
+  <rect class="node node--accent" x="30" y="280" width="100" height="60" rx="8" />
+  <text class="mono" x="80" y="308" text-anchor="middle" font-size="13" font-weight="500">merge #210</text>
+  <text class="muted" x="80" y="326" text-anchor="middle" font-size="10">squash + delete</text>
+
+  <line class="edge" x1="130" y1="310" x2="170" y2="310" marker-end="url(#arrow-ms)" />
+
+  <rect class="node" x="170" y="280" width="160" height="60" rx="6" />
+  <text x="250" y="304" text-anchor="middle" font-size="12" font-weight="500">rebase #211, #212</text>
+  <text class="muted mono" x="250" y="322" text-anchor="middle" font-size="10">git rebase origin/develop</text>
+  <text class="muted" x="250" y="335" text-anchor="middle" font-size="9" font-style="italic">patch-id drops #210's commits</text>
+
+  <line class="edge" x1="330" y1="310" x2="370" y2="310" marker-end="url(#arrow-ms)" />
+
+  <rect class="node node--accent" x="370" y="280" width="100" height="60" rx="8" />
+  <text class="mono" x="420" y="308" text-anchor="middle" font-size="13" font-weight="500">merge #211</text>
+  <text class="muted" x="420" y="326" text-anchor="middle" font-size="10">squash + delete</text>
+
+  <line class="edge" x1="470" y1="310" x2="510" y2="310" marker-end="url(#arrow-ms)" />
+
+  <rect class="node" x="510" y="280" width="120" height="60" rx="6" />
+  <text x="570" y="304" text-anchor="middle" font-size="12" font-weight="500">rebase #212</text>
+  <text class="muted" x="570" y="322" text-anchor="middle" font-size="9" font-style="italic">drops #211's commits</text>
+  <text class="muted mono" x="570" y="335" text-anchor="middle" font-size="9">…then merge #212</text>
+
+  <text class="muted" x="320" y="380" text-anchor="middle" font-size="11" font-style="italic">cycle of (merge → rebase remaining) repeats root → leaf until the chain is empty</text>
+
+  <rect class="node--accent" x="80" y="406" width="480" height="40" rx="6" fill="#f0f9f0" />
+  <text x="320" y="430" text-anchor="middle" font-size="12">all squash commits land on <tspan class="mono" font-weight="500">develop</tspan>; remote PR branches deleted as they merge</text>
+</svg>

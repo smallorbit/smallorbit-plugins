@@ -1,47 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# push_or_pr.sh — publish pending commits on the current branch by pushing
-# directly when allowed, or by creating a feature branch and opening a PR
-# when origin rejects the push because the target branch is protected.
+# push_or_pr.sh — publish pending commits on the current branch by always
+# creating a feature branch and opening a PR against --base (never push
+# directly to the checked-out branch).
 #
 # Usage:
 #   push_or_pr.sh --prefix <name> --title <title> --body <body> [--base <branch>]
 #
 # Args:
 #   --prefix <name>    Branch-name prefix for the auto-created feature branch
-#                      when the fallback engages (e.g. "chore/bump-plugins").
-#                      The script appends "-YYYY-MM-DD" and a numeric suffix
-#                      on collision.
-#   --title <title>    Title for the fallback PR.
-#   --body <body>      Body for the fallback PR. Multi-line strings are fine
-#                      (caller quotes the value).
-#   --base <branch>    Base branch for the fallback PR. Default: develop.
+#                      (e.g. "chore/bump-plugins"). The script appends
+#                      "-YYYY-MM-DD" and a numeric suffix on collision.
+#   --title <title>    PR title.
+#   --body <body>      PR body. Multi-line strings are fine (caller quotes).
+#   --base <branch>    Base branch for the PR. Default: develop.
 #
 # Behavior:
 #   1. Compares HEAD against origin/<current-branch>. If no pending commits,
 #      emits {"push_result":"noop"} and exits 0.
-#   2. Otherwise attempts `git push origin HEAD:<current-branch>`.
-#   3. On success, emits {"push_result":"direct", ...} and exits 0.
-#   4. On failure, classifies stderr. If the message matches a branch-
-#      protection rejection (GH006 / repository rule violations / protected
-#      branch hook declined), engages the fallback:
-#      a. Saves HEAD as $SAVED.
-#      b. Picks a non-colliding feature-branch name from $PREFIX + date.
-#      c. Checks out the new branch at $SAVED, then resets the original
-#         branch's local ref to its upstream (so the protected branch no
-#         longer holds the unpublished commit). Order matters — `git branch
-#         -f` refuses to update the currently-checked-out branch.
-#      d. Pushes the new branch and opens a PR via `gh pr create`.
-#      e. Emits {"push_result":"pr", ...} and exits 0.
-#   5. Any other push failure (auth, network, divergence) exits non-zero with
-#      the captured stderr surfaced to the caller.
+#   2. If --prefix / --title / --body are missing, exits 2.
+#   3. Otherwise saves HEAD, creates a unique feature branch at that commit,
+#      resets the original branch's local ref to its upstream, pushes the
+#      feature branch, opens a PR via `gh pr create`, emits
+#      {"push_result":"pr", ...}, and exits 0.
 #
 # Output (success): a single bare JSON object on stdout with keys:
-#   push_result    — "direct" | "pr" | "noop"
+#   push_result    — "pr" | "noop"
 #   branch         — current branch at invocation time
-#   new_branch     — fallback feature branch (only when push_result=pr)
-#   pr_url         — fallback PR URL (only when push_result=pr)
+#   new_branch     — feature branch (only when push_result=pr)
+#   pr_url         — PR URL (only when push_result=pr)
 #   pending_count  — number of commits ahead of upstream at invocation
 #
 # Output (failure): exit non-zero, stdout empty, human-readable stderr.
@@ -110,31 +98,12 @@ if [[ "$PENDING" -eq 0 ]]; then
   exit 0
 fi
 
-PUSH_LOG=$(mktemp)
-trap 'rm -f "$PUSH_LOG"' EXIT
-
-if git push origin "HEAD:$BRANCH" >"$PUSH_LOG" 2>&1; then
-  jq -n \
-    --arg push_result "direct" \
-    --arg branch "$BRANCH" \
-    --argjson pending_count "$PENDING" \
-    '{push_result: $push_result, branch: $branch, pending_count: $pending_count}'
-  exit 0
-fi
-
-PUSH_OUTPUT=$(cat "$PUSH_LOG")
-if ! printf '%s' "$PUSH_OUTPUT" | grep -qiE "(protected branch|GH006|push declined due to repository rule|protected branch hook declined)"; then
-  echo "push_or_pr: push to $BRANCH failed for a reason other than branch protection:" >&2
-  printf '%s\n' "$PUSH_OUTPUT" >&2
-  exit 1
-fi
-
 if [[ -z "$PREFIX" || -z "$PR_TITLE" || -z "$PR_BODY" ]]; then
-  echo "push_or_pr: branch protection rejected the push, but --prefix / --title / --body are required to engage the fallback" >&2
+  echo "push_or_pr: --prefix, --title, and --body are required when there are pending commits" >&2
   exit 2
 fi
 
-echo "push_or_pr: direct push to $BRANCH rejected by branch protection — falling back to feature branch + PR." >&2
+echo "push_or_pr: publishing via feature branch + PR (not pushing directly to $BRANCH)." >&2
 
 SAVED=$(git rev-parse HEAD)
 DATE=$(date +%Y-%m-%d)
@@ -150,7 +119,7 @@ git checkout -b "$NEW_BRANCH" "$SAVED" >/dev/null 2>&1
 git branch -f "$BRANCH" "$UPSTREAM_REF" >/dev/null 2>&1
 
 if ! git push -u origin "$NEW_BRANCH" >/dev/null 2>&1; then
-  echo "push_or_pr: failed to push fallback branch '$NEW_BRANCH'" >&2
+  echo "push_or_pr: failed to push feature branch '$NEW_BRANCH'" >&2
   exit 1
 fi
 

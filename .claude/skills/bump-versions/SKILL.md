@@ -106,7 +106,7 @@ git commit -m "chore(plugins): bump $BUMPED_LIST"
 Use a single commit message listing all bumped plugins, e.g.:
 `chore(plugins): bump swarmkit@2.0.0, flowkit@1.3.0`
 
-Then publish the commit via the [`flowkit:push-or-pr`](../../../plugins/flowkit/skills/push-or-pr/SKILL.md) sub-skill so the bump lands on the protected branch even when direct pushes are rejected:
+Then publish the commit via the [`flowkit:push-or-pr`](../../../plugins/flowkit/skills/push-or-pr/SKILL.md) sub-skill — it always opens a PR (never pushes directly to the branch):
 
 ```bash
 PR_BODY="## Summary
@@ -134,13 +134,12 @@ PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 
 Branch on `$PUSH_RESULT`:
 
-- `direct` — the bump commit is on origin's protected branch. Continue to Step 5.
 - `pr` — push-or-pr opened `$PR_URL`. Self-review the PR, then merge it (`/flowkit:merge-pr` from `$NEW_BRANCH`). Once merged, switch to the protected branch and pull (`git checkout <branch> && git pull origin <branch>`), then continue to Step 5 — tags now point at the squash-merged commit, not the original feature-branch commit.
 - `noop` — nothing changed. Stop and report.
 
 ### Step 5 — Create git tags
 
-After the bump commit is on origin's protected branch (either via direct push or via merged PR), create a tag for each bumped plugin pointing at the current branch tip:
+After the bump commit is on origin's protected branch (via merged PR), create a tag for each bumped plugin pointing at the current branch tip:
 
 ```bash
 git tag {plugin-name}--v{new-version}

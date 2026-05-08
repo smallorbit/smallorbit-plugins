@@ -28,6 +28,13 @@ gh pr list --state open --json number,title,headRefName,baseRefName,body \
 
 If no open swarm PRs are found, report "No open swarm PRs found" and stop.
 
+Capture the set of head-branch names — Step 4's worktree pre-scan needs it:
+
+```bash
+MERGE_SET_BRANCHES=$(gh pr list --state open --json headRefName \
+  --jq '.[] | select(.headRefName | startswith("worktree-agent-")) | .headRefName')
+```
+
 ### 2. Build the stack graph
 
 Model the PRs as a directed graph where an edge A → B means "A's head branch is B's base branch" (A sits on top of B). Build this from the `headRefName` / `baseRefName` fields — no issue-body parsing needed for ordering.
@@ -51,7 +58,31 @@ Apply this to every PR in a multi-PR chain except the chain root. Independent PR
 
 ### 4. Present merge plan
 
-Show the plan before proceeding:
+Before showing the plan, pre-scan local worktrees for any branch in the merge set. `gh pr merge --delete-branch` prints a benign-but-confusing `failed to delete local branch ... used by worktree at ...` warning when a branch is held by an active worktree; the merge itself still succeeds and the remote branch is deleted. Forewarning the user keeps that warning from reading like a failure.
+
+The pre-scan is read-only — never remove worktrees here. Worktree reaping is `swarmkit:clean-worktrees`'s job.
+
+```bash
+HELD_BY_WORKTREE=$(git worktree list --porcelain \
+  | awk '/^branch refs\/heads\// {sub("refs/heads/", "", $2); print $2}' \
+  | grep -E '^worktree-agent-' \
+  | while read -r branch; do
+      if printf '%s\n' "$MERGE_SET_BRANCHES" | grep -Fxq -- "$branch"; then
+        printf '%s\n' "$branch"
+      fi
+    done)
+```
+
+Where `$MERGE_SET_BRANCHES` is the newline-delimited list of `headRefName`s collected in step 1. If `git worktree list` fails for any reason, treat `HELD_BY_WORKTREE` as empty and proceed without the note.
+
+Render the count + comma-joined list for the note:
+
+```bash
+HELD_COUNT=$(printf '%s' "$HELD_BY_WORKTREE" | grep -c .)
+HELD_LIST=$(printf '%s' "$HELD_BY_WORKTREE" | tr '\n' ',' | sed 's/,$//;s/,/, /g')
+```
+
+Show the plan before proceeding. When `HELD_BY_WORKTREE` is non-empty, prepend the note inside the plan block (one line for the count, one for the warning context, one for the remediation):
 
 ```
 Merge order (bottom-up per chain):
@@ -65,6 +96,10 @@ Merge order (bottom-up per chain):
   Step 4. Rebase #105 onto develop (drop #104's commits via patch-id)
   Step 5. Merge PR #105 into develop (squash, delete branch)
   Step 6. Merge PR #108 into develop (squash, delete branch)
+
+  Note: 2 branches are held by worktrees (worktree-agent-1361, worktree-agent-1393).
+  `gh pr merge --delete-branch` will warn but the merges will succeed.
+  Run `/swarmkit:clean-worktrees` after to reap them.
 ```
 
 Proceed immediately.
@@ -160,6 +195,16 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 
 ### 7. Report
 
+Append a follow-up suggestion that points the user at `swarmkit:clean-worktrees`. If any `worktree-agent-*` worktrees still exist, recommend running it; otherwise note that the worktrees are already gone:
+
+```bash
+if git worktree list --porcelain | awk '/^branch refs\/heads\/worktree-agent-/' | grep -q .; then
+  FOLLOWUP="Next: /swarmkit:clean-worktrees   (remove worktrees + prune orphan local branches)"
+else
+  FOLLOWUP="(no worktree-agent-* worktrees remain — skip clean-worktrees)"
+fi
+```
+
 ```
 ── merge-stack complete ──────────────────────────────
 ✓ Retargeted 2 non-root PRs to develop
@@ -167,6 +212,8 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 ✓ Merged (independent): PR #108 → develop
 ✗ Conflicted: PR #107 — stopped mid-chain
 ⊘ Blocked: PR #106 — depends on #107
+
+Next: /swarmkit:clean-worktrees   (remove worktrees + prune orphan local branches)
 ──────────────────────────────────────────────────────
 ```
 

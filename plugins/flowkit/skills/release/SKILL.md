@@ -285,31 +285,12 @@ Capture the PR number from the URL output.
 
 ### 6. Merge the PR
 
-`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` sub-skill so any dirty state is auto-stashed and restored:
+`gh pr merge --merge --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the `flowkit:with-clean-workspace` script so any dirty state is auto-stashed and restored:
 
 ```bash
-DIRTY=false
-if [ -n "$(git status --porcelain)" ]; then
-  DIRTY=true
-  git stash push -u -m "flowkit-auto-stash" >/dev/null
-fi
-
-if gh pr merge "$PR_URL" --merge --delete-branch; then
-  MERGE_OK=true
-else
-  MERGE_OK=false
-fi
-
-if [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "true" ]; then
-  if ! git stash pop; then
-    echo "WARNING: stash pop conflicted. Your changes are preserved on the stash stack." >&2
-    echo "Run \`git stash list\` to see the saved entry (message: flowkit-auto-stash) and \`git stash pop\` after resolving." >&2
-  fi
-elif [ "$DIRTY" = "true" ] && [ "$MERGE_OK" = "false" ]; then
-  echo "WARNING: merge failed — stash preserved. Run \`git stash pop\` after resolving the merge error." >&2
-fi
-
-[ "$MERGE_OK" = "false" ] && exit 1
+WITH_CLEAN_WORKSPACE_DIR="$(dirname "$SKILL_DIR")/with-clean-workspace"
+bash "$WITH_CLEAN_WORKSPACE_DIR/scripts/with_clean_workspace.sh" -- \
+  gh pr merge "$PR_URL" --merge --delete-branch || exit 1
 ```
 
 Use `--merge` to preserve the full commit history from the RC branch in main.
@@ -387,18 +368,16 @@ fi
 
 ### 11. Back-merge main into develop
 
-Bring develop's tip up to main so the next release cycle starts from parity. Allow git to fast-forward when develop hasn't moved since the RC was cut — the typical case. The release tag on main is the canonical "shipped" marker; duplicating that boundary on develop with a forced merge bubble adds noise without information.
+Bring develop's tip up to main so the next release cycle starts from parity. Use a real merge commit (not a fast-forward / squash) so the release merge from step 6 stays visible in develop's history.
 
 ```bash
 git fetch origin
 git checkout develop
 git pull --ff-only origin develop
-git merge -m "chore(develop): back-merge release $TAG from main" origin/main
+git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/main
 ```
 
-When develop has actually drifted since the RC was cut, git falls back to a real merge commit automatically — the `-m` message is then used. When develop hasn't drifted, the merge fast-forwards and no commit is created.
-
-Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — direct pushes succeed when develop is unprotected and fall through to a merge-strategy back-merge PR when it isn't:
+Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — it always opens a merge-strategy back-merge PR (never pushes directly to develop):
 
 ```bash
 PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
@@ -423,13 +402,13 @@ PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 
 Branch on `$PUSH_RESULT`:
 
-- `direct` — develop now matches main on origin. Done.
 - `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the release merge commit's history). The local working tree is left on `$NEW_BRANCH` — switch back to develop and pull after the merge.
 - `noop` — develop is already at or ahead of main on origin. Skip the publish and continue.
 
 ### 12. Report
 
 Output:
+
 - Tag created (e.g. `v2026.4.16`)
 - PR number and URL
 - Issues closed — list the aggregated `$ISSUE_REFS` numbers, and note which subset was closed by step 9's explicit loop (`$EXPLICITLY_CLOSED`) versus by GitHub's auto-close at merge time
