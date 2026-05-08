@@ -134,7 +134,7 @@ git pull --ff-only origin develop
 git merge --no-ff origin/main -m "chore(develop): back-merge hotfix from main"
 ```
 
-Then publish via the [`flowkit:push-or-pr`](../push-or-pr/SKILL.md) sub-skill so the back-merge lands on develop whether or not develop is push-protected:
+Then publish via the [`flowkit:push-or-pr`](../push-or-pr/SKILL.md) sub-skill — it always opens a PR to land the back-merge on develop:
 
 ```bash
 PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
@@ -159,7 +159,6 @@ PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 
 Branch on `$PUSH_RESULT`:
 
-- `direct` — develop now matches main on origin.
 - `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the hotfix merge history).
 - `noop` — develop is already at or ahead of main on origin.
 

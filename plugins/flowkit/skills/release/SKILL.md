@@ -377,7 +377,7 @@ git pull --ff-only origin develop
 git merge --no-ff -m "chore(develop): back-merge release $TAG from main" origin/main
 ```
 
-Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — direct pushes succeed when develop is unprotected and fall through to a merge-strategy back-merge PR when it isn't:
+Publish the back-merge via the [`flowkit:push-or-pr`](../../push-or-pr/SKILL.md) sub-skill — it always opens a merge-strategy back-merge PR (never pushes directly to develop):
 
 ```bash
 PUSH_OR_PR_DIR="$(dirname "$SKILL_DIR")/push-or-pr"
@@ -402,7 +402,6 @@ PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 
 Branch on `$PUSH_RESULT`:
 
-- `direct` — develop now matches main on origin. Done.
 - `pr` — push-or-pr opened `$PR_URL` on `$NEW_BRANCH`. Merge it with `gh pr merge "$PR_URL" --merge --delete-branch` (use `--merge`, not `--squash`, to preserve the release merge commit's history). The local working tree is left on `$NEW_BRANCH` — switch back to develop and pull after the merge.
 - `noop` — develop is already at or ahead of main on origin. Skip the publish and continue.
 

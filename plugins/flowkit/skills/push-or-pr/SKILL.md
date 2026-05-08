@@ -1,13 +1,13 @@
 ---
 name: push-or-pr
-description: Publish pending commits on the current branch by pushing directly when allowed, or by creating a feature branch and opening a PR when the target is branch-protected. Sub-skill used by /bump-versions, /flowkit:release, and /flowkit:hotfix.
+description: Publish pending commits on the current branch by creating a feature branch and opening a PR against --base — never push directly to the checked-out branch. Sub-skill used by /bump-versions, /flowkit:release, and /flowkit:hotfix.
 ---
 
 # push-or-pr
 
-Publish pending commits on the current branch to origin. Optimistically attempts a direct push; if origin rejects the push because the branch is protected, saves HEAD, resets the local branch to its upstream, creates a feature branch carrying the saved commit(s), pushes it, and opens a PR. Skills that legitimately operate on `develop` (or any branch that may or may not be push-protected depending on repo policy) call this sub-skill so they work uniformly across protected and unprotected setups.
+Publish pending commits on the current branch to GitHub **only** via a pull request. The script never pushes to the branch you are on; it saves your commits on a dated feature branch, resets your local copy of that branch to match `origin/<branch>`, pushes the feature branch, and opens a PR. Skills that operate on `develop` (or any shared line) call this sub-skill so publishing always goes through review.
 
-The skill is push-only. Tag creation, post-merge sync, and merging the resulting PR remain caller responsibilities — those vary per caller (squash vs. merge strategy, post-sync requirements, tag placement).
+The skill does not merge the PR, create tags, or run post-merge sync — those remain caller responsibilities.
 
 ## Invocation
 
@@ -29,13 +29,13 @@ RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
 ## Arguments
 
 | Flag | Required | Default | Purpose |
-|------|----------|---------|---------|
-| `--prefix` | when fallback engages | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`, `chore/sync-develop`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
-| `--title` | when fallback engages | — | Title for the fallback PR. |
-| `--body` | when fallback engages | — | Body for the fallback PR. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). Multi-line strings are fine — the caller quotes the value. |
-| `--base` | always optional | `develop` | Base branch for the fallback PR. |
+|------|----------|---------|-------|
+| `--prefix` | when there are pending commits | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`, `chore/sync-develop`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
+| `--title` | when there are pending commits | — | PR title. |
+| `--body` | when there are pending commits | — | PR body. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). Multi-line strings are fine — the caller quotes the value. |
+| `--base` | always optional | `develop` | Base branch for the PR. |
 
-If the direct push succeeds, the fallback args are unused and may be omitted. If the push is rejected by branch protection but the fallback args are missing, the script exits non-zero with exit code 2.
+If there are no pending commits (`noop`), PR args are unused. If there are pending commits and any of `--prefix` / `--title` / `--body` is missing, the script exits non-zero with exit code 2.
 
 ## Output
 
@@ -43,10 +43,10 @@ On success the script emits a single bare JSON object on stdout (per [`plugins/_
 
 | Key | Type | Present when | Meaning |
 |-----|------|--------------|---------|
-| `push_result` | string | always | `"direct"` \| `"pr"` \| `"noop"` |
+| `push_result` | string | always | `"pr"` \| `"noop"` |
 | `branch` | string | always | The current branch at invocation time. |
 | `pending_count` | integer | always | Commits ahead of upstream at invocation. |
-| `new_branch` | string | `push_result == "pr"` | Auto-created feature branch carrying the saved commits. |
+| `new_branch` | string | `push_result == "pr"` | Feature branch carrying the saved commits. |
 | `pr_url` | string | `push_result == "pr"` | URL of the PR opened against `--base`. |
 
 On failure the script exits non-zero with stderr describing the failure and stdout empty.
@@ -55,26 +55,13 @@ On failure the script exits non-zero with stderr describing the failure and stdo
 
 Branch on `push_result`:
 
-- **`direct`** — commits are on origin's protected branch. Caller continues with whatever post-publish work it has (tag creation, sync, etc.).
-- **`pr`** — PR is open at `pr_url`; commits live on `new_branch`; the local protected branch was reset to its upstream so it no longer holds the unpublished commit. Caller self-reviews and merges (`gh pr merge --squash --delete-branch` or `--merge --delete-branch` depending on whether history needs preserving), then switches back to the protected branch and pulls before continuing post-publish work.
+- **`pr`** — PR is open at `pr_url`; commits live on `new_branch`; the local branch you published from was reset to its upstream so it no longer holds the unpublished commits. Merge (`gh pr merge --squash --delete-branch` or `--merge --delete-branch` per caller policy), then switch back to that branch and pull before continuing post-publish work.
 - **`noop`** — no pending commits. Nothing was pushed; nothing to clean up.
 
-When the fallback engages, the working tree is left on `new_branch`. Callers that need to return to the protected branch must explicitly `git checkout <branch> && git pull origin <branch>` after the PR merges.
-
-## Branch-protection detection
-
-The script classifies push failures as protection-related when stderr contains any of:
-
-- `protected branch` (case-insensitive)
-- `GH006` — GitHub's branch-protection error code
-- `push declined due to repository rule violations` — repository rulesets
-- `protected branch hook declined` — the underlying refspec rejection
-
-Any other push failure (auth, network, divergence) exits non-zero with the captured stderr surfaced.
+After `pr`, the working tree is left on `new_branch`. Callers that need to return to the original branch must explicitly `git checkout <branch> && git pull origin <branch>` after the PR merges.
 
 ## Constraints
 
-- Never force-push. The script assumes the protected branch's upstream is the canonical state and resets the local copy to it before creating the feature branch.
-- Never engage the fallback for non-protection-related push failures.
-- The script does not push tags. Tag creation belongs to the caller and must run after the fallback PR (if any) is merged so tags point at the post-merge commit.
-- The script checks out `new_branch` before resetting the protected branch — `git branch -f` refuses to update the currently-checked-out branch, so the order matters.
+- Never force-push. The script resets the local copy of the branch you were on to its upstream before creating the feature branch.
+- The script does not push tags. Tag creation belongs to the caller and must run after the PR is merged so tags point at the post-merge commit.
+- The script checks out `new_branch` before resetting the original branch — `git branch -f` refuses to update the currently-checked-out branch, so the order matters.
