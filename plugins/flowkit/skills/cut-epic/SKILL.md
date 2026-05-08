@@ -118,23 +118,23 @@ Print a confirmation including the branch name, the upstream, and the scoped con
 
 ## Teardown
 
-When the epic is ready to ship:
+When the epic is ready to ship, run `flowkit:ship-epic`. It opens the epic-to-`develop` PR, rebase-merges (so children's squashes replay onto develop linearly), unsets `claude.flowkit.prBase`, deletes the epic branch, and fast-forwards local develop. See [`ship-epic/SKILL.md`](../ship-epic/SKILL.md) for full details.
 
-1. Open a final PR from the epic branch into `develop`. The simplest path is to manually invoke `flowkit:open-pr` after temporarily clearing the scope, or run `gh pr create --base develop --head <epic-branch>` directly.
-2. Clear the scope so future PRs default back to `develop`:
+To close out by hand (manual fallback):
 
-```bash
-git config --unset claude.flowkit.prBase
-```
-
-This is the **Unset** operation defined by `pr-base-scope`. Once cleared, `flowkit:open-pr` falls through to its default (`develop`).
-
-3. (Optional) Delete the epic branch after the merge:
-
-```bash
-git push origin --delete feature/<slug>-<issue>
-git branch -D feature/<slug>-<issue>
-```
+1. Open a final PR from the epic branch into `develop`:
+   ```bash
+   gh pr create --base develop --head feature/<slug>-<issue>
+   ```
+2. Rebase-merge via the GitHub UI or CLI (`gh pr merge --rebase --delete-branch`).
+3. Clear the scope so future PRs default back to `develop`:
+   ```bash
+   git config --unset claude.flowkit.prBase
+   ```
+4. (Optional) Delete the local epic branch:
+   ```bash
+   git branch -D feature/<slug>-<issue>
+   ```
 
 ## Constraints
 
