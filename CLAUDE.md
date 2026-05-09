@@ -29,10 +29,9 @@ Run it before staging and committing the release.
 
 **Crew shapes.** Crew profiles carry an optional `kind:` field — `execution` (default) for crews that ship code, `discovery` for read-only research crews that produce blueprint comments on GitHub issues instead of PRs. Discovery crews skip worktree provisioning, epic-branch cutting, and `claude.flowkit.prBase` pinning. See [`plugins/squadkit/docs/patterns/discovery-coordination.md`](./plugins/squadkit/docs/patterns/discovery-coordination.md) for the architect-led coordination pattern.
 
-**Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. Discovery crews stay on `develop` since they don't produce code. The supporting flow primitives live in flowkit:
+**Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. Discovery crews stay on `develop` since they don't produce code. The supporting flow primitive lives in flowkit:
 
 - `flowkit:cut-epic` — cut the long-lived feature branch standalone (the primitive that `spawn-team --epic` invokes).
-- `flowkit:preview-epic` — preview the combined epic-to-base diff before opening the final integration PR.
 
 ## Skill Authoring Conventions
 

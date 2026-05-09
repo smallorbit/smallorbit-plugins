@@ -125,6 +125,6 @@ Report:
 - No branch/commit/PR creation — those belong to `/pr` and `/swarm`
 - If any step fails, stop immediately and report what failed and why
 - ship-epic runs only when epic-in-flight is detected (Step 1's `$EPIC_BRANCH` non-empty). Otherwise it is silently skipped — calling ship-epic on a develop-direct run would produce a guaranteed error
-- No internal verify gate. Operators run `/preview-epic` explicitly before invoking `/ship`. Symmetry with `ship-epic` and `cut-epic` themes
+- No internal verify gate. Operators check out the feature branch and run verify themselves before invoking `/ship`. Symmetry with `ship-epic` and `cut-epic` themes
 - Stop on any sub-skill failure. State is recoverable across partial failures: re-running `/ship` after the operator resolves the failure picks up where the chain left off
 - No `--no-ship-epic` opt-out. Operators who need to skip ship-epic for an unusual reason invoke `/merge-stack && /cut && /release` directly
