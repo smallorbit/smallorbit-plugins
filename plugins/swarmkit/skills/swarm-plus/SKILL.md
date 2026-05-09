@@ -92,6 +92,8 @@ The reviewer prompt MUST include:
   - **Nits** (style, optional)
   - **Coverage gaps** (with `[recommended]` or `[optional]` tag per gap)
 
+**Verdict delivery contract.** Per the reviewer agent's contract (`plugins/swarmkit/agents/swarm-reviewer.md`), the reviewer `SendMessage`s its complete structured verdict to the parent (this orchestrator) before terminating. The idle notification alone does not carry the verdict text — wait for the `SendMessage` payload to parse the result and apply the skip-on-clean rule in step 3. If only an idle notification arrives with no accompanying `SendMessage` payload, treat the reviewer as having returned no output and note the missing review in the final summary.
+
 Track each reviewer's agent ID against the PR it covers.
 
 ### 3. Decide whether to spawn a fix-round worker
@@ -190,3 +192,17 @@ Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 | Reviewer crashes or returns no output | Note the missing review in the final summary; leave PR open without a fix pass |
 | Fix-round worker push rejected (branch advanced underneath) | Worker re-fetches and rebases (`git fetch origin <head>; git rebase origin/<head>`); if conflicts arise, abort and report to user |
 | Fix-round worker introduces new test failures | Worker MUST resolve before push — never push a red build |
+
+## Known issue: TeamDelete leaves zombie subprocesses
+
+`TeamDelete` returns success but does not signal or kill the long-running agent processes whose `--team-name` flag matches. This is a harness-level limitation and will be addressed upstream (see #924). Until the harness fix lands, operators should sweep lingering agent subprocesses manually after `TeamDelete`:
+
+```bash
+ps aux \
+  | grep -E "agent-id .+@<team-name>" \
+  | grep -v grep \
+  | awk '{print $2}' \
+  | xargs -r kill
+```
+
+Replace `<team-name>` with the team name passed to `TeamDelete`. Run this sweep immediately after `TeamDelete` returns — the zombie processes consume no dispatch but do hold open file descriptors and tmux panes.
