@@ -147,10 +147,9 @@ It scans `~/.claude/teams/<repo>-*` and picks the first letter without a `config
 
 If `--epic` is not provided, the skill prompts whether to cut one or run on the base branch directly.
 
-See the related flowkit skills:
+See the related flowkit skill:
 
 - [`flowkit:cut-epic`](../flowkit/skills/cut-epic/SKILL.md) — the primitive that `spawn-team --epic` invokes.
-- [`flowkit:preview-epic`](../flowkit/skills/preview-epic/SKILL.md) — preview the epic-to-base diff before opening the final integration PR.
 
 ### Idempotency and per-builder worktrees
 
