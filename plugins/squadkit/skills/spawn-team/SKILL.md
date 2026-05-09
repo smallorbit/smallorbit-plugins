@@ -631,3 +631,17 @@ Two coordination shapes are supported:
 
 - **Execution crews** (default) — architect drafts blueprints, builders implement, tester/reviewer gate. Output is merged code via PRs.
 - **Discovery crews** (`kind: discovery`) — architect IS the lead and synthesizes explorer/designer replies into long-form blueprints posted as GitHub issue comments. Builders are absent. See [`../../docs/patterns/discovery-coordination.md`](../../docs/patterns/discovery-coordination.md) for the full coordination protocol, role scopes, deliverable shape, stop condition, and a worked example.
+
+## Known issue: TeamDelete leaves zombie subprocesses
+
+`TeamDelete` returns success but does not signal or kill the long-running agent processes whose `--team-name` flag matches. This is a harness-level limitation and will be addressed upstream (see #924). Until the harness fix lands, operators should sweep lingering agent subprocesses manually after calling `TeamDelete` to tear down a team:
+
+```bash
+ps aux \
+  | grep -- "--team-name <team-name>" \
+  | grep -v grep \
+  | awk '{print $2}' \
+  | xargs -r kill
+```
+
+Replace `<team-name>` with the team name passed to `TeamDelete`. Run this sweep immediately after `TeamDelete` returns — the zombie processes consume no dispatch but do hold open file descriptors and tmux panes.
