@@ -28,9 +28,9 @@ BASE=$(git config --get claude.flowkit.prBase 2>/dev/null || echo "develop")
 
 OPEN=$(gh pr list \
   --base "$BASE" \
-  --head 'worktree-agent-*' \
   --state open \
-  --json number,title,headRefName 2>/dev/null)
+  --json number,title,headRefName 2>/dev/null \
+  | jq '[.[] | select(.headRefName | startswith("worktree-agent-"))]')
 
 if [[ -n "$OPEN" && "$OPEN" != "[]" ]]; then
   echo "$OPEN" | jq -r '.[] | "  #\(.number) (\(.headRefName)): \(.title)"' >&2
@@ -39,6 +39,8 @@ if [[ -n "$OPEN" && "$OPEN" != "[]" ]]; then
   exit 1
 fi
 ```
+
+`gh pr list --head` is exact-match only — it does not support glob patterns, so the previous `--head 'worktree-agent-*'` filter silently returned an empty list and the abort guard never fired. Filtering the full open-PR set through `jq`'s `startswith` matches the intended prefix semantics.
 
 The preflight is a hard gate. Open swarm PRs against the resolved base mean the integrated `develop` (or epic) state ship would package up does not yet include their work — releasing now would silently strand them. The operator clears this by running `/swarmkit:merge-stack` and (when an epic is in flight) `/flowkit:ship-epic` first, with a verify pass against the integrated state in between.
 
