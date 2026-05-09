@@ -128,14 +128,26 @@ In loop mode the feature branch is cut once — at the first cycle that selects 
 
 After all child PRs are merged into the feature branch via `/merge-stack`, the feature branch carries N squash commits — one per merged-from-stack PR. Swarm's responsibility ends here: PRs are open (or merged into the feature branch), and the pin is intact.
 
-The operator then runs `/ship-epic` (separately, after review) to:
+The canonical release sequence from this point is four steps, run by the operator with a verify gate between integration and promotion:
+
+```
+/swarmkit:merge-stack            # land the open worktree-agent-* PRs into the feature branch
+# verify on the feature branch — run typecheck/test/lint against the integrated state
+/flowkit:ship-epic               # rebase-merge the feature branch to develop, unset prBase, delete it
+/flowkit:ship                    # cut → release: develop → main
+```
+
+`/flowkit:ship-epic` does the develop promotion:
+
 1. Open the feature→`develop` PR with aggregated `Closes #N` from the squash commits.
 2. Rebase-merge (so the squash commits replay onto `develop` linearly, no merge bubbles).
 3. Unset `claude.flowkit.prBase`.
 4. Delete the feature branch on origin.
 5. Fast-forward local `develop`.
 
-Swarm never invokes `/ship-epic`. The operator must explicitly trigger promotion.
+`/flowkit:ship` then handles the develop→main release: cut a release candidate, merge to main, tag, close issues. It is the release closer only — it does not invoke `merge-stack` or `ship-epic`, and aborts up front if any open `worktree-agent-*` PRs still target the resolved base.
+
+Swarm never invokes `/ship-epic` or `/ship`. The operator must explicitly trigger promotion and release.
 
 ### Escape Hatches
 
