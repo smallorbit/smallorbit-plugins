@@ -89,11 +89,22 @@ Compose the entry sub-chains into a single ordered chain. Standard step library 
 | Self-review the PR diff | `/review` (or manual read-through) |
 | Merge a single PR | `/flowkit:merge-pr` |
 | Merge a stacked PR set | `/swarmkit:merge-stack` |
+| Verify the integrated state | manual: project's typecheck/test/lint on the feature branch |
+| Promote epic → develop | `/flowkit:ship-epic` |
 | Sync local develop with origin | `/flowkit:sync` |
 | Bump per-plugin versions + tags | `/bump-versions` |
 | Cut a release candidate | `/flowkit:cut` |
 | Promote RC → main, tag, close issues | `/flowkit:release` |
+| Cut + release in one shot (develop → main) | `/flowkit:ship` |
 | Verify post-release pipeline state | `/flowkit:pipeline-status` |
+
+**Canonical bubble-free release sequence.** When an epic is in flight (open `worktree-agent-*` PRs targeting a `feature/<slug>-<N>` branch), the standard chain is:
+
+```
+/swarmkit:merge-stack → verify (manual) → /flowkit:ship-epic → /flowkit:ship
+```
+
+`/flowkit:ship` aborts if open `worktree-agent-*` PRs still target the resolved base, so the verify step between `merge-stack` and `ship-epic` is a hard prerequisite — operators cannot collapse the chain into a single step. For releases with no epic in flight, `/flowkit:ship` alone (cut → release) is the entire chain.
 
 For each step in the chain, write a task with:
 
