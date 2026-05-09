@@ -638,7 +638,7 @@ Two coordination shapes are supported:
 
 ```bash
 ps aux \
-  | grep -E "agent-id .+@<team-name>" \
+  | grep -- "--team-name <team-name>" \
   | grep -v grep \
   | awk '{print $2}' \
   | xargs -r kill
