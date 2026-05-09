@@ -35,7 +35,6 @@ claude --plugin-dir /path/to/flowkit
 | **create-branch** | `/create-branch` | Create a new git branch off `develop` with an inferred or provided name. |
 | **cut-epic** | `/cut-epic` | Cut a long-lived `feature/<slug>-<issue>` branch from `develop`, push it, and pin `claude.flowkit.prBase` so subsequent PRs target it. |
 | **ship-epic** | `/ship-epic` | Promote a `feature/<slug>-<N>` epic to `develop` via rebase-merge, unset `claude.flowkit.prBase`, delete the epic branch. Closer for `cut-epic`. |
-| **preview-epic** | `/preview-epic` | Build a local preview branch combining every open PR in an epic stack via octopus merge (sequential fallback), then run configurable verify commands to validate the epic end-to-end. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
 | **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees). |
@@ -87,20 +86,14 @@ When a feature spans multiple PRs and needs to stay isolated from `develop` unti
 /pr add CSV exporter             # sub-PR opened against feature/<slug>-1264 (not develop)
 /pr wire exporter into UI        # next sub-PR, also targets the epic branch
 # When ready to ship:
-/preview-epic                    # verify the integrated state before promoting
 /ship-epic                       # rebase-merge to develop, unset prBase, delete epic branch
 ```
 
 The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flowkit.prBase` is set will open PRs against the epic branch automatically. Use `swarmkit:merge-stack` to fan the child PRs into the epic, then open the final epic-to-`develop` PR for review.
 
-`/preview-epic` validates the integrated state of an epic locally before promotion. Each child PR's CI is green against its own base, but the union may not compile or pass tests — `/preview-epic` catches that integration breakage. It auto-detects the epic model:
+To verify the integrated state of an epic locally before promotion, check out the feature branch and run your project's verify commands directly — after `swarmkit:merge-stack` lands every sub-PR onto the feature branch, the branch HEAD already is the integrated state, so no synthesis step is needed.
 
-- **Stacked PRs** — every PR stays open and chains base→head→base. The skill builds a throwaway preview branch by octopus-merging all heads (sequential fallback on conflict), then runs `verify.typecheck`, `verify.test`, and `verify.lint` from `.squadkit/config.json` against the combined tree. Run before `swarmkit:merge-stack`.
-- **Direct-merge-to-epic** — child PRs squash-merge into the long-lived epic branch and close. The epic HEAD already is the integrated state, so verify runs directly on it. Run before opening the final epic-to-`develop` PR.
-
-Nothing is pushed and the epic branch is fetched read-only. See `/preview-epic` for the full Model A vs. Model B detection rules.
-
-> `/ship` from an epic branch (or with `claude.flowkit.prBase` pinned to a `feature/*`) automatically inserts `ship-epic` between `merge-stack` and `cut`. The epic branch is rebase-merged to `develop`, the pin is cleared, and the chain continues with the freshly-updated `develop`. Run `/preview-epic` first to verify the integrated state — `/ship` does not auto-verify.
+> `/ship` from an epic branch (or with `claude.flowkit.prBase` pinned to a `feature/*`) automatically inserts `ship-epic` between `merge-stack` and `cut`. The epic branch is rebase-merged to `develop`, the pin is cleared, and the chain continues with the freshly-updated `develop`. `/ship` does not auto-verify — check out the feature branch and run verify yourself first if you want to gate promotion on it.
 
 ### Mid-review restack
 
