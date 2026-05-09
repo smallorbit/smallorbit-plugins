@@ -1,7 +1,7 @@
 {
   "name": "polishkit",
   "description": "Codebase quality toolkit. Appraise code craft with a connoisseur's eye, sweep dead code and cruft in one pass, and polish cross-cutting code-quality issues — three focused skills for improving what you've already built.",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
