@@ -107,11 +107,29 @@ if [[ -n "$RAW_MERGE" ]]; then
 fi
 
 # --- Aggregate closes tokens -------------------------------------------------
+#
+# Tokens are sourced from two places and de-duped:
+#   1. Commit messages on the epic branch (origin/develop..origin/$EPIC).
+#   2. Bodies of child PRs that targeted $EPIC as their base and are merged.
+#
+# The PR-body pass exists because `gh pr merge --squash` does not always carry
+# the PR body's `Closes #N` token into the squash commit message — survival is
+# operator-config dependent. Without the second pass, ship-epic silently misses
+# tokens that lived only in PR bodies, and the parent issues stay open. See
+# https://github.com/smallorbit/smallorbit-plugins/issues/909.
 
 CLOSES_TOKENS=$(
-  git log "origin/develop..origin/$EPIC" --pretty=format:'%B' \
-    | (grep -oiE '(closes|fixes|resolves) #[0-9]+' || true) \
-    | awk '!seen[tolower($0)]++'
+  {
+    git log "origin/develop..origin/$EPIC" --pretty=format:'%B' \
+      | (grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
+
+    gh pr list --base "$EPIC" --state merged --limit 1000 --json number --jq '.[].number' \
+      | while read -r child_pr; do
+          [[ -n "$child_pr" ]] || continue
+          gh pr view "$child_pr" --json body --jq '.body' \
+            | (grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
+        done
+  } | awk '!seen[tolower($0)]++'
 )
 
 FOOTER_LINES=()
