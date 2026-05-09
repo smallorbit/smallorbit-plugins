@@ -252,19 +252,10 @@ Each agent prompt MUST include these **workflow steps** (in order):
    # SHA chain even though the checkout targeted develop, producing a 50+-file diff
    # for an 11-file change. Fail fast here instead.
    #
-   # Use the variant that matches the checkout above — one or the other, not both:
-   #
-   # For independent issues (base = origin/develop):
-   if ! git merge-base --is-ancestor origin/develop HEAD; then
-     echo "ERROR: HEAD is not a descendant of origin/develop. Worktree may be rooted on a stale base." >&2
-     echo "       Run: git fetch origin develop && git reset --hard origin/develop" >&2
-     exit 1
-   fi
-
-   # For dependent issues (base = origin/worktree-agent-<dependency-issue>):
-   if ! git merge-base --is-ancestor origin/worktree-agent-<dependency-issue> HEAD; then
-     echo "ERROR: HEAD is not a descendant of origin/worktree-agent-<dependency-issue>. Worktree may be rooted on a stale base." >&2
-     echo "       Run: git fetch origin worktree-agent-<dependency-issue> && git reset --hard origin/worktree-agent-<dependency-issue>" >&2
+   # Use the same <base> as the checkout above — one variant, not both:
+   if ! git merge-base --is-ancestor origin/<base> HEAD; then
+     echo "ERROR: HEAD is not a descendant of origin/<base>. Worktree may be rooted on a stale base." >&2
+     echo "       Run: git fetch origin <base> && git reset --hard origin/<base>" >&2
      exit 1
    fi
 
