@@ -61,7 +61,7 @@ If the script exits non-zero (empty stdout), surface stderr and stop. Do not ret
 | `epic_branch` | string | The promoted branch, e.g. `feature/onboarding-v2-1264`. |
 | `pr_number` | number | Epic-to-develop PR number. |
 | `pr_url` | string | Full PR URL. |
-| `closes_tokens` | array of strings | Closing-keyword lines aggregated from child squash commits and the epic issue ref. |
+| `closes_tokens` | array of strings | Closing-keyword lines aggregated from child squash commits, merged child PR bodies (in case `gh pr merge --squash` dropped the token from the commit message), and the epic issue ref. De-duped case-insensitively. |
 | `pr_base_unset` | boolean | `true` if `claude.flowkit.prBase` was set and cleared; `false` if it was already unset. |
 | `develop_advanced` | boolean | `true` if local develop fast-forwarded; `false` if the operator is on a different worktree (local develop ref was not touched). Operators on a non-develop worktree should run `/sync` to pull the updated develop. |
 
