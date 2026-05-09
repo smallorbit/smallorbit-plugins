@@ -71,8 +71,8 @@ Identify every state signal that applies (composable, not exclusive). Map each t
 | Local commits ahead of upstream | Push → PR → review → merge → … |
 | Branch pushed, no PR open | Open PR → review → merge → … |
 | Open PR for current branch | Self-review → merge → … |
-| Peer PRs on same base (stack) | Preview-epic → merge-stack → … |
-| Epic mode set (`claude.flowkit.prBase` non-empty) | Same as stack, then preview epic → integration PR to base |
+| Peer PRs on same base (stack) | Merge-stack → … |
+| Epic mode set (`claude.flowkit.prBase` non-empty) | Same as stack, then integration PR to base |
 | `develop` ahead of `main` (release awaiting cut) | Bump versions → cut → release |
 | RC branch exists on origin | Release (RC → main) |
 | Latest release shipped, develop in sync | "Nothing to ship" — surface and offer alternatives |
@@ -89,7 +89,6 @@ Compose the entry sub-chains into a single ordered chain. Standard step library 
 | Self-review the PR diff | `/review` (or manual read-through) |
 | Merge a single PR | `/flowkit:merge-pr` |
 | Merge a stacked PR set | `/swarmkit:merge-stack` |
-| Preview an epic before integration | `/flowkit:preview-epic` |
 | Sync local develop with origin | `/flowkit:sync` |
 | Bump per-plugin versions + tags | `/bump-versions` |
 | Cut a release candidate | `/flowkit:cut` |

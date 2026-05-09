@@ -620,7 +620,6 @@ These are observed limitations of the `Agent` and `TeamCreate` primitives at the
 | Caller | Behavior |
 |--------|----------|
 | `flowkit:cut-epic` | The canonical epic-cutting primitive. `spawn-team --epic` invokes this skill via the Skill tool so both entry points share one implementation. |
-| `flowkit:preview-epic` | Run after the team has merged sub-PRs to preview the epic-to-`${BASE_BRANCH}` diff. |
 | `flowkit:open-pr` / `flowkit:pr` | Member PRs target `claude.flowkit.prBase` automatically once the spawn pins it. |
 | `swarmkit:gh-fetch-issues` | Resolves `--issues <range>` into a filtered (open + non-on-hold) list for the lead's first dispatch prompt. |
 | `swarmkit:clean-worktrees` | Pre-flight sweep when stale `.claude/worktrees/*` paths exist that don't match the resolved roster. |

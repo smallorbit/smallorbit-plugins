@@ -12,7 +12,6 @@ commands:
   - /flowkit:ship-epic
   - /flowkit:restack
   - /flowkit:pipeline-status
-  - /flowkit:preview-epic
   - /flowkit:cut-epic
 summary: >
   flowkit wraps the full develop → release → main lifecycle into a set of
