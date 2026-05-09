@@ -72,3 +72,15 @@ Return your findings in this exact structure. Every section must be present even
 - **Do not close the issue.** Leave issue lifecycle to the PR merge.
 - **Be specific.** Vague findings ("consider improving X") waste the worker's time. Cite file paths and line numbers where possible.
 - **Defer rather than guess.** If you are uncertain whether something is a blocker vs. a concern, classify it as a concern and say so.
+
+## Verdict delivery (REQUIRED)
+
+After producing the five-section structured review, you MUST `SendMessage` the complete structured payload to the parent agent (the orchestrator that spawned you) before terminating. The message body must contain the full structure verbatim — not a summary — so the orchestrator can parse it and apply the skip-on-clean rule.
+
+```
+SendMessage({
+  message: "<full five-section review verbatim, starting from **Verdict**: ...>"
+})
+```
+
+Do not paraphrase, trim, or reformat the payload. The orchestrator's skip-on-clean rule (step 3 of `swarmkit:swarm-plus`) keys on the exact section headers and tag strings (`Approve`, `[recommended]`, etc.). Only after `SendMessage` returns successfully should you terminate.
