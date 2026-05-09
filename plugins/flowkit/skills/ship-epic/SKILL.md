@@ -78,6 +78,5 @@ If the script exits non-zero (empty stdout), surface stderr and stop. Do not ret
 | Caller | Behavior |
 |--------|----------|
 | `flowkit:cut-epic` | Creates the epic branch and pins `claude.flowkit.prBase`. ship-epic is the symmetric closer. |
-| `flowkit:preview-epic` | Recommended to run before ship-epic to validate the integrated epic state. ship-epic does not call preview-epic internally. |
 | `swarmkit:merge-stack` | Must run before ship-epic when the epic uses the stacked-PR model, to squash `worktree-agent-*` merge commits into linear history. |
 | `flowkit:ship` (#894) | Will orchestrate `merge-stack → ship-epic → cut → release` when it ships. |
