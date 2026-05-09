@@ -42,7 +42,7 @@ claude --plugin-dir /path/to/flowkit
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`. |
 | **release** | `/release` | Merge the newest RC to `main`, tag, close issues, clean up RC branches. |
-| **ship** | `/ship` | Repo-level orchestrator. Chains `merge-stack → ship-epic (when epic in flight) → cut → release`. End-state: linear `develop`, linear `main`, prBase unset. |
+| **ship** | `/ship` | Release closer. Chains `cut → release` to promote `develop` to `main`. Aborts if open `worktree-agent-*` PRs target the resolved base — run `/swarmkit:merge-stack` (and `/ship-epic` when an epic is in flight) first. |
 | **pipeline-status** | `/pipeline-status` | Show the full release pipeline: open PRs in flight, `develop` awaiting a cut, RCs awaiting release, and the most recent tag. |
 
 ### Sub-Skills (internal)
@@ -57,13 +57,24 @@ These are called by the skills above — you don't invoke them directly.
 
 ## Typical Workflows
 
-### After a swarm run
+### After a swarm run (canonical bubble-free release)
 
 ```
-/ship                            # merge-stack → ship-epic → cut → release (auto-detects feature branch)
+/swarmkit:merge-stack            # land all open worktree-agent-* PRs into the epic (or develop)
+# verify on the integrated branch — run your project's typecheck/test/lint
+/ship-epic                       # rebase-merge the epic to develop, unset prBase, delete epic branch
+/ship                            # cut → release: develop → main
 ```
+
+The operator-controlled stop between `merge-stack` and `ship-epic` is where the verify gate runs against the cumulative integrated state. `/ship` itself is the release closer only — it refuses to run while open `worktree-agent-*` PRs target the resolved base, pointing the operator back at `merge-stack`.
 
 ### Standard release (no swarm)
+
+```
+/ship                            # cut → release: develop → main
+```
+
+Or run the underlying steps directly:
 
 ```
 /cut                             # cut a release candidate from develop
@@ -93,7 +104,7 @@ The epic branch composes with `swarmkit:swarm`: agents spawned while `claude.flo
 
 To verify the integrated state of an epic locally before promotion, check out the feature branch and run your project's verify commands directly — after `swarmkit:merge-stack` lands every sub-PR onto the feature branch, the branch HEAD already is the integrated state, so no synthesis step is needed.
 
-> `/ship` from an epic branch (or with `claude.flowkit.prBase` pinned to a `feature/*`) automatically inserts `ship-epic` between `merge-stack` and `cut`. The epic branch is rebase-merged to `develop`, the pin is cleared, and the chain continues with the freshly-updated `develop`. `/ship` does not auto-verify — check out the feature branch and run verify yourself first if you want to gate promotion on it.
+> `/ship` is a develop→main release closer; it does not promote epics. From an epic in flight, run `/swarmkit:merge-stack`, verify on the integrated feature branch, run `/ship-epic` to rebase-merge the epic into `develop`, then run `/ship`. `/ship` aborts if any open `worktree-agent-*` PRs still target the resolved base — that abort is what makes the verify gate between `merge-stack` and `ship-epic` mandatory in practice.
 
 ### Mid-review restack
 
@@ -121,7 +132,7 @@ The subtree is walked breadth-first: siblings continue independently if one bran
 
 ## Ship boundaries
 
-`/ship` orchestrates `merge-stack → ship-epic (conditional) → cut → release`. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. If any step fails, `/ship` stops before the next step; state is left recoverable for re-run after the operator resolves the failure.
+`/ship` is the release closer: it chains `cut → release` to promote `develop` to `main`. It does not merge open swarm PRs and does not promote epics. Those steps belong to `/swarmkit:merge-stack` and `/flowkit:ship-epic`, run by the operator beforehand so a verify gate can sit between integration and release. The canonical bubble-free sequence is `/swarmkit:merge-stack → verify → /flowkit:ship-epic → /flowkit:ship`. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. `/ship` aborts up front if any open `worktree-agent-*` PRs target the resolved base. If any step fails, `/ship` stops before the next step; state is left recoverable for re-run after the operator resolves the failure.
 
 ## Configuration
 
@@ -129,7 +140,7 @@ Flowkit reads one repo-local git config key:
 
 | Key | Purpose | Default |
 |-----|---------|---------|
-| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/cut-epic`, `/swarm` (loop mode), and `squadkit:spawn-team --epic`; unset by `/ship-epic` (and therefore by `/ship` when an epic is in flight). | `develop` |
+| `claude.flowkit.prBase` | Target base branch for `/open-pr` when no override is passed. Set automatically by `/cut-epic`, `/swarm` (loop mode), and `squadkit:spawn-team --epic`; unset by `/ship-epic`. | `develop` |
 
 Inspect or set manually:
 
@@ -238,7 +249,10 @@ Flowkit handles the shipping half of the development loop. Use it with speckit a
 ```
 /spec add CSV export              # Plan the feature, file issues  (speckit)
 /swarm                            # Resolve issues with parallel agents  (swarmkit)
-/ship                             # merge-stack → ship-epic → cut → release  (flowkit)
+/swarmkit:merge-stack             # Land the swarm PRs into the epic branch
+# verify on the epic branch
+/ship-epic                        # Promote epic → develop  (flowkit)
+/ship                             # cut → release: develop → main  (flowkit)
 ```
 
-The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it. Use [sessionkit](../sessionkit)'s `/handoff` if a release session runs long, and `/skillit` afterwards to capture any new conventions or one-off scripts worth keeping.
+The natural sequence is **speckit → swarmkit → flowkit**: speckit defines the work, swarmkit executes it, flowkit ships it. The operator-controlled stop between `merge-stack` and `ship-epic` is the verify gate against the cumulative integrated state — `/ship` itself refuses to run while swarm PRs are still open against the resolved base. Use [sessionkit](../sessionkit)'s `/handoff` if a release session runs long, and `/skillit` afterwards to capture any new conventions or one-off scripts worth keeping.
