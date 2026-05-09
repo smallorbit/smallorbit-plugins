@@ -98,7 +98,7 @@ Track each reviewer's agent ID against the PR it covers.
 
 ### 3. Decide whether to spawn a fix-round worker
 
-When a reviewer's task notification arrives, parse its result and apply the **skip-on-clean** rule.
+When the reviewer's `SendMessage` payload arrives (delivered separately from the idle notification — see step 2's verdict delivery contract), parse its result and apply the **skip-on-clean** rule.
 
 | Reviewer output | Action |
 |-----------------|--------|
@@ -199,7 +199,7 @@ Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 
 ```bash
 ps aux \
-  | grep -E "agent-id .+@<team-name>" \
+  | grep -- "--team-name <team-name>" \
   | grep -v grep \
   | awk '{print $2}' \
   | xargs -r kill
