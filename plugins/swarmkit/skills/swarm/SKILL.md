@@ -245,6 +245,20 @@ Each agent prompt MUST include these **workflow steps** (in order):
    # Safety check — abort if not in an isolated worktree
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not running in an isolated worktree. Aborting to prevent branch collision." && exit 1
 
+   # Ancestry sanity — abort if HEAD doesn't descend from the requested base.
+   # Defends against the post-rebase-merge worktree-base drift bug (#923): after a
+   # rebase-merge release, origin/main and origin/develop share identical trees but
+   # diverge in SHA history. EnterWorktree may silently root the worktree on main's
+   # SHA chain even though the checkout targeted develop, producing a 50+-file diff
+   # for an 11-file change. Fail fast here instead.
+   #
+   # Use the same <base> as the checkout above — one variant, not both:
+   if ! git merge-base --is-ancestor origin/<base> HEAD; then
+     echo "ERROR: HEAD is not a descendant of origin/<base>. Worktree may be rooted on a stale base." >&2
+     echo "       Run: git fetch origin <base> && git reset --hard origin/<base>" >&2
+     exit 1
+   fi
+
 2. Make changes (the actual issue work)
 3. Stage and commit using conventional-commit-message format:
    - No Claude mentions, no co-author lines
