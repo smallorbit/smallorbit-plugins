@@ -23,6 +23,21 @@ The bump-versions skill handles:
 
 Run it before staging and committing the release.
 
+### Canonical bubble-free release sequence
+
+The full operator-controlled release flow is four explicit steps, with a verify gate sitting between integration and promotion:
+
+```
+/swarmkit:merge-stack            # land all open worktree-agent-* PRs into the epic (or develop)
+# verify on the integrated branch — run typecheck/test/lint
+/flowkit:ship-epic               # rebase-merge the epic to develop, unset prBase, delete epic branch
+/flowkit:ship                    # cut → release: develop → main
+```
+
+`/flowkit:ship` is the release closer only — it chains `cut → release`. It refuses to run while open `worktree-agent-*` PRs target the resolved base, which is what makes the verify step between `merge-stack` and `ship-epic` mandatory in practice. Operators who skip the verify step and try to ship anyway will be turned around by ship's preflight.
+
+For a release with no swarm in flight (no epic, no open `worktree-agent-*` PRs), `/flowkit:ship` runs unconditionally — it is just `cut → release`.
+
 ## Plugins
 
 `squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
