@@ -1,6 +1,6 @@
 ---
 name: merge-pr
-description: Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees).
+description: Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking worktrees — auto-checks out base branch when the main worktree holds the head).
 triggers:
   - "/merge-pr"
   - "merge this PR"
@@ -45,7 +45,7 @@ Squash-merge the open PR for the current branch and delete the remote branch. Op
 
 ## Script contract
 
-`scripts/merge_pr.sh` implements worktree cleanup, stacked-PR retargeting, and a `with-clean-workspace`–wrapped `gh pr merge --squash --delete-branch`. On success it prints **bare JSON** on stdout:
+`scripts/merge_pr.sh` implements worktree cleanup, stacked-PR retargeting, and a `with-clean-workspace`–wrapped `gh pr merge --squash --delete-branch`. When the PR's head branch is held by a linked worktree the script removes it via `git worktree remove --force`; when it is held by the main worktree (the canonical state after `push-or-pr`) the script instead runs `git checkout <base>` in the main worktree so the branch can be released without the operator needing to do it manually. On success it prints **bare JSON** on stdout:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
