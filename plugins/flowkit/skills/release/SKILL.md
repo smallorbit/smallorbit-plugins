@@ -50,7 +50,8 @@ if ! git merge-base --is-ancestor origin/main "origin/$SOURCE"; then
   echo "  git fetch origin" >&2
   echo "  git checkout $SOURCE" >&2
   echo "  git rebase origin/main" >&2
-  echo "  git push --force-with-lease origin $SOURCE" >&2
+  echo "  git push --force-with-lease origin \"refs/heads/\$SOURCE:refs/heads/\$SOURCE\"" >&2
+  echo "  # Qualified refspec required: 'cut' creates both a branch and a same-named tag (e.g. rc/2026-05-09.1), so the unqualified form is ambiguous." >&2
   echo "Then re-run /release." >&2
   exit 1
 fi
