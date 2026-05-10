@@ -50,7 +50,8 @@ if ! git merge-base --is-ancestor origin/main "origin/$SOURCE"; then
   echo "  git fetch origin" >&2
   echo "  git checkout $SOURCE" >&2
   echo "  git rebase origin/main" >&2
-  echo "  git push --force-with-lease origin $SOURCE" >&2
+  echo "  git push --force-with-lease origin \"refs/heads/\$SOURCE:refs/heads/\$SOURCE\"" >&2
+  echo "  # Qualified refspec required: 'cut' creates both a branch and a same-named tag (e.g. rc/2026-05-09.1), so the unqualified form is ambiguous." >&2
   echo "Then re-run /release." >&2
   exit 1
 fi
@@ -326,6 +327,29 @@ done
 git tag "$TAG"
 git push origin "$TAG"
 ```
+
+#### Push per-plugin tags
+
+`/bump-versions` creates per-plugin tags (`{plugin-name}--v{version}`) locally after merging the bump PR, but intentionally does not push them — release is the publication moment. Push any local per-plugin tags that aren't already on origin now, alongside the calver tag. This ensures consumers and future bump-versions runs always see fresh per-plugin tags without a separate manual push.
+
+```bash
+# Push any per-plugin tags (`{plugin}--v{version}`) created during this cycle that
+# aren't already on origin. bump-versions creates these locally; release publishes them.
+LOCAL_PLUGIN_TAGS=$(git tag --list '*--v*')
+PUSHED_PLUGIN_TAG_COUNT=0
+while read PT; do
+  [ -z "$PT" ] && continue
+  if ! git ls-remote --exit-code origin "refs/tags/$PT" &>/dev/null; then
+    git push origin "refs/tags/$PT"
+    PUSHED_PLUGIN_TAG_COUNT=$((PUSHED_PLUGIN_TAG_COUNT + 1))
+  fi
+done < <(printf '%s\n' "$LOCAL_PLUGIN_TAGS")
+if [ "$PUSHED_PLUGIN_TAG_COUNT" -eq 0 ]; then
+  echo "No per-plugin tags to push (none local or all already on origin)"
+fi
+```
+
+This block is idempotent — re-running on a clean cycle pushes nothing and does not error.
 
 ### 9. Close referenced issues explicitly
 
