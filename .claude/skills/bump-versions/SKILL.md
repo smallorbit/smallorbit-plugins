@@ -145,7 +145,7 @@ After the bump commit is on origin's protected branch (via merged PR), create a 
 git tag {plugin-name}--v{new-version}
 ```
 
-Do NOT push tags — leave that to the release flow.
+Do NOT push tags — release publishes them as part of its tag-push step (step 8), so bump-versions intentionally creates the tags locally only.
 
 ### Step 6 — Detect new marketplace entries
 
