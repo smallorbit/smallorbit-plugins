@@ -177,8 +177,7 @@ Bumped:
   swarmkit  1.0.0 → 2.0.0  (tag: swarmkit--v2.0.0)
   flowkit   1.0.0 → 1.1.0  (tag: flowkit--v1.1.0)
 
-Tags created locally. Push with:
-  git push origin --tags
+Tags created locally. Release publishes them via step 8 — no manual push needed.
 ```
 
 If Step 6 detected new plugin entries, append a reminder block:
