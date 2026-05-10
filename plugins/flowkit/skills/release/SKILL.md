@@ -337,15 +337,13 @@ git push origin "$TAG"
 # aren't already on origin. bump-versions creates these locally; release publishes them.
 LOCAL_PLUGIN_TAGS=$(git tag --list '*--v*')
 PUSHED_PLUGIN_TAG_COUNT=0
-if [ -n "$LOCAL_PLUGIN_TAGS" ]; then
-  printf '%s\n' "$LOCAL_PLUGIN_TAGS" | while read PT; do
-    [ -z "$PT" ] && continue
-    if ! git ls-remote --exit-code origin "refs/tags/$PT" &>/dev/null; then
-      git push origin "refs/tags/$PT"
-      PUSHED_PLUGIN_TAG_COUNT=$((PUSHED_PLUGIN_TAG_COUNT + 1))
-    fi
-  done
-fi
+while read PT; do
+  [ -z "$PT" ] && continue
+  if ! git ls-remote --exit-code origin "refs/tags/$PT" &>/dev/null; then
+    git push origin "refs/tags/$PT"
+    PUSHED_PLUGIN_TAG_COUNT=$((PUSHED_PLUGIN_TAG_COUNT + 1))
+  fi
+done < <(printf '%s\n' "$LOCAL_PLUGIN_TAGS")
 if [ "$PUSHED_PLUGIN_TAG_COUNT" -eq 0 ]; then
   echo "No per-plugin tags to push (none local or all already on origin)"
 fi
