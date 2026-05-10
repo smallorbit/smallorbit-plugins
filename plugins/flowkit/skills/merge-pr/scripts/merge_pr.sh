@@ -92,13 +92,23 @@ fi
 
 BLOCKING_WORKTREE=$(_find_worktree_for_branch "$HEAD_BRANCH")
 if [[ -n "$BLOCKING_WORKTREE" ]]; then
-  printf 'Note: branch %s is held by worktree %s.\n' "$HEAD_BRANCH" "$BLOCKING_WORKTREE" >&2
-  printf '  Auto-removing the worktree before merge so the local branch can be deleted cleanly.\n' >&2
-  if ! git worktree remove --force "$BLOCKING_WORKTREE"; then
-    echo "merge_pr: Cannot remove worktree at '${BLOCKING_WORKTREE}' that holds '${HEAD_BRANCH}'." >&2
-    printf '  git worktree remove --force %q\n' "$BLOCKING_WORKTREE" >&2
-    echo "Then re-run merge_pr." >&2
-    exit 1
+  MAIN_WORKTREE=$(git worktree list --porcelain | awk '/^worktree / { sub(/^worktree /, ""); print; exit }')
+  [[ -z "$MAIN_WORKTREE" ]] && { echo "merge_pr: could not determine main worktree path" >&2; exit 1; }
+  if [[ "$BLOCKING_WORKTREE" == "$MAIN_WORKTREE" ]]; then
+    echo "merge_pr: switching main worktree to ${BASE_BRANCH} so head branch can be deleted cleanly." >&2
+    if ! git -C "$MAIN_WORKTREE" checkout -q "$BASE_BRANCH"; then
+      echo "merge_pr: cannot auto-checkout ${BASE_BRANCH} in main worktree (commit/stash uncommitted changes first), then re-run." >&2
+      exit 1
+    fi
+  else
+    printf 'Note: branch %s is held by worktree %s.\n' "$HEAD_BRANCH" "$BLOCKING_WORKTREE" >&2
+    printf '  Auto-removing the worktree before merge so the local branch can be deleted cleanly.\n' >&2
+    if ! git worktree remove --force "$BLOCKING_WORKTREE"; then
+      echo "merge_pr: Cannot remove worktree at '${BLOCKING_WORKTREE}' that holds '${HEAD_BRANCH}'." >&2
+      printf '  git worktree remove --force %q\n' "$BLOCKING_WORKTREE" >&2
+      echo "Then re-run merge_pr." >&2
+      exit 1
+    fi
   fi
 fi
 
