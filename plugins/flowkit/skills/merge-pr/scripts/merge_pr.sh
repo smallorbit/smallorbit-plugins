@@ -92,7 +92,8 @@ fi
 
 BLOCKING_WORKTREE=$(_find_worktree_for_branch "$HEAD_BRANCH")
 if [[ -n "$BLOCKING_WORKTREE" ]]; then
-  MAIN_WORKTREE=$(git worktree list --porcelain | awk '/^worktree / {print $2; exit}')
+  MAIN_WORKTREE=$(git worktree list --porcelain | awk '/^worktree / { sub(/^worktree /, ""); print; exit }')
+  [[ -z "$MAIN_WORKTREE" ]] && { echo "merge_pr: could not determine main worktree path" >&2; exit 1; }
   if [[ "$BLOCKING_WORKTREE" == "$MAIN_WORKTREE" ]]; then
     echo "merge_pr: switching main worktree to ${BASE_BRANCH} so head branch can be deleted cleanly." >&2
     if ! git -C "$MAIN_WORKTREE" checkout -q "$BASE_BRANCH"; then
