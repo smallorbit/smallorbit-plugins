@@ -2,6 +2,8 @@
 
 Obsidian vault skills for Claude Code. Read, search, edit notes, manage projects, capture decisions, and archive conversations — all via the Obsidian CLI.
 
+> **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — vaultkit lives outside the dev loop as a utility for capturing decisions and archives alongside any work.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
@@ -81,6 +83,14 @@ If no name is provided, the skill lists available projects and recommends the mo
 4. Keeps entries concise — recall notes, not documentation.
 
 Because it delegates to the `project` skill, `/jot` benefits from the same project-awareness and file-hygiene conventions that `/project` applies.
+
+## How Obsidian Works
+
+`/obsidian` is the base layer every other vaultkit skill builds on. It governs vault access via the Obsidian CLI binary — Obsidian must be running for any command to succeed. Operations require an explicit vault name; if one isn't supplied, the skill runs `obsidian vaults` and prompts. Read-only `obsidian vault=<VAULT>` commands are pre-approved in global settings, so listing, searching, and tagging happen without prompts; mutating operations still require confirmation.
+
+## How Project Works
+
+`/project` manages a `Projects/` second brain in any Obsidian vault. It handles three operations: **loading** project context at the start of a session, **initializing** new projects from template, and **updating** project files after work. `/jot` is the lightweight entry point for updates; `/load-project` and `/list-projects` are the named entry points for loading and discovery. The skill always invokes `vaultkit:obsidian` first to resolve vault connection details, and routes file mutations through `vaultkit:file-edit` to preserve filesystem birth time — the source of Obsidian's `created` metadata.
 
 ## How Archive Export Works
 

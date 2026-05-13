@@ -103,11 +103,9 @@ agent execution: it provisions `phase:1`, `phase:2`, `phase:3` labels (creating
 them if missing, matching the catalog skill's label-provisioning pattern),
 assigns each child issue to a phase, extracts interface contracts as their own
 issue when bundled inside an implementation task, identifies the issue whose
-branch should become the epic's feature-branch base (see
-[#592](https://github.com/smallorbit/smallorbit-plugins/issues/592) for the
-matching flowkit work), and posts a team dispatch summary as a comment on the
-epic issue describing recommended spawn config (builder count, model, feature
-branch, initial dispatch order).
+branch should become the epic's feature-branch base, and posts a team dispatch
+summary as a comment on the epic issue describing recommended spawn config
+(builder count, model, feature branch, initial dispatch order).
 
 If fewer than three signals hold, `/spec` prints
 `Team decomposition skipped — <reason>` and proceeds to the final report. The
