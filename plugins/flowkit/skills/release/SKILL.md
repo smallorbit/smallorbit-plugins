@@ -39,25 +39,27 @@ if [ -z "$SOURCE" ]; then
 fi
 ```
 
-### 3. Rebase-merge preflight
+### 3. Rebase RC onto `origin/main`
 
-`gh pr merge --rebase` requires the RC to include every commit on `main`. In the bubble-free flow this is automatic — `main` only changes via release, and the RC is cut from `develop` which is always a superset of `main`. The preflight is a one-line guard against the rare case of a direct hotfix on `main`:
+`gh pr merge --rebase` requires the RC to include every commit on `main` by SHA ancestry, not just by content. After each rebase-merge release, `main`'s tip and `develop`'s tip contain content-equivalent commits with **structurally different SHAs**: `flowkit:merge-pr` squash-merges into `develop`, while `gh pr merge --rebase` rewrites committer dates on every commit it lands on `main` — even when the RC is already a linear descendant. New committer date → new commit SHA → `main`'s rebased SHAs are not in `develop`'s ancestry. The next RC, cut from `develop`, therefore fails an `is-ancestor` check against `origin/main` on every release after the first, with no hotfixes needed to trigger it.
+
+The fix is to rebase the RC onto `origin/main` unconditionally before opening the release PR. In the trivial case (no hotfixes, standard flow) the rebase is a no-op and the force-push is a fast-forward. The force-push target is the short-lived RC branch (deleted minutes later by `gh pr merge --delete-branch` in step 6), never `main`; `--force-with-lease` blocks the concurrent-writer race. A qualified refspec is required because `cut` creates both a branch and a same-named tag (e.g. `rc/2026-05-09.1`), making the unqualified form ambiguous:
+
+```bash
+git checkout "$SOURCE"
+git rebase origin/main
+git push --force-with-lease origin "refs/heads/$SOURCE:refs/heads/$SOURCE"
+```
+
+After the rebase, assert that the invariant now holds. This is a paranoid post-rebase sanity check — if it fires, something unexpected happened during the rebase (e.g. an interactive conflict left a detached HEAD) and it is safer to abort than to open a PR that will fail at merge time:
 
 ```bash
 if ! git merge-base --is-ancestor origin/main "origin/$SOURCE"; then
-  echo "release: $SOURCE does not include all of origin/main; rebase-merge will fail." >&2
-  echo "Recover with:" >&2
-  echo "  git fetch origin" >&2
-  echo "  git checkout $SOURCE" >&2
-  echo "  git rebase origin/main" >&2
-  echo "  git push --force-with-lease origin \"refs/heads/\$SOURCE:refs/heads/\$SOURCE\"" >&2
-  echo "  # Qualified refspec required: 'cut' creates both a branch and a same-named tag (e.g. rc/2026-05-09.1), so the unqualified form is ambiguous." >&2
-  echo "Then re-run /release." >&2
+  echo "release: $SOURCE does not include all of origin/main even after rebase — aborting." >&2
+  echo "Inspect the rebase output above for conflicts or unexpected state, then re-run /release." >&2
   exit 1
 fi
 ```
-
-The check is cheap (no network beyond the prior `git fetch origin` in step 1) and turns the most common rebase-merge failure mode into a recoverable, well-described abort.
 
 ### 4. Aggregate issue references from merged PRs
 
