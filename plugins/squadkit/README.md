@@ -2,6 +2,8 @@
 
 A Claude Code plugin for multi-agent team coordination. Squadkit introduces a small vocabulary — **roles**, **squads**, and **crews** — and ships the scaffolding needed to make team-based agent workflows reusable across any repository, regardless of language or tooling.
 
+> **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — it covers the plan → execute → ship loop and where squadkit fits in.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:
@@ -49,15 +51,16 @@ The role library ships seven contracts under `plugins/squadkit/agents/`. Each ro
 
 Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root — the `SessionStart` hook (see [Hooks](#hooks)) prefers the local override and falls back to the plugin-shipped contract.
 
-**Cooperative shutdown.** Every role contract (lead and members) documents a cooperative `shutdown_request` / `shutdown_response approve:true` handshake. The lead initiates teardown by polling every active member; each member replies before exiting. Without these approvals `TeamDelete` cleans the registry but leaves the underlying iterm2/tmux panes stranded — burning context and quota until the user manually closes them. If you author a project-local override at `.claude/agents/<role>.md`, preserve the cooperative-shutdown section verbatim.
+### Tools allowlist
 
-### Tools allowlist and harness augmentation
+Role contracts declare the **full** tool set each role uses, including squad-coordination tools (`SendMessage`, `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`, and `Agent` for `team-lead`). A reader of `team-lead.md` can see from frontmatter alone that the role can dispatch work. The harness still augments some of these at spawn time, but explicit declaration keeps the contracts honest about what each role does.
 
-The role contracts now declare the **full** tool set each role uses, including the squad-coordination tools (`SendMessage`, `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`, and `Agent` for `team-lead`). A reader of `team-lead.md` can see from frontmatter alone that the role can dispatch work — no mental model of harness magic required.
+### Override caveats
 
-Historically the Claude Code harness augmented the allowlist for some of these tools at spawn time (a spawned `team-lead` could call `SendMessage` even when its frontmatter omitted it). That augmentation still happens, but explicit declaration is preferred for documentation correctness and to keep the contracts honest about what each role actually does.
+If you author a project-local overlay at `.claude/agents/<role>.md`, preserve both of the following from the shipped contract:
 
-**Override caveat.** If you author a project-local overlay at `.claude/agents/<role>.md`, preserve the coordination tools in the `tools:` line. Stripping them risks breaking dispatch — depending on overlay merge semantics, a restricted overlay may shadow harness augmentation and leave the role unable to message teammates or maintain the dispatch queue. When in doubt, copy the shipped contract's `tools:` line verbatim and add to it rather than replace it.
+- **Coordination tools** — keep the `SendMessage`/`TaskCreate`/etc. entries in the `tools:` line. Stripping them risks breaking dispatch: a restricted overlay may shadow harness augmentation and leave the role unable to message teammates. When in doubt, copy the shipped `tools:` line verbatim and add to it rather than replace.
+- **Cooperative shutdown** — every role documents a `shutdown_request` / `shutdown_response approve:true` handshake. Without these approvals `TeamDelete` cleans the registry but leaves iterm2/tmux panes stranded, burning context and quota until manually closed. Preserve the cooperative-shutdown section verbatim.
 
 ## Skills
 
@@ -66,8 +69,6 @@ Historically the Claude Code harness augmented the allowlist for some of these t
 | **init** | `/squadkit:init` | Interview-driven generator that writes `.squadkit/config.json` to the repo root. No per-stack presets — the wizard asks you for the commands directly. |
 | **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member (the harness's readiness signal) before the orchestrator (which IS the lead) enters its dispatch loop. |
 | **agent-team-retro** | `/squadkit:agent-team-retro` | Run a retrospective on the currently-spawned squad. Polls each active member with three fixed questions, aggregates findings into severity-grouped action items, applies approved edits to role contracts, and optionally hands findings off to `speckit:catalog` as GitHub issues. |
-
-A `role-spec` skill for authoring new role contracts ships in a subsequent release.
 
 ## Crews
 
@@ -82,6 +83,8 @@ A **crew profile** is a YAML file under `plugins/squadkit/crews/` describing a r
 | **design** | architect, designer, explorer | Discovery-stage exploration with no implementation yet. Read-only: produces issue comments, no worktrees, no epic branch. (`kind: discovery`) |
 | **discovery-3-role** | architect, explorer, designer | Read-only early-stage discovery — architect frames the system, explorer investigates prior art, designer shapes the surface. Deliverables are issue comments. (`kind: discovery`) |
 | **qa** | team-lead, reviewer, tester, builder×1 | Hardening, regression, bug-fix sweeps. |
+
+Discovery crews (`kind: discovery`) follow a different orchestration shape — architect IS the lead, no builders, deliverables are GitHub issue comments rather than PRs. See [`docs/patterns/discovery-coordination.md`](./docs/patterns/discovery-coordination.md) for the full protocol, role scoping, comment shape, and a worked example.
 
 ### Schema
 

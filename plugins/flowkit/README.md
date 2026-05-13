@@ -51,8 +51,10 @@ These are called by the skills above — you don't invoke them directly.
 
 | Skill | Used by | Purpose |
 |-------|---------|---------|
+| **default-branch-prompt** | open-pr | One-time first-run nudge: if the GitHub default branch is `main`, offers to switch it to `develop`. Persists the choice via `claude.flowkit.defaultBranchPrompted`. |
 | **git-sync-main** | release | Checkout `main` and pull latest from origin. |
 | **pr-base-scope** | swarm | Set/unset `claude.flowkit.prBase` git config for scoped PR targeting. |
+| **push-or-pr** | bump-versions, release | Publish commits on a shared branch (`develop`/`main`) safely — branches off, pushes a dated feature branch, opens a PR. Never pushes directly to the checked-out branch. |
 | **with-clean-workspace** | merge-pr, release | Auto-stash dirty workspace around implicit post-merge pull via `scripts/with_clean_workspace.sh -- <command ...>`. |
 
 ## Typical Workflows
@@ -132,7 +134,7 @@ The subtree is walked breadth-first: siblings continue independently if one bran
 
 ## Ship boundaries
 
-`/ship` is the release closer: it chains `cut → release` to promote `develop` to `main`. It does not merge open swarm PRs and does not promote epics. Those steps belong to `/swarmkit:merge-stack` and `/flowkit:ship-epic`, run by the operator beforehand so a verify gate can sit between integration and release. The canonical bubble-free sequence is `/swarmkit:merge-stack → verify → /flowkit:ship-epic → /flowkit:ship`. Branch creation, commits, and PR opening live in `/pr` and `/swarm`. `/ship` aborts up front if any open `worktree-agent-*` PRs target the resolved base. If any step fails, `/ship` stops before the next step; state is left recoverable for re-run after the operator resolves the failure.
+`/ship` is the release closer only: it chains `cut → release` to promote `develop` to `main`. It does not merge open swarm PRs (`/swarmkit:merge-stack`) and does not promote epics (`/ship-epic`). Operator runs those beforehand so a verify gate sits between integration and release — `/ship` aborts if any open `worktree-agent-*` PRs still target the resolved base. If any step fails, `/ship` stops before the next step; state is left recoverable for re-run.
 
 ## Configuration
 
@@ -173,16 +175,7 @@ queue
 
 When the file is present, `/release` uses it verbatim and skips auto-detection. Use the same token you put in commit messages and PR titles.
 
-### Removed: `claude.prBase` (legacy)
-
-The unscoped legacy key `claude.prBase` is no longer read by any flowkit skill (removed in [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896)). If you have it set in a repo, clear it once and adopt the scoped key instead:
-
-```bash
-git config --unset claude.prBase
-git config claude.flowkit.prBase develop   # or whatever value you had
-```
-
-Use the same `claude.<plugin>.prBase` convention for any other plugin that needs a session-pinned base.
+> **Migrating from `claude.prBase`?** The unscoped legacy key is no longer read (removed in [#896](https://github.com/smallorbit/smallorbit-plugins/issues/896)). Run `git config --unset claude.prBase && git config claude.flowkit.prBase develop` to move to the scoped key.
 
 ## Assumptions & Conventions
 
@@ -192,13 +185,25 @@ Flowkit is opinionated. Understanding these assumptions upfront will save you fr
 
 Feature work merges into `develop`. Release candidates are cut from `develop`. `main` always reflects what's in production.
 
-### Default Branch (Current Assumption)
+### Default Branch
 
-Flowkit assumes `main` is the GitHub default branch for the repo. GitHub's `Closes #N` auto-close keywords only fire when a PR merges into the default branch — so the RC→`main` merge that `/release` performs is what closes the issues referenced in PRs that landed on `develop` during the cycle.
+Flowkit works with either GitHub default-branch configuration — `main` (the historical assumption) or `develop` (recommended for new adopters, aligning with modern Gitflow-on-GitHub).
 
-If you've configured `develop` (or any non-`main` branch) as the GitHub default, the auto-close path on the release PR silently no-ops and aggregated issues stay open. To stay safe regardless of which branch is set as default, `/release` runs an explicit `gh issue close` loop after the merge succeeds — closing every aggregated issue directly so the lifecycle works on either configuration. Issues that were closed earlier (e.g., already resolved) are skipped idempotently.
+**Why it matters.** GitHub's `Closes #N` keywords only fire when a PR merges into the default branch. With `develop` as default, per-feature PRs close their issues at merge time. With `main` as default, those keywords fire only at release time on the RC→`main` merge. To work safely under either configuration, `/release` runs an explicit `gh issue close` loop after the merge — closing every aggregated issue idempotently regardless of which branch GitHub considers default.
 
-If you set a non-`main` default branch, also note the `/open-pr` warning: when a feature PR targeting `develop` includes `Closes #N` keywords, those won't auto-close at squash-merge time — they'll close when `/release` later runs the explicit close loop.
+**First-run nudge.** The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit surfaces a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). Options:
+
+- **Switch to develop** — runs `gh repo edit --default-branch develop` after a second confirmation.
+- **Keep main as default** — keeps the current configuration; the prompt won't reappear.
+- **Don't ask again** — silences the prompt without recording a deliberate choice.
+
+The choice persists via `claude.flowkit.defaultBranchPrompted`. To re-surface the prompt:
+
+```bash
+git config --unset claude.flowkit.defaultBranchPrompted
+```
+
+The nudge is **never automatic** — every default-branch change requires explicit user confirmation, and existing `main`-as-default setups continue to work without modification.
 
 ### RC Naming: `rc/YYYY-MM-DD.N`
 
@@ -221,24 +226,6 @@ Common types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`.
 ### Issue Lifecycle
 
 `/merge-pr` never closes issues — that's intentional. Issues are closed by `/release` when work actually ships to `main`. This keeps them visible on the board until the feature is in production.
-
-### Default Branch (Recommendation for New Users)
-
-While the `main`-as-default configuration described above is fully supported, for new flowkit adopters we recommend setting **`develop` as the GitHub default branch** instead. This aligns with the modern Gitflow-on-GitHub convention and ensures GitHub's `Closes #N` auto-close keywords fire on the per-feature PRs that actually carry the work — not just at release time.
-
-The first time you run `/open-pr` in a repo whose default branch is `main`, flowkit will surface a one-time prompt offering to switch the default to `develop` (via `gh repo edit --default-branch develop`). The prompt has three options:
-
-- **Switch to develop** — runs `gh repo edit --default-branch develop` after a second confirmation.
-- **Keep main as default** — keeps the current configuration; the prompt won't reappear. Flowkit's `/release` skill already runs an explicit `gh issue close` loop, so the issue lifecycle still completes on either configuration.
-- **Don't ask again** — silences the prompt without recording a deliberate choice.
-
-The choice is persisted via `git config claude.flowkit.defaultBranchPrompted=true`, so subsequent `/open-pr` invocations stay silent. To re-surface the prompt (e.g., after revisiting the question), unset the marker:
-
-```bash
-git config --unset claude.flowkit.defaultBranchPrompted
-```
-
-The nudge is **never automatic** — every default-branch change requires explicit user confirmation, and existing `main`-as-default setups continue to work without modification.
 
 ## Pairing with Other Plugins
 
