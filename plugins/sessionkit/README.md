@@ -2,6 +2,8 @@
 
 A Claude Code plugin for session continuity, context handoffs, and meta-learning. Pick up exactly where you left off, discover reusable skills from your work, and keep permission prompts from slowing you down.
 
+> **New to smallorbit-plugins?** Start with the [Getting Started walkthrough](../../README.md#getting-started) — it covers the plan → execute → ship loop and where sessionkit fits in.
+
 ## Installation
 
 Install from the `smallorbit-plugins` marketplace:

@@ -75,16 +75,28 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 |-------|---------|---------|
 | **swarm-reviewer** | swarm-plus | Reviews a swarm PR against the originating issue's acceptance criteria. Returns findings inline (never via `gh pr comment`) using a fixed five-section output structure: Verdict / Blockers / Concerns / Nits / Coverage gaps. |
 
-## Typical Workflow
+## Typical Workflows
+
+### Multi-issue (auto-cuts an epic branch)
 
 ```
 /next-issue                          # See what's ready to work on
 /swarm 12 15 18                      # Auto-cuts feature branch, opens PRs against it
 /merge-stack                         # Fan child PRs into the epic branch bottom-up
 /ship-epic                           # Rebase-merge epic → develop, clear pin, delete epic branch
-/swarm 12                            # Single issue — flat to develop, no epic cut
-/merge-pr                            # Merge the one PR directly (flowkit skill)
-/swarm                               # Or clear the entire board in a loop
+```
+
+### Single issue (flat to develop)
+
+```
+/swarm 12                            # No epic cut — PR targets develop directly
+/merge-pr                            # Merge the one PR (flowkit skill)
+```
+
+### Loop mode (clear the board)
+
+```
+/swarm                               # Fetch, swarm, open PRs, repeat until nothing's left
 /clean-worktrees                     # Tidy up after a swarm run
 ```
 
