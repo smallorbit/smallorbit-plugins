@@ -71,6 +71,17 @@ if [ -z "$BASE" ]; then
   echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
   BASE="$REPO_DEFAULT"
 fi
+
+# 5. Guard — resolved base must not equal current HEAD
+HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BASE" = "$HEAD_BRANCH" ]; then
+  echo "ERROR: resolved base ($BASE) is the same as the current branch ($HEAD_BRANCH)." >&2
+  echo "This usually means you're on an epic branch with claude.flowkit.prBase pinned" >&2
+  echo "to itself. To open the epic's own integration PR, do one of:" >&2
+  echo "  - rerun with an explicit override: /flowkit:pr --base develop" >&2
+  echo "  - unset the pin first: git config --unset claude.flowkit.prBase" >&2
+  exit 1
+fi
 ```
 
 ### 3. Push branch to origin
