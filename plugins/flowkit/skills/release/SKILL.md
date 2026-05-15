@@ -294,6 +294,32 @@ gh pr create \
 
 Capture the PR number from the URL output.
 
+### 5.5. Pre-merge divergence check
+
+Before attempting the merge, detect patch-id divergence between `origin/main` and the RC. Even with the unconditional rebase in step 3, a stale RC that was force-pushed elsewhere, an aborted prior rebase, or a missed back-merge can leave `main` carrying commits whose patch-id equivalents are absent on the RC (or vice versa). `gh pr merge --rebase` will fail mid-flight when that happens, leaving the release in a half-shipped state. Surface the divergence as an explicit precondition instead:
+
+```bash
+DUP_PATCHES=$(git rev-list --left-right --cherry-pick --count \
+  "origin/main...origin/$SOURCE" | awk '{print $1}')
+if [ "$DUP_PATCHES" -gt 0 ]; then
+  echo "release: detected $DUP_PATCHES commit(s) on origin/main with no patch-id equivalent on origin/$SOURCE." >&2
+  echo "release: this typically means a prior release rebase-merged into main and the back-merge never landed on develop," >&2
+  echo "release: leaving main with commits whose patch-id duplicates would now clash on rebase-merge." >&2
+  echo "release: remediate by rebasing the RC onto origin/main locally, then force-pushing with the disambiguated refspec:" >&2
+  echo "release:   git checkout $SOURCE" >&2
+  echo "release:   git rebase origin/main" >&2
+  echo "release:   git push --force-with-lease origin refs/heads/$SOURCE:refs/heads/$SOURCE" >&2
+  echo "release: the qualified refspec is required because cut creates a same-named tag (rc/YYYY-MM-DD.N)," >&2
+  echo "release: which makes the unqualified push form ambiguous (error: src refspec <name> matches more than one)." >&2
+  echo "release: confirm with the operator before auto-rebasing — re-run /release after the remediation." >&2
+  exit 1
+fi
+```
+
+The check uses `git rev-list --left-right --cherry-pick --count` against the symmetric difference `origin/main...origin/$SOURCE`. The left-side count (after `--cherry-pick` filters out patch-id-equivalent commits) is the set of commits on `main` whose changes are not represented on the RC by any commit, identical SHA or otherwise. Any non-zero value means the merge will not be clean, and the operator must rebase before continuing.
+
+Auto-rebase with operator confirmation is the preferred remediation; in interactive runs, prompt before executing the three remediation commands above on the operator's behalf. In non-interactive runs, abort with the message above and let the operator re-run after rebasing.
+
 ### 6. Merge the PR
 
 `gh pr merge --rebase --delete-branch` triggers an implicit local `git pull` after the merge. If the workspace is dirty that pull fails with `cannot pull with rebase: You have unstaged changes`. Wrap the call with the [`flowkit:with-clean-workspace`](../../with-clean-workspace/SKILL.md) script so any dirty state is auto-stashed and restored:
@@ -395,7 +421,11 @@ if [ -z "$RC_BRANCHES" ]; then
 else
   echo "$RC_BRANCHES" | while read rc; do
     echo "Deleting orphan RC branch: $rc"
-    git push origin --delete "$rc"
+    # Use the disambiguated refspec form — the same-named RC tag still exists on
+    # origin (cut/SKILL.md step 3 documents the collision), so the unqualified
+    # `git push origin --delete "$rc"` would fail with `src refspec matches more
+    # than one`. Deleting via `:refs/heads/<rc>` targets the branch unambiguously.
+    git push origin ":refs/heads/$rc"
   done
 fi
 ```
