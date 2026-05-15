@@ -80,6 +80,23 @@ if [ -n "$LAST_TAG" ]; then
 fi
 ```
 
+Drop refs whose target issue is already CLOSED. Without this filter, refs collected from PRs merged in this cycle can still point at issues that were closed in a prior release (e.g. when a PR landed after the prior release tag but the referenced issue was already closed by an earlier cycle). Re-listing them in this release's PR body would falsely claim to close them again, and would also re-trigger epic auto-close paths downstream. The filter sits before the epic-detection block so already-closed children don't poison that logic:
+
+```bash
+FILTERED_REFS_FILE=$(mktemp)
+printf '%s\n' "$ISSUE_REFS" | while read REF; do
+  N=$(echo "$REF" | grep -oE '[0-9]+')
+  [ -z "$N" ] && continue
+  STATE=$(gh issue view "$N" --json state --jq '.state' 2>/dev/null)
+  if [ "$STATE" = "OPEN" ]; then
+    echo "$REF" >> "$FILTERED_REFS_FILE"
+  else
+    echo "Skipped already-closed issue $N from release PR body" >&2
+  fi
+done
+ISSUE_REFS=$(cat "$FILTERED_REFS_FILE"); rm -f "$FILTERED_REFS_FILE"
+```
+
 Then find open epics whose children are all now closed and append their `Closes #N` refs. Epics may be wired to children via two mechanisms:
 
 - **Legacy checklist** — epic body contains `- [ ] #N` / `- [x] #N` lines
