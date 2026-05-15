@@ -46,12 +46,26 @@ RC_BRANCH="rc/$TODAY.$N"
 
 ```bash
 git checkout -b "$RC_BRANCH" origin/develop
-git push -u origin "$RC_BRANCH"
+git push -u origin "refs/heads/$RC_BRANCH:refs/heads/$RC_BRANCH"
 git tag "$RC_BRANCH"
 git push origin "refs/tags/$RC_BRANCH"
 ```
 
-The tag (`rc/YYYY-MM-DD.N`) shares the branch name; push it via full `refs/tags/` path to avoid the ambiguous-refspec error. The tag is pushed immediately so future cuts count it correctly even after the branch is deleted.
+The tag (`rc/YYYY-MM-DD.N`) intentionally shares the branch name. The tag is pushed immediately so future cuts count it correctly even after the branch is deleted.
+
+**Refspec collision (read before pushing an RC branch anywhere else).** Once both the RC branch and the same-named tag exist locally, every subsequent `git push origin <name>` against that name is ambiguous and fails with:
+
+```
+error: src refspec rc/YYYY-MM-DD.N matches more than one
+```
+
+This affects any later RC-branch push — most notably the force-push performed by `flowkit:release` step 3 after rebasing the RC onto `origin/main`. The fix is to use the fully qualified refspec form whenever pushing the RC branch in the presence of the matching tag:
+
+```bash
+git push --force-with-lease origin "refs/heads/$RC_BRANCH:refs/heads/$RC_BRANCH"
+```
+
+Both pushes above (the initial `-u` push of the branch and the tag push) already use the disambiguated form for consistency, even though only one of the two names exists at the moment of the first push. Renaming the tag to a separate namespace (e.g. `rc-tag/...`) would also resolve this but is out of scope here — the documentation route is preferred because it keeps the tag/branch pairing intact and the cost is one extra refspec qualifier at each push site.
 
 ### 4. Report
 
