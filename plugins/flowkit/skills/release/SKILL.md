@@ -296,7 +296,7 @@ Capture the PR number from the URL output.
 
 ### 5.5. Pre-merge divergence check
 
-Before attempting the merge, detect patch-id divergence between `origin/main` and the RC. Even with the unconditional rebase in step 3, a stale RC that was force-pushed elsewhere, an aborted prior rebase, or a missed back-merge can leave `main` carrying commits whose patch-id equivalents are absent on the RC (or vice versa). `gh pr merge --rebase` will fail mid-flight when that happens, leaving the release in a half-shipped state. Surface the divergence as an explicit precondition instead:
+Before attempting the merge, detect commits on `origin/main` that have no patch-id equivalent on `origin/$SOURCE`. This typically fires after a prior release rebase-merged into `main` and the back-merge never landed on `develop` (and therefore never reached the RC) — leaving `main` with commits whose rebase-equivalent forms exist nowhere on the RC by either SHA or patch-id. Even with the unconditional rebase in step 3, a stale RC force-pushed elsewhere or an aborted prior rebase can produce the same shape. `gh pr merge --rebase` fails mid-flight when this divergence exists, leaving the release in a half-shipped state. Surface it as an explicit precondition instead:
 
 ```bash
 DUP_PATCHES=$(git rev-list --left-right --cherry-pick --count \
@@ -311,14 +311,14 @@ if [ "$DUP_PATCHES" -gt 0 ]; then
   echo "release:   git push --force-with-lease origin refs/heads/$SOURCE:refs/heads/$SOURCE" >&2
   echo "release: the qualified refspec is required because cut creates a same-named tag (rc/YYYY-MM-DD.N)," >&2
   echo "release: which makes the unqualified push form ambiguous (error: src refspec <name> matches more than one)." >&2
-  echo "release: confirm with the operator before auto-rebasing — re-run /release after the remediation." >&2
+  echo "release: re-run /release after the remediation has landed on origin/$SOURCE." >&2
   exit 1
 fi
 ```
 
-The check uses `git rev-list --left-right --cherry-pick --count` against the symmetric difference `origin/main...origin/$SOURCE`. The left-side count (after `--cherry-pick` filters out patch-id-equivalent commits) is the set of commits on `main` whose changes are not represented on the RC by any commit, identical SHA or otherwise. Any non-zero value means the merge will not be clean, and the operator must rebase before continuing.
+The check uses `git rev-list --left-right --cherry-pick --count` against the symmetric difference `origin/main...origin/$SOURCE`. The left-side count (after `--cherry-pick` filters out patch-id-equivalent commits) is the set of commits on `main` whose changes are not represented on the RC by any commit, identical SHA or otherwise. Any non-zero value means the merge will not be clean.
 
-Auto-rebase with operator confirmation is the preferred remediation; in interactive runs, prompt before executing the three remediation commands above on the operator's behalf. In non-interactive runs, abort with the message above and let the operator re-run after rebasing.
+The snippet aborts with the remediation message printed above and exits non-zero — the operator runs the three `git checkout` / `rebase` / `push` commands manually and then re-invokes `/release`. The skill does not auto-rebase on the operator's behalf, because a force-push to a release candidate that has already been advertised to other consumers deserves an explicit human decision rather than a wrapped prompt.
 
 ### 6. Merge the PR
 
