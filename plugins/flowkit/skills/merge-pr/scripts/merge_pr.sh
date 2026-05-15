@@ -24,7 +24,7 @@ usage() {
 _find_worktree_for_branch() {
   git worktree list --porcelain \
     | awk -v target="refs/heads/$1" '
-        /^worktree / { wt = $2 }
+        /^worktree / { wt = $0; sub(/^worktree /, "", wt) }
         $0 == "branch " target { print wt }
       '
 }
