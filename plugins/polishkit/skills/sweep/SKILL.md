@@ -130,6 +130,39 @@ Run these checks in parallel and compile findings:
 - Local branches whose upstream has been merged (`git branch --merged main` cross-referenced with remote)
 - Stale worktrees (`git worktree list` — flag any where the branch no longer exists or has been merged)
 - Orphaned remote-tracking branches (`git remote prune origin --dry-run`)
+- **Remote branches tied to merged PRs** — origin-side branches the local prune can't touch. List every remote head except the default branches and any explicitly parked prefix (`parked/*`); for each, classify via the PR it heads:
+
+  ```bash
+  git fetch --prune --quiet
+  git ls-remote --heads origin \
+    | awk '{print $2}' | sed 's|refs/heads/||' \
+    | grep -v -E '^(develop|main|gh-pages|parked/.*)$' \
+    | while read B; do
+        PR=$(gh pr list --head "$B" --state all --json number,state,title --limit 1 --jq '.[0]' 2>/dev/null)
+        if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+          echo "[NO PR] $B"
+        else
+          STATE=$(echo "$PR" | jq -r '.state')
+          NUM=$(echo "$PR" | jq -r '.number')
+          echo "[$STATE PR #$NUM] $B"
+        fi
+      done
+  ```
+
+  Deletion policy — surface only the **MERGED** bucket for removal. Preserve the rest:
+
+  | Bucket | Action | Why |
+  |--------|--------|-----|
+  | MERGED | Propose deletion | Work landed; branch is pure cruft. |
+  | CLOSED (not merged) | Preserve | Branch contains rejected work that persists nowhere else. |
+  | OPEN | Preserve | Active PR; deleting would close the PR. |
+  | NO PR | Preserve, flag for manual inspection | No record of intent; easy to lose work. |
+
+  When deleting, **always use the disambiguated refspec form** (`git push origin :refs/heads/<branch>`). The unqualified `git push origin --delete <branch>` fails with `src refspec matches more than one` whenever a same-named tag exists (the `rc/YYYY-MM-DD.N` shape from `flowkit:cut` is the canonical example). Batch into a single push:
+
+  ```bash
+  git push origin :refs/heads/branch-a :refs/heads/branch-b
+  ```
 
 ### 3. Present findings and confirm each action
 
