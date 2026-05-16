@@ -91,7 +91,7 @@ On success the script exits 0 and emits a single JSON object on stdout:
 }
 ```
 
-If the script exits non-zero, surface stderr and stop.
+If the script exits non-zero, surface stderr and stop. (The script refuses with operator guidance if the caller's cwd is inside any of the worktrees listed for removal — exit the worktree first.)
 
 ### Step 6 — Report
 
