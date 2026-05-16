@@ -101,7 +101,7 @@ if [[ -n "$BLOCKING_WORKTREE" ]]; then
       exit 1
     fi
   else
-    CALLER_CWD=$({ cd "$PWD" 2>/dev/null && pwd -P; } || echo "$PWD")
+    CALLER_CWD=$(pwd -P)
     WT_REAL=$({ cd "$BLOCKING_WORKTREE" 2>/dev/null && pwd -P; } || echo "$BLOCKING_WORKTREE")
     if [[ "$CALLER_CWD" == "$WT_REAL" || "$CALLER_CWD" == "$WT_REAL"/* ]]; then
       echo "merge_pr: cannot remove the worktree it was invoked from (cwd: $CALLER_CWD)." >&2
