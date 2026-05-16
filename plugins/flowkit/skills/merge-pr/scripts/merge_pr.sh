@@ -101,6 +101,13 @@ if [[ -n "$BLOCKING_WORKTREE" ]]; then
       exit 1
     fi
   else
+    CALLER_CWD=$(pwd -P)
+    WT_REAL=$({ cd "$BLOCKING_WORKTREE" 2>/dev/null && pwd -P; } || echo "$BLOCKING_WORKTREE")
+    if [[ "$CALLER_CWD" == "$WT_REAL" || "$CALLER_CWD" == "$WT_REAL"/* ]]; then
+      echo "merge_pr: cannot remove the worktree it was invoked from (cwd: $CALLER_CWD)." >&2
+      echo "  Exit the worktree first (cd to the main worktree, or run ExitWorktree), then re-run merge_pr." >&2
+      exit 1
+    fi
     printf 'Note: branch %s is held by worktree %s.\n' "$HEAD_BRANCH" "$BLOCKING_WORKTREE" >&2
     printf '  Auto-removing the worktree before merge so the local branch can be deleted cleanly.\n' >&2
     if ! git worktree remove --force "$BLOCKING_WORKTREE"; then
