@@ -52,6 +52,18 @@ T_WT_ERR=$(mktemp)
 T_BR_ERR=$(mktemp)
 trap "rm -f $T_WT_ERR $T_BR_ERR" EXIT
 
+CALLER_CWD=$(pwd -P)
+
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+  WT_REAL=$({ cd "$path" 2>/dev/null && pwd -P; } || echo "$path")
+  if [[ "$CALLER_CWD" == "$WT_REAL" || "$CALLER_CWD" == "$WT_REAL"/* ]]; then
+    echo "remove: cannot remove the worktree the caller is running from (cwd: $CALLER_CWD, target: $WT_REAL)." >&2
+    echo "  Exit the worktree first (cd to the main worktree, or run ExitWorktree), then re-run." >&2
+    exit 1
+  fi
+done < <(printf '%s\n' "$WORKTREES_JSON" | jq -r '.[] | .path')
+
 git worktree prune >/dev/null 2>&1 || true
 
 cd "$MAIN_WORKTREE"
