@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# merge_pr.sh — squash-merge a GitHub PR, retarget stacked children, clean blocking worktrees.
+# merge_pr.sh — rebase-merge a GitHub PR, retarget stacked children, clean blocking worktrees.
 #
 # Usage:
 #   merge_pr.sh [<pr_number>]
@@ -133,7 +133,7 @@ set +e
 MERGE_STATUS=$(
   bash "$WITH_CLEAN_SH" -- bash -c '
     PR_NUM="$1"
-    if gh pr merge "$PR_NUM" --squash --delete-branch; then
+    if gh pr merge "$PR_NUM" --rebase --delete-branch; then
       printf "%s\n" "ok"
       exit 0
     fi

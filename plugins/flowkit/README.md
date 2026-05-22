@@ -37,7 +37,7 @@ claude --plugin-dir /path/to/flowkit
 | **ship-epic** | `/ship-epic` | Promote a `feature/<slug>-<N>` epic to `develop` via rebase-merge, unset `claude.flowkit.prBase`, delete the epic branch. Closer for `cut-epic`. |
 | **open-pr** | `/open-pr` | Push current branch and open a GitHub PR. Respects `claude.flowkit.prBase` for branch targeting. |
 | **pr** | `/pr` | Combined: `create-branch` → `commit` → `open-pr` in one step. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees). |
+| **merge-pr** | `/merge-pr` | Rebase-merge the open PR for the current branch and delete the remote branch (retargets stacked children; clears blocking swarm worktrees). |
 | **restack** | `/restack` | Rebase open descendant PRs of a parent PR onto its updated head and force-push, recursing through the subtree. Use mid-review after revising a stacked PR. |
 | **sync** | `/sync` | Checkout `develop`, pull latest, prune stale branches. |
 | **cut** | `/cut` | Create a `rc/YYYY-MM-DD.N` release candidate from `develop`. |
@@ -126,7 +126,7 @@ The subtree is walked breadth-first: siblings continue independently if one bran
 # ... make changes ...
 /commit                          # stage + commit with conventional format
 /open-pr                         # push + open PR targeting develop
-/merge-pr                        # squash-merge, delete remote branch
+/merge-pr                        # rebase-merge, delete remote branch
 /sync                            # pull develop, prune branches
 /cut                             # create rc/2026-04-16.1
 /release                         # promote to main, tag v2026.4.16, close issues
