@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# OpenSpec format validator for this repository.
+# Usage: bash scripts/openspec validate <capability> [--type spec] [--strict]
+
+set -euo pipefail
+
+CMD=""
+CAPABILITY=""
+STRICT=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        validate) CMD="validate" ;;
+        --type) shift ;;  # consumed but not used; only "spec" type exists
+        --strict) STRICT=true ;;
+        --*)
+            echo "Unknown flag: $1" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$CMD" ]]; then CMD="$1"
+            elif [[ -z "$CAPABILITY" ]]; then CAPABILITY="$1"
+            fi
+            ;;
+    esac
+    shift
+done
+
+if [[ "$CMD" != "validate" ]]; then
+    echo "Usage: bash scripts/openspec validate <capability> [--type spec] [--strict]" >&2
+    exit 1
+fi
+
+if [[ -z "$CAPABILITY" ]]; then
+    echo "Error: capability name required" >&2
+    exit 1
+fi
+
+SPEC_FILE="openspec/specs/$CAPABILITY/spec.md"
+
+if [[ ! -f "$SPEC_FILE" ]]; then
+    echo "Error: spec file not found: $SPEC_FILE" >&2
+    exit 1
+fi
+
+ERRORS=0
+WARNINGS=0
+
+check_error() {
+    echo "ERROR: $1" >&2
+    ERRORS=$((ERRORS + 1))
+}
+
+check_warning() {
+    echo "WARNING: $1" >&2
+    WARNINGS=$((WARNINGS + 1))
+}
+
+# Top-level heading
+grep -q "^# " "$SPEC_FILE" || check_error "Missing top-level heading (# Capability Name)"
+
+# Purpose section
+grep -q "^## Purpose" "$SPEC_FILE" || check_error "Missing ## Purpose section"
+
+# Requirements section
+grep -q "^## Requirements" "$SPEC_FILE" || check_error "Missing ## Requirements section"
+
+# Each ### Requirement: must have at least one #### Scenario:
+req_count=0
+scenario_missing=0
+while IFS= read -r req_line_raw; do
+    req_count=$((req_count + 1))
+    req_name="${req_line_raw#\#\#\# Requirement: }"
+    # Grab everything from this Requirement: heading to the next ### or EOF
+    block=$(awk "/^### Requirement: /{found=0} /^### Requirement: ${req_name//\//\\/}/{found=1} found" "$SPEC_FILE" \
+        | tail -n +2 \
+        | awk '/^### /{exit} {print}')
+    if ! echo "$block" | grep -q "^#### Scenario:"; then
+        check_error "Requirement '${req_name}' has no #### Scenario: block"
+        scenario_missing=$((scenario_missing + 1))
+    fi
+done < <(grep "^### Requirement:" "$SPEC_FILE")
+
+if [[ $req_count -eq 0 ]]; then
+    check_error "No ### Requirement: blocks found"
+fi
+
+# SHALL/MUST normative language
+if ! grep -q "SHALL\|MUST" "$SPEC_FILE"; then
+    if $STRICT; then
+        check_error "(strict) No SHALL/MUST normative language found in requirements"
+    else
+        check_warning "No SHALL/MUST normative language found in requirements"
+    fi
+fi
+
+# Stack-agnostic check (strict mode only)
+if $STRICT; then
+    FRAMEWORK_PATTERN='React|Ember|Glimmer|TanStack|ember-concurrency|useState|useEffect|@Component|\.component\.'
+    if grep -Eq "$FRAMEWORK_PATTERN" "$SPEC_FILE"; then
+        check_error "(strict) Spec contains framework-specific terms — must be stack-agnostic:"
+        grep -En "$FRAMEWORK_PATTERN" "$SPEC_FILE" | while IFS= read -r match; do
+            echo "  $match" >&2
+        done
+    fi
+fi
+
+if [[ $ERRORS -gt 0 ]]; then
+    echo "Validation FAILED: $ERRORS error(s), $WARNINGS warning(s) — $SPEC_FILE"
+    exit 1
+else
+    echo "Validation passed: $SPEC_FILE ($WARNINGS warning(s))"
+fi
