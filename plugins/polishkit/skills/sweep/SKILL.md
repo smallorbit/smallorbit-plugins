@@ -27,7 +27,7 @@ If no focus area is provided, perform a full sweep across both phases below.
 
 A scope can be:
 - A path or glob (`src/components/`, `**/*.test.ts`) — restricts both phases to that subtree.
-- A category hint (`dead-code-only`, `cruft-only`, `git-only`) — runs just the matching phase.
+- A category hint — `dead-code-only` (Phase 1 only), `cruft-only` (Phase 2 only), or `git-only` (Phase 2, git-hygiene subset only).
 - Empty — run everything.
 
 ## Process
@@ -36,25 +36,11 @@ The skill runs in two phases. Each phase scans, reports, and confirms before mod
 
 ### Phase 1 — Dead Code
 
+Skip findings in `node_modules/`, `dist/`, `build/`, `.next/`, generated files (`*.generated.ts`, `*.d.ts`), and test files (dead code in tests can be intentional fixtures).
+
 #### 1.1 Detect language and available tools
 
-Identify the primary language(s) in the repo and check for available static analysis tools:
-
-**TypeScript / JavaScript**
-```bash
-ls tsconfig.json 2>/dev/null && echo "TypeScript project"
-ls .eslintrc* eslint.config* 2>/dev/null
-```
-
-**Python**
-```bash
-which pyflakes vulture ruff 2>/dev/null
-```
-
-**Go**
-```bash
-which staticcheck 2>/dev/null
-```
+Identify the primary language(s) and check for installed static analysis tools — `tsc --noEmit` and `ts-prune` for TypeScript, `pyflakes` / `vulture` / `ruff` for Python, `staticcheck` for Go. Skip any tool that isn't on PATH.
 
 #### 1.2 Scan for dead code
 
@@ -83,22 +69,17 @@ grep -rn "^[[:space:]]*//" --include="*.ts" --include="*.tsx" | \
   awk -F: '{print $1 ":" $2}' | uniq -c | awk '$1 >= 3 {print}'
 ```
 
-Skip findings in:
-- `node_modules/`, `dist/`, `build/`, `.next/`
-- Generated files (`*.generated.ts`, `*.d.ts`)
-- Test files (dead code in tests can be intentional fixtures)
-
 #### 1.3 Compile findings
 
 Group by category:
 
-| Category | Count | Severity |
-|----------|-------|----------|
-| Unused exports | N | Medium |
-| Unused imports | N | Low |
-| Dead variables | N | Low |
-| Unreachable branches | N | High |
-| Commented-out code | N | Low |
+| Category | Count |
+|----------|-------|
+| Unused exports | N |
+| Unused imports | N |
+| Dead variables | N |
+| Unreachable branches | N |
+| Commented-out code | N |
 
 For each finding, show file:line, the snippet (1–3 lines), and why it's considered dead.
 
