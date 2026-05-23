@@ -13,20 +13,11 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 # Suggest Permissions
 
-Scan recent Claude Code session history to surface permission patterns — Bash commands, file edits, and MCP tools you approved repeatedly — and propose additions to `.claude/settings.json` so you stop seeing the same prompts.
-
 ## Process
 
 ### 1. Locate session history
 
-Claude Code stores per-session `.jsonl` files under `~/.claude/projects/<encoded-cwd>/`, where `<encoded-cwd>` is `$PWD` with every `/` replaced by `-`. List the five most recent files in that directory:
-
-```bash
-PROJECT_PATH=$(echo "$PWD" | sed 's|/|-|g')
-ls -t ~/.claude/projects/${PROJECT_PATH}/*.jsonl 2>/dev/null | head -5
-```
-
-Read the most recent session files and extract tool approval events.
+Claude Code stores per-session `.jsonl` files under `~/.claude/projects/<encoded-cwd>/`, where `<encoded-cwd>` is `$PWD` with every `/` replaced by `-`. Locate the directory, list JSONL files sorted by modification time (most recent first), and read the five most recent. Extract tool approval events from each.
 
 ### 2. Identify patterns
 
@@ -39,21 +30,6 @@ Scan for repeatedly approved operations across three categories:
 A pattern qualifies if it appears 2+ times across recent sessions, or if the user approved it without hesitation.
 
 ### 3. Propose additions
-
-Format suggestions as a `permissions.allow` block for `.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(npm:*)",
-      "Bash(git:*)",
-      "Edit(src/**)",
-      "Edit(*.ts)"
-    ]
-  }
-}
-```
 
 For each suggestion, provide a one-line rationale so the user can make an informed decision. Group by category (Bash / Edit / MCP).
 
