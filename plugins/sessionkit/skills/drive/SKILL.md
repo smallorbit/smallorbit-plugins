@@ -13,13 +13,6 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob, TaskList, TaskGet, TaskCreat
 
 # Drive
 
-Take an approved task chain and run it to completion. You are now responsible for getting the plan done end-to-end. The user has signed off on the roadmap; your job is to execute it without further narration of routine steps.
-
-## When to invoke
-
-- After `/sessionkit:roadmap` produces an approved plan and the user picks "drive it for me".
-- Standalone, when the task list is already populated by other means and the user says "drive it" / "you're driving" / "execute the plan".
-
 ## Process
 
 ### 1. Confirm there's a chain to drive

@@ -15,11 +15,6 @@ allowed-tools: Bash, Read, Grep, Glob, TaskList, TaskGet, TaskCreate, TaskUpdate
 
 Map the route from "where we are now" to "fully shipped" — or whatever the natural completion state is for the current work — and materialize it as an approved task chain. After approval, hand off to `/sessionkit:drive` for autonomous execution, or hand the chain back to the user to drive manually.
 
-Companion to `/sessionkit:drive`:
-
-- `/sessionkit:roadmap` (this skill) — surveys + plans + approves.
-- `/sessionkit:drive` — executes an approved chain.
-
 ## Process
 
 ### 1. Survey current work-in-flight
@@ -58,8 +53,6 @@ git worktree list
 ```
 
 Then call `TaskList` to see what's already tracked.
-
-If `flowkit:pipeline-status` is available in this repo, prefer invoking it once via the `Skill` tool for the canonical pipeline view — it summarizes the data above into a single block.
 
 ### 2. Classify the state
 
