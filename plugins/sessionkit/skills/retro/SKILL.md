@@ -127,18 +127,7 @@ Announce the actions that will be executed in order:
 
 > Running: <action 1>, then <action 2>, ...
 
-Then invoke each selected skill one at a time using the `Skill` tool. Pass any relevant context from the retro findings as arguments where the target skill accepts them.
-
-**Delegation targets and how to invoke them:**
-
-| Delegation target | Skill tool invocation |
-|-------------------|-----------------------|
-| `sessionkit:skillit` | `Skill("sessionkit:skillit")` |
-| `sessionkit:suggest-permissions` | `Skill("sessionkit:suggest-permissions")` |
-| `sessionkit:handoff` | `Skill("sessionkit:handoff")` |
-| `hookify:hookify` | `Skill("hookify:hookify")` |
-| `speckit:issue` | `Skill("speckit:issue")` |
-| `update-config` | `Skill("update-config")` |
+Then invoke each selected skill one at a time using the `Skill` tool, passing the skill's name from the delegation target column in step 2. Pass any relevant context from the retro findings as arguments where the target skill accepts them.
 
 For options the user selected that carry no delegation target (plain-text guidance), surface them as a brief summary after the skill invocations complete.
 
