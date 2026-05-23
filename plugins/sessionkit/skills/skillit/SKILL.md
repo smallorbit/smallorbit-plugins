@@ -13,8 +13,6 @@ allowed-tools: AskUserQuestion, Read, Glob, Grep, Write, Edit
 
 # Skillit
 
-Reflect on the current session and identify reusable patterns worth encoding as skills. Reviews the existing skill library to avoid duplication, then offers to create a new skill or improve an existing one.
-
 ## Process
 
 ### 1. Reflect on the session
@@ -31,15 +29,7 @@ Identify at least one candidate pattern.
 
 ### 2. Survey existing skills
 
-Scan the skill library for potential overlap:
-
-```bash
-find ~/.claude/skills -name "SKILL.md" 2>/dev/null
-find .claude/skills -name "SKILL.md" 2>/dev/null
-find ~/.claude/commands -name "*.md" 2>/dev/null
-```
-
-Read the `name` and `description` front matter of any candidates that seem relevant. Surface any close matches to the user before proposing something new.
+Scan the skill library (user-global `~/.claude/skills` and project-local `.claude/skills`) for all skill definitions. Read the `name` and `description` front matter of any candidates that seem relevant. Surface any close matches to the user before proposing something new.
 
 ### 3. Present findings
 
@@ -49,34 +39,15 @@ For each candidate skill identified, describe:
 - **Why it's worth encoding** — what friction it removes
 - **Overlap risk** — does it duplicate or extend an existing skill?
 
-Then offer the user a choice:
-
-> I found [N] potential skill(s). Options:
-> 1. Create new skill: `<name>` — <description>
-> 2. Modify existing skill: `<name>` — extend to cover <gap>
-> 3. Skip — not worth encoding yet
+Then offer the user explicit options: create a new skill, modify an existing skill, or skip.
 
 ### 4. Generate the skill file
 
-On user agreement, create the skill file at the path they specify (or prompt for one):
-
-```
-~/.claude/skills/<name>/SKILL.md          # user-global
-.claude/skills/<name>/SKILL.md            # project-local
-```
+On user agreement, create the skill file at the path they specify (or prompt for one). Skill names must be lowercase kebab-case.
 
 The skill file must include:
 - Front matter: `name`, `description`, `triggers` (at least two), `allowed-tools`
 - A clear ## Process section with numbered steps
 - A ## Constraints section listing hard rules
 
-### 5. Confirm
-
-Report the absolute path of the file written. Suggest running `/skillit` again at the end of future sessions to keep the library growing.
-
-## Constraints
-
-- Identify at least one candidate before concluding — never report "nothing found"
-- Never create a skill file without user approval
-- Always check for existing skills before proposing something new
-- Skill names must be lowercase kebab-case
+Report the absolute path of the file written. Suggest running `/skillit` again at the end of future sessions.
