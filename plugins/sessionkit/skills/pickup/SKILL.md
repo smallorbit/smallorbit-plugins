@@ -12,19 +12,11 @@ allowed-tools: Bash, Read, TaskCreate, TaskUpdate, TaskList, AskUserQuestion, Sk
 
 # Pickup
 
-Companion to `/handoff`. At the start of a new session, invoke `/pickup` to restore context written by the previous agent into `.sessionkit/HANDOFF.md`, so work can continue seamlessly.
-
 ## Process
 
 ### 1. Discover handoff file
 
-Check for `.sessionkit/HANDOFF.md` in the current working directory:
-
-```bash
-cat .sessionkit/HANDOFF.md 2>/dev/null
-```
-
-If the file does not exist, fail gracefully: report
+Check for `.sessionkit/HANDOFF.md` in the current working directory. If the file does not exist, fail gracefully: report
 
 > No handoff file found at `.sessionkit/HANDOFF.md`. Either `/handoff` was not run in the previous session, or you're in a different working directory.
 
@@ -32,7 +24,7 @@ Then stop — do not proceed with the remaining steps.
 
 ### 2. Read and parse
 
-Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**. Unknown headings are passed through unmodified — section parsing is open-ended, so any future or legacy section names (including the legacy `## Team State` block emitted by sessionkit ≤ 1.5.0) are silently ignored.
+Read the full content of `.sessionkit/HANDOFF.md`. Parse the standard sections: **Project**, **Date**, **Branch**, **Goal**, **Progress**, **Git State**, **Remaining Work**, **Context**. Unknown headings are passed through unmodified — section parsing is open-ended, so any future or legacy section names are silently ignored.
 
 ### 3. Present orientation summary
 
@@ -74,13 +66,7 @@ Do not wire `blocks` — the inverse relationship is implicit and wiring both di
 
 ### 5. Restore git state (if needed)
 
-Compare the handoff's branch against the current branch:
-
-```bash
-git branch --show-current
-```
-
-If they differ, suggest:
+Compare the handoff's branch against the current branch. If they differ, suggest:
 
 ```bash
 git checkout <branch-from-handoff>
@@ -100,11 +86,7 @@ If `Remaining Work` has fewer than 2 actionable items, fall back to plain text:
 
 > Context loaded. Ready to continue work on: `<Goal>`. What would you like to tackle first?
 
-Do not pose this as a plain-text question when `AskUserQuestion` is viable — the structured prompt is the canonical end-of-pickup interaction.
-
 ## Constraints
 
 - Never modify `.sessionkit/HANDOFF.md` — this skill is read-only
-- Do not assume the handoff file always exists — always check first and fail gracefully
-- Keep the orientation summary concise — surface the essentials, not everything verbatim
 - Do not automatically re-execute any commands referenced in the handoff — the goal is to orient, not to act
