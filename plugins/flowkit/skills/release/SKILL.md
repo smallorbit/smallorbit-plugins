@@ -41,9 +41,7 @@ fi
 
 ### 3. Rebase RC onto `origin/main`
 
-`gh pr merge --rebase` requires the RC to include every commit on `main` by SHA ancestry, not just by content. After each rebase-merge release, `main`'s tip and `develop`'s tip contain content-equivalent commits with **structurally different SHAs**: `flowkit:merge-pr` rebase-merges into `develop`, while `gh pr merge --rebase` rewrites committer dates on every commit it lands on `main` — even when the RC is already a linear descendant. New committer date → new commit SHA → `main`'s rebased SHAs are not in `develop`'s ancestry. The next RC, cut from `develop`, therefore fails an `is-ancestor` check against `origin/main` on every release after the first, with no hotfixes needed to trigger it.
-
-The fix is to rebase the RC onto `origin/main` unconditionally before opening the release PR. In the trivial case (no hotfixes, standard flow) the rebase is a no-op and the force-push is a fast-forward. The force-push target is the short-lived RC branch (deleted minutes later by `gh pr merge --delete-branch` in step 6), never `main`; `--force-with-lease` blocks the concurrent-writer race. A qualified refspec is required because `cut` creates both a branch and a same-named tag (e.g. `rc/2026-05-09.1`), making the unqualified form ambiguous:
+Rebase the RC onto `origin/main` unconditionally before opening the release PR. `gh pr merge --rebase` rewrites committer dates on every commit it lands on `main`, so `main`'s rebased SHAs are not in `develop`'s ancestry after the first release — every subsequent RC, cut from `develop`, fails an `is-ancestor` check against `origin/main` without this step. In the trivial case the rebase is a no-op and the force-push is a fast-forward. The force-push target is the short-lived RC branch (deleted minutes later by `gh pr merge --delete-branch` in step 6), never `main`. A qualified refspec is required because `cut` creates a same-named tag, making the unqualified form ambiguous:
 
 ```bash
 git checkout "$SOURCE"
@@ -51,7 +49,7 @@ git rebase origin/main
 git push --force-with-lease origin "refs/heads/$SOURCE:refs/heads/$SOURCE"
 ```
 
-After the rebase, assert that the invariant now holds. This is a paranoid post-rebase sanity check — if it fires, something unexpected happened during the rebase (e.g. an interactive conflict left a detached HEAD) and it is safer to abort than to open a PR that will fail at merge time:
+After the rebase, assert that the invariant now holds — if it fires, something unexpected happened during the rebase and aborting is safer than opening a PR that will fail at merge time:
 
 ```bash
 if ! git merge-base --is-ancestor origin/main "origin/$SOURCE"; then
@@ -232,25 +230,6 @@ if [ -n "$LAST_TAG" ] && [ -n "$TAG_DATE" ]; then
 fi
 RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE"); rm -f "$RELEASE_NOTES_FILE"
 
-# Smoke-test: verify the synthesis produced output before proceeding.
-# Run this one-liner against the real repo to confirm jq parses the regex
-# and at least one PR is matched:
-#
-#   TAG_DATE=$(git log -1 --format=%aI $(git for-each-ref --sort=-creatordate \
-#     --format='%(refname:short)' 'refs/tags/v[0-9]*' | head -1) \
-#     | python3 -c "import sys; from datetime import datetime, timezone; \
-#       print(datetime.fromisoformat(sys.stdin.read().strip()) \
-#             .astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))") \
-#   && gh pr list --base develop --state merged --limit 200 --json title,body,mergedAt \
-#   | jq --arg td "$TAG_DATE" -r \
-#       '.[] | select((.mergedAt | fromdateiso8601) > ($td | fromdateiso8601))
-#              | [.title, (.body // "" | gsub("\r";"")
-#                 | capture("(?i)## Summary\n+(?<s>[^\n]+)").s // "")] | @tsv' \
-#   | head -5
-#
-# A non-empty result (exit 0) confirms the pipeline is healthy.
-# An empty result or non-zero exit means the tag range or jq regex needs investigation.
-
 # --- narrative summary ---
 # Synthesize a 1–3 sentence narrative from the collected merged-PR summaries
 # and version bumps. State what this release contains overall — e.g.
@@ -313,7 +292,7 @@ Capture the PR number from the URL output.
 
 ### 5.5. Pre-merge divergence check
 
-Before attempting the merge, detect commits on `origin/main` that have no patch-id equivalent on `origin/$SOURCE`. This typically fires after a prior release rebase-merged into `main` and the back-merge never landed on `develop` (and therefore never reached the RC) — leaving `main` with commits whose rebase-equivalent forms exist nowhere on the RC by either SHA or patch-id. Even with the unconditional rebase in step 3, a stale RC force-pushed elsewhere or an aborted prior rebase can produce the same shape. `gh pr merge --rebase` fails mid-flight when this divergence exists, leaving the release in a half-shipped state. Surface it as an explicit precondition instead:
+Detect commits on `origin/main` with no patch-id equivalent on `origin/$SOURCE`. `gh pr merge --rebase` fails mid-flight on this divergence and leaves the release half-shipped; surface it as an explicit precondition instead. The check fires after a prior release rebase-merged into `main` and the back-merge never landed on `develop`, or after a stale RC was force-pushed elsewhere.
 
 ```bash
 DUP_PATCHES=$(git rev-list --left-right --cherry-pick --count \
@@ -333,9 +312,7 @@ if [ "$DUP_PATCHES" -gt 0 ]; then
 fi
 ```
 
-The check uses `git rev-list --left-right --cherry-pick --count` against the symmetric difference `origin/main...origin/$SOURCE`. The left-side count (after `--cherry-pick` filters out patch-id-equivalent commits) is the set of commits on `main` whose changes are not represented on the RC by any commit, identical SHA or otherwise. Any non-zero value means the merge will not be clean.
-
-The snippet aborts with the remediation message printed above and exits non-zero — the operator runs the three `git checkout` / `rebase` / `push` commands manually and then re-invokes `/release`. The skill does not auto-rebase on the operator's behalf, because a force-push to a release candidate that has already been advertised to other consumers deserves an explicit human decision rather than a wrapped prompt.
+The skill does not auto-rebase — a force-push to an already-advertised RC deserves an explicit human decision. The operator runs the three remediation commands manually and re-invokes `/release`.
 
 ### 6. Merge the PR
 
@@ -461,5 +438,3 @@ Output:
 
 - Never push directly to `main` — always merge via PR
 - Always create the git tag after the merge, never before
-- Always pass `--rebase --delete-branch` to `gh pr merge` for the release PR. Never use `--merge` or `--squash` — those reintroduce merge bubbles or collapse per-feature history, both of which the bubble-free invariant forbids.
-- If no RC branch exists, abort with a clear error message.

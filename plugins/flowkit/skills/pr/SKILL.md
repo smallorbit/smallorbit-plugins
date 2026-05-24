@@ -45,9 +45,4 @@ Follow `/open-pr` with `$ARGUMENTS` to push the branch and open a GitHub pull re
 
 Output the PR URL.
 
-## Constraints
-
-- Never skip the branch check — always detect whether you're already on a feature branch before creating a new one
-- Each step delegates fully to its sub-skill; do not re-implement their logic inline
-- If any step fails, stop and report the error — do not continue to the next step
-- If the workspace is clean and no commits are needed, note this and proceed directly to `/open-pr`
+If any step fails, stop and report the error — do not continue to the next step.

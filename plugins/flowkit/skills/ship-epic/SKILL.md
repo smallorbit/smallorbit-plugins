@@ -67,10 +67,7 @@ If the script exits non-zero (empty stdout), surface stderr and stop. Do not ret
 
 ## Constraints
 
-- Always rebase-merge to `develop`, never squash-merge, never merge-commit. This preserves per-feature first-parent linearity.
-- Always promotes to `develop` only. ship-epic is opinionated about the target branch.
-- Preflight guardrails are advisory — no `--force-promote` bypass flag. If the epic has no commits ahead of `develop`, or contains raw `worktree-agent-*` merge commits (meaning `swarmkit:merge-stack` was not run), the skill stops with a recovery hint. Use the manual fallback in `flowkit:cut-epic` Teardown for rare edge cases.
-- On rebase-merge conflict: exits 1 with a recovery hint; `claude.flowkit.prBase` and the epic branch are left intact so the operator can rebase and re-invoke.
+- Preflight guardrails are advisory — no `--force-promote` bypass flag.
 - Concurrent invocations (second call while first `gh pr merge --rebase` is in flight) fail at PR-create or merge; both paths exit 1 with stderr and no state corruption.
 
 ## Composition

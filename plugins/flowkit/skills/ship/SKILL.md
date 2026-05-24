@@ -82,8 +82,5 @@ Report:
 
 ## Constraints
 
-- Never commit directly to `develop` or `main`
-- No branch/commit/PR creation outside what `cut` and `release` produce — those belong to `/pr` and `/swarm`
 - The preflight is non-negotiable: do not bypass or weaken it. Open swarm PRs must be merged via `/swarmkit:merge-stack` (and the epic promoted via `/flowkit:ship-epic` when applicable) before ship runs
-- No internal verify gate. Ship assumes the operator has already verified the integrated state against the project's tests between merge-stack and ship-epic (or between ship-epic and ship). Ship just packages what is already on `develop`
-- Stop on any sub-skill failure. State is recoverable across partial failures: re-running `/ship` after the operator resolves the failure picks up where the chain left off
+- State is recoverable across partial failures: re-running `/ship` after the operator resolves the failure picks up where the chain left off

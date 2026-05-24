@@ -60,8 +60,6 @@ Branch on `push_result`:
 
 After `pr`, the working tree is left on `new_branch`. Callers that need to return to the original branch must explicitly `git checkout <branch> && git pull origin <branch>` after the PR merges.
 
-## Constraints
+## Implementation note
 
-- Never force-push. The script resets the local copy of the branch you were on to its upstream before creating the feature branch.
-- The script does not push tags. Tag creation belongs to the caller and must run after the PR is merged so tags point at the post-merge commit.
-- The script checks out `new_branch` before resetting the original branch — `git branch -f` refuses to update the currently-checked-out branch, so the order matters.
+The script checks out `new_branch` before resetting the original branch — `git branch -f` refuses to update the currently-checked-out branch, so the order matters.

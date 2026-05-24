@@ -94,8 +94,6 @@ git config claude.flowkit.defaultBranchPrompted true
 
 Report: "OK, won't ask again. Re-run by clearing the marker: `git config --unset claude.flowkit.defaultBranchPrompted`."
 
-## Constraints
+## Reset
 
-- Never run `gh repo edit` without the second confirmation; never set the marker without a user choice.
-- Marker key is `claude.flowkit.defaultBranchPrompted` (repo-local `git config`). Never use `claude.prBase`.
-- To reset: `git config --unset claude.flowkit.defaultBranchPrompted`.
+To re-surface the prompt: `git config --unset claude.flowkit.defaultBranchPrompted`.
