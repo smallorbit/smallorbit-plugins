@@ -35,8 +35,6 @@ echo "REPO_ROOT=$REPO_ROOT"
 echo "CONFIG_PATH=$CONFIG_PATH"
 ```
 
-`git rev-parse --git-common-dir` returns the path to the shared `.git` directory, which always sits at the main repo root — even when invoked from inside a worktree where `.git` is a file pointer.
-
 ### 2. Refuse to overwrite without confirmation
 
 If `$CONFIG_PATH` already exists, Read it and surface its current contents to the user, then ask via `AskUserQuestion`:
@@ -62,7 +60,7 @@ Ask the five questions sequentially, surfacing the running config back to the us
 | 4 | `install` | `Command to install dependencies in a fresh worktree? (e.g. \`npm install\`, \`pip install -e .\`. Empty = no install step.)` | none |
 | 5 | `baseBranch` | `Default base branch for PRs opened by squad members?` | `develop` |
 
-Trim whitespace from every answer. Treat the literal string `develop` as the accepted default if the user confirms question 5 without typing. Omit `verify.lint` from the written JSON entirely if the user leaves it blank — the field is optional and downstream roles check for its presence before using it.
+Trim whitespace from every answer. Treat the literal string `develop` as the accepted default if the user confirms question 5 without typing; for any other value of `baseBranch`, accept what the operator provides verbatim — do not validate it against the remote. Omit `verify.lint` from the written JSON entirely if the user leaves it blank — the field is optional and downstream roles check for its presence before using it.
 
 ### 4. Write the config
 
@@ -97,13 +95,3 @@ Print:
 - A one-line next step:
 
 > Squadkit is initialized. Edit `.squadkit/config.json` directly to tweak commands later, or rerun `/squadkit:init` to redo the interview.
-
-## Constraints
-
-- Never write to a worktree's `.squadkit/`. The config lives once, at the main repo root, found via `git rev-parse --git-common-dir`.
-- Never apply per-stack presets or auto-detect package managers. Every command comes from the user via `AskUserQuestion`.
-- Never overwrite an existing `.squadkit/config.json` without explicit confirmation through `AskUserQuestion`.
-- Empty strings are valid answers for `verify.typecheck`, `verify.test`, and `install`. Downstream skills treat empty as "skip this step."
-- `verify.lint` is optional. Omit the key entirely when the user leaves it blank rather than writing an empty string — downstream roles check for its presence.
-- `baseBranch` defaults to `develop` but is not validated against the remote — accept whatever the user provides.
-- The config is a four-field schema. Do not invent additional fields here; future role contracts will extend the schema in their own releases.
