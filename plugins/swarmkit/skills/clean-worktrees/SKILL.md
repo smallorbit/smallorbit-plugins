@@ -11,13 +11,7 @@ For remote branch cleanup, see `swarmkit:clean-remote-worktrees`.
 
 ## Setup
 
-**Resolve the skill base directory first.** Capture the runtime-resolved absolute path from the harness header (`Base directory for this skill: <absolute path>`):
-
-```bash
-export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
-```
-
-Use `"$SKILL_DIR/scripts/..."` for every script invocation. Do **not** hardcode `plugins/swarmkit/...`.
+Capture the harness-emitted `Base directory for this skill:` path as `SKILL_DIR`; use `"$SKILL_DIR/scripts/..."` for every script invocation.
 
 ## Process
 
@@ -63,11 +57,7 @@ If both `worktrees_to_remove` and `branches_to_delete` are empty arrays, report:
 
 And stop.
 
-### Step 4 — Proceed
-
-No confirmation prompt needed for this automated cleanup step.
-
-### Step 5 — Perform removal
+### Step 4 — Perform removal
 
 Run the remove script with the gathered state:
 
@@ -93,7 +83,7 @@ On success the script exits 0 and emits a single JSON object on stdout:
 
 If the script exits non-zero, surface stderr and stop. (The script refuses with operator guidance if the caller's cwd is inside any of the worktrees listed for removal — exit the worktree first.)
 
-### Step 6 — Report
+### Step 5 — Report
 
 Parse the JSON and produce a clean summary:
 

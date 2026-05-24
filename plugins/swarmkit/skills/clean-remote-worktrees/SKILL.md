@@ -18,13 +18,7 @@ Parse `$ARGUMENTS`:
 
 ## Setup
 
-**Resolve the skill base directory first.** Capture the runtime-resolved absolute path from the harness header (`Base directory for this skill: <absolute path>`):
-
-```bash
-export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
-```
-
-Use `"$SKILL_DIR/scripts/..."` for every script invocation. Do **not** hardcode `plugins/swarmkit/...`.
+Capture the harness-emitted `Base directory for this skill:` path as `SKILL_DIR`; use `"$SKILL_DIR/scripts/..."` for every script invocation.
 
 ## Process
 
@@ -141,12 +135,3 @@ Skipped:  <count> branch(es)
 
 Errors: <list any errors; omit section if empty>
 ```
-
-## Constraints
-
-- Never delete a branch that is the head of an OPEN PR
-- Never delete a branch whose most-recent PR is CLOSED (non-merged) — the branch contains rejected work that persists nowhere else
-- Never delete a branch with no associated PR — surface it for manual inspection
-- Always use refspec syntax (`git push origin :branch1 :branch2 ...`) for batch deletion; never loop `git push --delete` per branch (handled inside delete.sh)
-- Never touch local state — worktrees and local branches are `swarmkit:clean-worktrees`'s concern
-- Idempotent: running twice on a clean repo is a no-op
