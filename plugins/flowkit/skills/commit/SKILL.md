@@ -59,6 +59,8 @@ git diff --cached
 git diff
 ```
 
+If `git status` is clean, report "Nothing to commit" and stop. Never amend a previous commit — always create new ones.
+
 ### 2. Identify logical groupings
 
 Examine the changed files and their diffs. Group files by concern — each group should represent a single logical change (e.g. a new feature, a bug fix, a dependency bump). If all changes belong to one concern, there is one commit. If multiple concerns are present, plan one commit per concern.
@@ -105,11 +107,3 @@ git log --oneline -5
 ```
 
 Report what was committed.
-
-## Constraints
-
-- Never group unrelated changes into a single commit
-- Never skip the HEREDOC syntax — it preserves newlines correctly
-- Never add co-author lines or mention Claude in commit messages
-- Never amend an existing commit — always create new ones
-- If `git status` is clean, report "Nothing to commit" and stop

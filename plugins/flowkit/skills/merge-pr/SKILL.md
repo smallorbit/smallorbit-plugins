@@ -54,9 +54,3 @@ Rebase-merge the open PR for the current branch and delete the remote branch. Op
 | `local_delete_failed` | boolean | Remote merge succeeded but local branch deletion failed |
 
 Errors: non-zero exit, message on stderr only, stdout empty. See [`plugins/_shared/script-authoring.md`](../../../_shared/script-authoring.md).
-
-## Constraints
-
-- Never merge into `main` directly — this skill targets the default merge base only
-- Always rebase-merge (never squash or merge commit)
-- Always delete the remote branch on merge (`--delete-branch`)

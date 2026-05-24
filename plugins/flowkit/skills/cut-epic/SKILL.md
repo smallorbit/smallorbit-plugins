@@ -107,39 +107,10 @@ Print a confirmation including the branch name, the upstream, and the scoped con
 > `claude.flowkit.prBase` is now scoped to this branch.
 > Sub-PRs opened in this repo will target `feature/onboarding-v2-1264` until you tear down the scope.
 
-## Composition
-
-| Caller | Behavior |
-|--------|----------|
-| `flowkit:open-pr` | Reads `claude.flowkit.prBase` and targets the epic branch automatically. |
-| `flowkit:pr` | Same — branches off `origin/develop` for sub-work, but PRs target the epic branch. |
-| `swarmkit:swarm` | Loop-mode agents inherit the scoped base; each spawned PR targets the epic branch. Combine with `swarmkit:merge-stack` to fan child PRs into the epic branch. |
-| `flowkit:ship` | Will override `claude.flowkit.prBase` to `develop` for its own flow, then unset. **Do not run `/ship` while an epic is in flight** unless you intend to ship the epic itself. |
-
 ## Teardown
 
-When the epic is ready to ship, run `flowkit:ship-epic`. It opens the epic-to-`develop` PR, rebase-merges (so children's squashes replay onto develop linearly), unsets `claude.flowkit.prBase`, deletes the epic branch, and fast-forwards local develop. See [`ship-epic/SKILL.md`](../ship-epic/SKILL.md) for full details.
-
-To close out by hand (manual fallback):
-
-1. Open a final PR from the epic branch into `develop`:
-   ```bash
-   gh pr create --base develop --head feature/<slug>-<issue>
-   ```
-2. Rebase-merge via the GitHub UI or CLI (`gh pr merge --rebase --delete-branch`).
-3. Clear the scope so future PRs default back to `develop`:
-   ```bash
-   git config --unset claude.flowkit.prBase
-   ```
-4. (Optional) Delete the local epic branch:
-   ```bash
-   git branch -D feature/<slug>-<issue>
-   ```
+When the epic is ready to ship, run `flowkit:ship-epic` — it opens the epic-to-`develop` PR, rebase-merges, unsets `claude.flowkit.prBase`, deletes the epic branch, and fast-forwards local develop.
 
 ## Constraints
 
-- Always branch from `origin/develop`, never from a local `develop` (which may be behind).
-- Never write a non-`feature/` prefix — this skill is purposely narrow.
-- Never modify `claude.prBase` (the legacy unscoped key, no longer read by any plugin) — only `claude.flowkit.prBase`. See `pr-base-scope` for the rationale.
-- Idempotent: re-running with the same arguments must not error if the branch already exists.
-- This skill does not open a PR. It only sets up the branch and scope. Use `flowkit:pr` / `flowkit:open-pr` for sub-work.
+- This skill does not open a PR — only sets up the branch and scope. Use `flowkit:pr` / `flowkit:open-pr` for sub-work.
