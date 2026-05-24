@@ -22,13 +22,7 @@ Push the current branch to origin and open a GitHub pull request against the bas
 
 ### 0. First-run default-branch nudge
 
-Before any other preflight, invoke the [`default-branch-prompt`](../default-branch-prompt/SKILL.md) sub-skill. It is a no-op in every case except the narrow first-run-on-`main`-default scenario:
-
-- If `git config --get claude.flowkit.defaultBranchPrompted` is `true`, the sub-skill exits silently.
-- If `gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'` fails, returns empty, or returns anything other than `main`, the sub-skill exits silently.
-- Only when the GitHub default branch is exactly `main` does the sub-skill surface an `AskUserQuestion` offering `Switch to develop` / `Keep main as default` / `Don't ask again`. Each definitive answer (`Switch` success, `Keep main as default`, `Don't ask again`) sets `claude.flowkit.defaultBranchPrompted=true`; `Cancel` at the second confirmation leaves the marker unset so the prompt resurfaces next time. `Switch` additionally runs `gh repo edit --default-branch develop` after a second confirmation.
-
-This nudge is fire-and-forget — open-pr does not branch on its outcome. After the sub-skill returns, continue with step 1 regardless of which path the user took (or whether the prompt fired at all).
+Before any other preflight, invoke the [`default-branch-prompt`](../default-branch-prompt/SKILL.md) sub-skill. It is fire-and-forget — open-pr does not branch on its outcome. Continue with step 1 regardless of which path the user took (or whether the prompt fired at all).
 
 ### 1. Check current branch
 
@@ -177,8 +171,4 @@ Output the PR URL returned by `gh pr create`.
 
 ## Constraints
 
-- Always resolve `--base` before calling `gh pr create` per [`plugins/_shared/base-resolution.md`](../../../_shared/base-resolution.md). `$BASE` is always non-empty; `--base "$BASE"` is always passed.
-- Never target `main` directly unless `claude.flowkit.prBase` is explicitly set to `main`
-- Never open a PR from a protected branch (`develop`, `main`, `master`)
 - If `gh` is not installed or not authenticated, report the error and stop — do not attempt workarounds
-- Do not force-push; use a plain `git push -u origin HEAD`

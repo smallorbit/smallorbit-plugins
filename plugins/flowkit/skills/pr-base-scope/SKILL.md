@@ -39,4 +39,3 @@ Resolution order is the canonical chain at [`plugins/_shared/base-resolution.md`
 
 - This key is local to the repo — it is never committed or pushed
 - Always unset after a scoped flow completes to avoid stale targeting in future sessions
-- Never write to the legacy `claude.prBase` key. All set/unset operations target `claude.flowkit.prBase` only

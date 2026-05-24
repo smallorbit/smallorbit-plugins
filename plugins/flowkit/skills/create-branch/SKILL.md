@@ -57,8 +57,3 @@ git checkout -b <name> origin/develop
 Report the branch name that was created, e.g.:
 
 > Branch `feat/add-user-auth` created from `origin/develop`.
-
-## Constraints
-
-- Always branch from `origin/develop`, never from a local `develop` (which may be behind)
-- If unable to infer a branch name and `$ARGUMENTS` is empty, ask the user what the branch is for
