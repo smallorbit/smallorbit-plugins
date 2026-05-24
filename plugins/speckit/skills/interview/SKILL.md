@@ -11,8 +11,6 @@ argument-hint: [description]
 allowed-tools: AskUserQuestion, Read, Glob, Grep, Write, Edit
 ---
 
-> **Sub-skill notice:** This skill is designed to be invoked by `speckit:spec` (step 2) or standalone via `/interview`. If the user typed `/spec`, do not run this skill directly — invoke `speckit:spec` instead so the full orchestration flow runs (interview → plan approval → catalog → epic).
-
 # Interview
 
 Conduct a deep, structured interview to think through a feature, bug, or change. Challenges inconsistencies, surfaces assumptions, and continues until the thinking is unambiguous. Produces a plan in the same format that `/spec` emits, so the output can be piped directly into `/spec` or `/catalog`.
@@ -94,25 +92,6 @@ Only merge when a signal clearly applies. Tasks that are legitimately independen
 - **Dependencies** — remap: if task C depended on B, and A+B merged into A', then C now depends on A'.
 - **Numbering** — renumber the resulting table sequentially after all merges are applied.
 
-**Worked example**
-
-*Before consolidation* — two tasks flagged by signal 2 (strict ordering, no standalone value):
-
-| # | Title | Category | Priority | Depends On | Description |
-|---|-------|----------|----------|------------|-------------|
-| 1 | Add `autoRetry` config option | enhancement | medium | — | Add `autoRetry: boolean` to `config.ts` and wire defaults in `loadConfig()` |
-| 2 | Wire `autoRetry` into request handler | enhancement | medium | 1 | Read `autoRetry` from config in `requestHandler.ts` and retry on transient errors |
-| 3 | Add retry integration tests | test | low | 2 | Cover retry behaviour in `requestHandler.test.ts` |
-
-Task 2 has no standalone value — it cannot ship without task 1 and its only purpose is to consume what task 1 adds. Signal 2 fires.
-
-*After consolidation* — tasks 1 and 2 merge into a single task; task 3 remaps its dependency:
-
-| # | Title | Category | Priority | Depends On | Description |
-|---|-------|----------|----------|------------|-------------|
-| 1 | Add and wire `autoRetry` config option | enhancement | medium | — | - Add `autoRetry: boolean` to `config.ts` and wire defaults in `loadConfig()` - Read `autoRetry` from config in `requestHandler.ts` and retry on transient errors |
-| 2 | Add retry integration tests | test | low | 1 | Cover retry behaviour in `requestHandler.test.ts` |
-
 Present the plan inline.
 
 ### 4. Hand off
@@ -131,10 +110,4 @@ off cleanly.
 
 ## Constraints
 
-- Ask 1–4 questions per round — never one-at-a-time, never a wall of questions
-- Do not produce a plan until ambiguities are resolved
-- Never file GitHub issues from this skill — always hand off to `/speckit:catalog` (or return to the orchestrating skill if invoked as a sub-skill)
 - Never write the plan to disk unless the user explicitly asks
-- Keep the plan concise — it's a decision record, not an essay
-- Output sections must match `/spec` exactly: Goal, Background, Requirements, Out of Scope, Tasks
-- Tasks table must include the `Depends On` column — use `—` when a task has no dependencies
