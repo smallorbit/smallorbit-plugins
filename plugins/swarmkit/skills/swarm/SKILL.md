@@ -21,8 +21,6 @@ Parse `$ARGUMENTS` to determine the mode:
 - `--no-epic` → suppress feature-branch mode for this run; PRs target `$BASE` directly
 - `--epic <slug>` → explicit slug for the auto-cut epic branch (verbatim; `flowkit:cut-epic` enforces the `feature/` prefix)
 
-**Default behavior — feature-branch mode.** When the run will spawn ≥2 agents (any of: 2+ issue numbers, label filter, or loop mode), swarm cuts a `feature/<slug>-<N>` branch via `flowkit:cut-epic`, pins `claude.flowkit.prBase` to it, and routes every spawned PR to that branch. Single-issue one-shot runs are flat-to-`$BASE` (unchanged). Pass `--no-epic` to suppress the cut for a multi-issue run, or `--base <branch>` to override targeting entirely (which also suppresses the cut).
-
 ---
 
 ## Epic Mode Resolution
@@ -61,13 +59,7 @@ Skip the cut. `EPIC_BRANCH` is unset; PRs target `$BASE` directly. Behavior is i
 
 ## Setup
 
-**Resolve the skill base directory first.** This skill ships with extracted scripts under `scripts/`. When swarmkit is installed via the plugin marketplace, those scripts live in the plugin cache directory — they are **not** at `plugins/swarmkit/skills/swarm/scripts/` relative to the consumer repo's CWD. Before invoking any script, capture the runtime-resolved absolute path that the harness emits in this skill's header (the line `Base directory for this skill: <absolute path>`) into a shell variable:
-
-```bash
-export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
-```
-
-Use `"$SKILL_DIR/scripts/..."` for every script invocation below. Do **not** hardcode `plugins/swarmkit/...` — that path only resolves in repos that vendor swarmkit directly.
+Capture the harness-emitted `Base directory for this skill:` path as `SKILL_DIR`; use `"$SKILL_DIR/scripts/..."` for every script invocation below.
 
 Run the preflight script once. It handles fetch, base-branch verification (creating it from `main` and pushing if missing), and `gh` auth check in a single call:
 
@@ -233,26 +225,18 @@ Each agent prompt MUST include:
 Each agent prompt MUST include these **workflow steps** (in order):
 
 ```
-1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout develop` would fail if `develop` is already checked out in the main repo.
-   # For independent issues (no deps in this batch):
-   git fetch origin develop
-   git checkout -B worktree-agent-<issue> origin/develop
+1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout develop` would fail if `develop` is already checked out in the main repo. `<base>` is `develop` for independent issues and `worktree-agent-<dependency-issue>` for dependent ones.
 
-   # For dependent issues (has a dependency in this batch):
-   git fetch origin worktree-agent-<dependency-issue>
-   git checkout -B worktree-agent-<issue> origin/worktree-agent-<dependency-issue>
+   git fetch origin <base>
+   git checkout -B worktree-agent-<issue> origin/<base>
 
    # Safety check — abort if not in an isolated worktree
    [[ "$PWD" != *"worktrees"* ]] && echo "ERROR: Not running in an isolated worktree. Aborting to prevent branch collision." && exit 1
 
-   # Ancestry sanity — abort if HEAD doesn't descend from the requested base.
-   # Defends against the post-rebase-merge worktree-base drift bug (#923): after a
-   # rebase-merge release, origin/main and origin/develop share identical trees but
-   # diverge in SHA history. EnterWorktree may silently root the worktree on main's
-   # SHA chain even though the checkout targeted develop, producing a 50+-file diff
-   # for an 11-file change. Fail fast here instead.
-   #
-   # Use the same <base> as the checkout above — one variant, not both:
+   # Ancestry sanity — abort if HEAD doesn't descend from origin/<base>. Defends
+   # against the post-rebase-merge worktree-base drift bug (#923): EnterWorktree
+   # may silently root the worktree on a stale SHA chain even when the checkout
+   # targeted the right branch.
    if ! git merge-base --is-ancestor origin/<base> HEAD; then
      echo "ERROR: HEAD is not a descendant of origin/<base>. Worktree may be rooted on a stale base." >&2
      echo "       Run: git fetch origin <base> && git reset --hard origin/<base>" >&2
@@ -265,27 +249,12 @@ Each agent prompt MUST include these **workflow steps** (in order):
    git add <files> && git commit -m "<type>(<scope>): <description>"
 4. Push the branch:
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting the appropriate base. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+5. Create PR targeting the appropriate base — `develop` for independent issues, `worktree-agent-<dependency-issue>` for dependent ones. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
 
    <!-- include: plugins/_shared/pr-body.md -->
    <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
 
-   # For independent issues:
-   gh pr create --base develop --head worktree-agent-<issue> \
-     --title "<type>(<scope>): <description>" \
-     --body "$(cat <<'EOF'
-   ## Summary
-   <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
-
-   ## Test plan
-   <how to verify the changes satisfy the acceptance criteria>
-
-   Closes #<issue>
-   EOF
-   )"
-
-   # For dependent issues:
-   gh pr create --base worktree-agent-<dependency-issue> --head worktree-agent-<issue> \
+   gh pr create --base <base> --head worktree-agent-<issue> \
      --title "<type>(<scope>): <description>" \
      --body "$(cat <<'EOF'
    ## Summary
@@ -439,20 +408,3 @@ When an issue fails at any point:
 **Unrecoverable failures** (exit loop immediately):
 - Agent produced no PR (crash, timeout, no push)
 - `$BASE` branch deleted or corrupted externally
-
----
-
-## Constraints
-
-- Never merge into `main` — all PRs ultimately merge into `$BASE`; stacked (dependent) PRs may target an intermediate dependency branch and cascade into `$BASE` via `swarmkit:merge-stack`
-- Never pause between loop cycles — proceed immediately after printing the checkpoint summary
-- Never skip a failed issue's dependents — always analyze and block them
-- Every agent must work in an isolated worktree
-- Every PR must reference the issue it closes (`Closes #N`)
-- Commit messages must follow `conventional-commit-message` sub-skill format
-- Never mention Claude or add co-author lines in commit messages
-- Agents spawn with `mode: "bypassPermissions"` so they can push and create PRs without prompting
-- Never commit directly to develop or main — always work on the `worktree-agent-<issue>` branch
-- **Never close issues** — issues are closed by the release process when the release merges to main
-- **Never pass absolute repo paths to spawned agents** — always instruct them to use relative paths from their CWD to ensure edits land in the isolated worktree, not the main directory
-- **Never merge a PR mid-swarm**, even when a downstream agent needs files produced by an upstream agent. Dependent agents branch from `origin/worktree-agent-<dependency>` and already have access to the upstream output. Merging to unblock a downstream agent bypasses the user's review gate and is never acceptable.
