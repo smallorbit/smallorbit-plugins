@@ -90,20 +90,6 @@ Next step: merge #471 (approved), then /cut
 ───────────────────────────────────────────────────
 ```
 
-**Example (everything clear):**
-
-```
-── Pipeline Status ────────────────────────────────
-Released: v2026.4.19.12
-
-[In flight] Open PRs → develop: none
-[Awaiting cut] Develop → main: none
-[Awaiting release] RC branches: none
-
-Next step: nothing to ship — develop is in sync with main.
-───────────────────────────────────────────────────
-```
-
 ### 4. Suggest next action
 
 Priority — first matching rule wins:
@@ -118,10 +104,3 @@ Priority — first matching rule wins:
 | Nothing pending anywhere | "Nothing to ship. Develop is in sync with main." |
 
 Draft PRs never block the suggestion — they're flagged in the display but skipped in the "needs review" rule.
-
-## Constraints
-
-- Read-only — never mutate any branch, tag, PR, or label
-- Always run `git fetch origin` first so data is current
-- Always print all four pipeline stages, even empty ones, so the user sees the whole shape
-- Never omit the "Next step" line — always conclude with actionable guidance

@@ -53,21 +53,9 @@ git push origin "refs/tags/${RC_BRANCH}"
 
 The tag (`rc/YYYY-MM-DD.N`) intentionally shares the branch name. The tag is pushed immediately so future cuts count it correctly even after the branch is deleted.
 
-**Refspec collision (read before pushing an RC branch anywhere else).** Once both the RC branch and the same-named tag exist locally, every subsequent `git push origin <name>` against that name is ambiguous and fails with:
+**Refspec collision.** Once branch and same-named tag both exist, every `git push origin <name>` against that name fails with `error: src refspec ... matches more than one`. Both pushes above use the fully qualified form (`refs/heads/${RC_BRANCH}:refs/heads/${RC_BRANCH}`) to avoid this. Any later push of the RC branch — most notably the force-push in `flowkit:release` step 3 — must do the same.
 
-```
-error: src refspec rc/YYYY-MM-DD.N matches more than one
-```
-
-This affects any later RC-branch push — most notably the force-push performed by `flowkit:release` step 3 after rebasing the RC onto `origin/main`. The fix is to use the fully qualified refspec form whenever pushing the RC branch in the presence of the matching tag:
-
-```bash
-git push --force-with-lease origin "refs/heads/${RC_BRANCH}:refs/heads/${RC_BRANCH}"
-```
-
-Both pushes above (the initial `-u` push of the branch and the tag push) already use the disambiguated form for consistency, even though only one of the two names exists at the moment of the first push. Renaming the tag to a separate namespace (e.g. `rc-tag/...`) would also resolve this but is out of scope here — the documentation route is preferred because it keeps the tag/branch pairing intact and the cost is one extra refspec qualifier at each push site.
-
-**Always brace the variable** (`${RC_BRANCH}`, not `$RC_BRANCH`) inside the refspec strings. When the snippet runs under zsh (or any shell with the `:r` parameter modifier), the unbraced form `$RC_BRANCH:refs/heads/...` is parsed as "value of `$RC_BRANCH` with trailing extension stripped, followed by the literal `efs/heads/...`" — the `:r` modifier consumes the `r` from `refs/heads/` and drops the `.N` suffix from the branch name. The resulting refspec looks like `refs/heads/rc/YYYY-MM-DDefs/heads/rc/YYYY-MM-DD.N` and fails with `src refspec ... does not match any`. Bracing the variable terminates the parameter name before the `:`, so the modifier path is never taken. Bash 5.x does not implement `:r` and ignores the problem; zsh does and silently mangles the string.
+**Always brace the variable** (`${RC_BRANCH}`, not `$RC_BRANCH`) inside refspec strings. Under zsh the unbraced form triggers the `:r` parameter modifier and silently mangles the refspec; bash 5.x doesn't have `:r` so the bug is invisible until the snippet runs under zsh.
 
 ### 4. Report
 
@@ -76,6 +64,4 @@ Output:
 
 ## Constraints
 
-- Always cut from `origin/develop`, never from a local branch
-- RC branch naming must follow `rc/YYYY-MM-DD.N` exactly (N starts at 1)
 - Never push to any branch other than the new RC branch in this skill
