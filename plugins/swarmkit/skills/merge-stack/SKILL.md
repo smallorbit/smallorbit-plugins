@@ -9,8 +9,6 @@ Merges all open swarm PRs bottom-up — root PRs first, then their former childr
 
 Between merges, each still-open downstream branch is locally rebased onto the freshly-updated `$BASE` and force-pushed. Git's patch-id matching drops the predecessor commits (which are already on `$BASE` in squashed form under a different SHA), leaving only the downstream PR's own new commits. Without this rebase, the next PR would flip to `CONFLICTING` the moment its predecessor merges, because the old predecessor commits in its history collide with the new squash commit on `$BASE`.
 
-This matches the merge direction used by Graphite, git-spice, Sapling, and Phabricator: reviewers see and land the same diff, CI runs once per PR instead of re-running on every rebase, and conflicts surface at the leaf instead of cascading down into the root.
-
 ## When to use
 
 Run after `/swarm` finishes. All swarm agents have pushed branches and opened PRs; none have merged yet. You've reviewed the PRs and are ready to merge them.
@@ -188,6 +186,7 @@ Where `$BASE` is the base branch of the root PRs (typically `develop`).
 
 ### 7. Report
 
+
 Append a follow-up suggestion that points the user at `swarmkit:clean-worktrees`. If any `worktree-agent-*` worktrees still exist, recommend running it; otherwise note that the worktrees are already gone:
 
 ```bash
@@ -209,13 +208,3 @@ fi
 Next: /swarmkit:clean-worktrees   (remove worktrees + prune orphan local branches)
 ──────────────────────────────────────────────────────
 ```
-
-## Constraints
-
-- Always merge bottom-up (root PRs first, leaves last)
-- Always retarget every non-root PR in a multi-PR chain to `$BASE` before merging anything in that chain
-- After each non-leaf merge in a chain, always rebase every still-open downstream branch onto `$BASE` locally and force-push before merging the next one — `gh pr update-branch` cannot resolve the squash-history collision
-- Use `gh pr merge <N> --squash --delete-branch` for every PR — no per-role strategy matrix
-- Never merge into `main` directly — only into `$BASE` (e.g., `develop`)
-- Never skip a conflicted chain's dependents — block and report them
-- Independent PRs (targeting `$BASE` with nothing stacked on them) may merge in any order
