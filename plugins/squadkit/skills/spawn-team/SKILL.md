@@ -530,7 +530,7 @@ Schema:
 
 `permissionMode` records `RESOLVED_MODE` from step 2.5 so mid-session `Agent` spawns (between-wave swaps, preemptive handoff successors) can read it back and propagate the same authority. Map `RESOLVED_MODE` to the persisted value as follows: `auto` → `"auto"`, `bypass` → `"bypassPermissions"`, `none` → `"none"`. The team-lead role contract (`plugins/squadkit/agents/team-lead.md`) reads this field before every successor/swap spawn — without it, inheritance silently degrades after the first wave.
 
-`mkdir -p` the parent directory before writing. The harness's `config.json` is the source of truth for the roster; `squadkit.json` is the source of truth for squadkit-only coordination state. Never duplicate `members[]` here.
+Wait until every member has emitted its idle notification in step 9 before writing this file; partial-roster sibling files corrupt downstream reads. `mkdir -p` the parent directory before writing. The harness's `config.json` is the source of truth for the roster; `squadkit.json` is the source of truth for squadkit-only coordination state. Never duplicate `members[]` here.
 
 Sibling files are squadkit-local state — never check them in.
 
@@ -581,26 +581,6 @@ The lead writes a delivery receipt per dispatch attempt to `.squadkit/dispatch-l
 | `outcome` | string | `sent`, `tool_error`, or `skipped_dedup`. |
 
 Idle ≠ delivery. The orchestrator reads the latest `(member, task)` line before assuming a dispatch landed; on `tool_error`, fall through to the `lead-cannot-dispatch` branch above. The full prose for both branches lives in `plugins/squadkit/agents/team-lead.md` under "Orchestrator playbook" — this section is a deliberate mirror so the spawn skill remains self-contained.
-
-## Constraints
-
-- Never hardcode `develop` — always read `${BASE_BRANCH}` from `.squadkit/config.json` (default fallback only when the file is missing).
-- Never spawn duplicate live members against an existing `~/.claude/teams/<name>/config.json`.
-- Never create more than 5 builders, even if the user asks.
-- Never invent a phonetic letter beyond `zulu` — stop and ask.
-- Never write the squadkit sibling file before every member has idled.
-- Never overwrite the harness-managed `config.json` — append squadkit metadata to the sibling `squadkit.json` instead.
-- Never pass `agent_type` to `TeamCreate` — it reserves a phantom slot.
-- Never spawn a separate `squadkit:team-lead` agent — the orchestrator IS the lead.
-- Never silently reuse a stale `.claude/worktrees/<member>/` — always check the branch against `${WORK_BRANCH}` and prompt before reusing.
-- Worktrees live under `.claude/worktrees/<member>/` relative to the repo root, never an absolute scratch path. Always created with `--detach` to avoid branch-ref contention with the main worktree.
-- Singleton-builder profiles must not create worktrees (they share the workspace) and must not run env-file seeding.
-- Discovery crews (`kind: discovery`) must not provision worktrees, must not cut an epic branch, must not pin `claude.flowkit.prBase`, and must reject `--epic`. They require `--brief`.
-- Reject any `kind:` value other than `execution` or `discovery`. A missing `kind:` defaults to `execution`.
-- The `--brief` payload is embedded verbatim in the architect spawn prompt only — never in explorer, designer, builder, reviewer, or tester spawn prompts.
-- `RESOLVED_MODE=auto` MUST force `model: "opus"` for **every** spawned member at spawn time — architect, builder, reviewer, tester, explorer, designer — even when the role frontmatter declares `model: sonnet`. Sonnet members under auto mode are non-autonomous (they prompt for permissions) and will deadlock the dispatch loop if the orchestrator stops monitoring. The previous "non-builder only" carve-out is dropped under Path C — the cost trade-off (builders burning budget faster on opus) is accepted in exchange for the simpler invariant.
-- `--mode inherit` (the default) MUST trigger an `AskUserQuestion` prompt at step 2.5; `--mode auto`, `--mode bypass`, and `--mode none` MUST skip the prompt. Non-interactive callers MUST pass an explicit `--mode` flag.
-- Persist `RESOLVED_MODE` to `~/.claude/teams/<team>/squadkit.json` under `permissionMode` so mid-session `Agent` spawns by the team-lead inherit the same mode (see `plugins/squadkit/agents/team-lead.md`).
 
 ## Harness constraints
 
