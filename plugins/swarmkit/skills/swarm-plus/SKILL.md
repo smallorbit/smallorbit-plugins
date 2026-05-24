@@ -144,8 +144,6 @@ The fix-round worker prompt MUST:
 - Forbid: branching off `develop`, force-pushing, rewriting prior commits, closing the issue manually.
 - Termination: report the new commit SHAs and confirm `gh pr view <pr_number> --json commits` includes them.
 
-> **Best-effort SendMessage optimization (currently inert).** If a future runtime version preserves builders past their final notification, an orchestrator could optimistically `SendMessage` the findings to `swarm-builder-<issue>` and skip the spawn. This is documented for forward reference only — under today's runtime the SendMessage call always fails ("No agent named X is currently addressable"), so the orchestrator MUST go straight to spawning a fresh worker. Do not waste a turn attempting SendMessage on builders.
-
 ### 5. Wait for all fix-round workers
 
 Continue until every spawned fix-round worker reports completion. Verify the PR's HEAD has advanced:
@@ -171,19 +169,6 @@ All PRs ready for human merge.
 
 Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 
-## Constraints
-
-- **Single pass** — no reviewer-after-fix re-review. The user can manually trigger another review with `/review <pr>` if desired.
-- **Builders are not addressable post-PR** — under today's runtime the harness terminates builders after their final notification. Never attempt SendMessage on a builder; always spawn a fresh worker for the fix round.
-- **Fix-round worker never re-branches off develop** — it branches off the existing PR head (`worktree-agent-<issue>`) so its commits stack onto the PR.
-- **`/swarmkit:swarm` default behavior is untouched** — swarm-plus constructs its own Agent calls following swarm's spawn pattern, with `name:` and the (forward-compat) STANDBY clause added. Plain `/swarmkit:swarm` invocations still terminate at step 6 of the swarm prompt.
-- **`--worker-model` controls the fix-round worker** — every non-clean reviewer verdict spawns a fresh worker, so this knob applies on the canonical fix-round path.
-- **Reviewer output stays inline, never posted as a PR comment** by the reviewer itself. The fix-round worker is the only sub-agent that may comment on the PR (and only with a brief "addressed feedback" summary).
-- **Never merge** any PR — final state is open PRs awaiting human merge.
-- **Never close issues** — `Closes #N` in PR bodies handles it on merge.
-- **Defer rather than guess** — if the reviewer's findings are ambiguous (e.g. "consider X"), the worker should explicitly defer in a PR comment rather than implement guesses.
-- All swarm constraints from `/swarmkit:swarm` apply transitively: worktree isolation, conventional commits, no Claude/co-author mentions, no absolute repo paths in agent prompts, never commit directly to develop or main.
-
 ## Failure modes
 
 | Symptom | Handling |
@@ -192,17 +177,3 @@ Suggest next step: `/merge-pr` for one PR or `/merge-stack` for two or more.
 | Reviewer crashes or returns no output | Note the missing review in the final summary; leave PR open without a fix pass |
 | Fix-round worker push rejected (branch advanced underneath) | Worker re-fetches and rebases (`git fetch origin <head>; git rebase origin/<head>`); if conflicts arise, abort and report to user |
 | Fix-round worker introduces new test failures | Worker MUST resolve before push — never push a red build |
-
-## Known issue: TeamDelete leaves zombie subprocesses
-
-`TeamDelete` returns success but does not signal or kill the long-running agent processes whose `--team-name` flag matches. This is a harness-level limitation and will be addressed upstream (see #924). Until the harness fix lands, operators should sweep lingering agent subprocesses manually after `TeamDelete`:
-
-```bash
-ps aux \
-  | grep -- "--team-name <team-name>" \
-  | grep -v grep \
-  | awk '{print $2}' \
-  | xargs -r kill
-```
-
-Replace `<team-name>` with the team name passed to `TeamDelete`. Run this sweep immediately after `TeamDelete` returns — the zombie processes consume no dispatch but do hold open file descriptors and tmux panes.
