@@ -61,28 +61,6 @@ Labels:   <type>, priority:<level>
 
 **In a single assistant turn**, emit (a) the preview above and (b) an `AskUserQuestion` call. Never end the turn after the preview without the tool call.
 
-**Wrong shape** (never do this):
-
-```
-Title: Harden approval gates
-Labels: enhancement, priority:medium
----
-## Problem ...
-Let me know if you'd like changes.
-← turn ends; silent wait
-```
-
-**Right shape** (always do this):
-
-```
-Title: Harden approval gates
-Labels: enhancement, priority:medium
----
-## Problem ...
-← immediately followed by AskUserQuestion in the same turn:
-AskUserQuestion("File this issue?", ["File as shown", "Adjust title / labels / body", "Cancel"])
-```
-
 **Pre-end self-check**: Before ending the turn in step 4, verify that the last action is an `AskUserQuestion` call. If the preview was shown but no tool call was made, emit the call immediately.
 
 If the user selects an adjust or cancel option, loop back (update the draft or abort) before re-asking.
@@ -103,9 +81,4 @@ Output the created issue URL.
 
 ## Constraints
 
-- The draft preview and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — showing the preview and ending the turn without calling `AskUserQuestion` is a defect, even if a prose invitation is included.
-- Never create the issue without showing the preview first
-- Never skip the duplicate check
-- Keep body concise — problem + impact + fix only
-- Match the label style already in the repo
 - Never write `#<number>` tokens in the issue body unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a stray `#3` will silently link to unrelated issue 3 in the repo. Strip or rewrite any such token inherited from `$ARGUMENTS` before filing (use "task 3" or "issue 3" without the hash).

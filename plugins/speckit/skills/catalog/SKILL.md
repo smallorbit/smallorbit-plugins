@@ -22,7 +22,7 @@ If no findings are available, ask the user what to catalog.
 Before extracting findings, scan `$ARGUMENTS` for these optional leading tokens and strip them from the findings text:
 
 - `--auto` — skip the approval step in step 3 (see below).
-- `--epic <slug>` — associate the catalogued issues with an epic identified by `<slug>`. The slug drives the epic-label logic in step 2 (ensure `epic:<slug>` exists) and step 4 (apply `epic:<slug>` to every issue in the batch). When invoked from `/speckit:spec`, the approved epic slug is passed through this same public mechanism — there is no private side channel. An optional epic title may accompany the slug (e.g. passed through from `/spec`); it is used as the label description when creating the label.
+- `--epic <slug>` — associate the catalogued issues with an epic. Ensures `epic:<slug>` label exists (step 2) and applies it to every issue in the batch (step 4). An optional epic title may accompany the slug; it is used as the label description when creating the label.
 - `--split` — disable the consolidation heuristic (see step 1.5 below) and file one issue per row of the source blueprint table. Use this when the rows of a phase really are independent units of work that need separate issues, branches, or owners. Without `--split`, mechanically-related rows in the same phase fold into a single issue per phase (the default).
 
 If `--epic <slug>` is **not** present, behaviour is unchanged from the no-epic flow: no epic label is applied, no warning is emitted, and the rest of the process runs exactly as documented below.
@@ -130,29 +130,6 @@ If `--auto` was passed in `$ARGUMENTS`, skip the approval step and proceed direc
 
 Otherwise, **in a single assistant turn**, emit (a) the catalog table above and (b) an `AskUserQuestion` call. Never end the turn after presenting the table without the tool call — a prose-only prompt like "let me know if you'd like changes" is a defect.
 
-**Wrong shape** (never do this):
-
-```
-| # | Title | Category | Priority | Labels |
-...
-Let me know if you'd like any adjustments.
-← turn ends here; silent wait
-```
-
-**Right shape** (always do this):
-
-```
-| # | Title | Category | Priority | Labels |
-...
-← immediately followed by AskUserQuestion in the same turn:
-AskUserQuestion("File these issues?", [
-  "Approve and file",
-  "Adjust priorities / titles",
-  "Remove some findings",
-  "Cancel"
-])
-```
-
 **Pre-end self-check**: Before ending the turn in step 3, verify that the last action is an `AskUserQuestion` call. If the table was shown but no tool call was made, emit the call immediately.
 
 The user may ask to:
@@ -233,22 +210,6 @@ When `/catalog` is invoked with `--epic <slug>`, it appends a final fenced block
 
 The block is the final element of the catalog's output, AFTER the issue table. Nothing follows the closing ` ``` ` fence.
 
-### Conditional emission
-
-When `--epic <slug>` is NOT passed, this block is omitted entirely. The handoff contract applies only to orchestrator-invoked catalog runs.
-
-### Consumer contract
-
-Orchestrators (e.g. `/speckit:spec`) parse the JSON inside this block to populate their task list and confirm filed children. The contract is stable across speckit minor versions.
-
 ## Constraints
 
-- Never create issues without showing the user the catalog first (unless `--auto` was passed)
-- The catalog table and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — showing the table and ending the turn without calling `AskUserQuestion` is a defect
-- Never create duplicate issues — check `gh issue list` for similar titles before creating
-- Keep issue bodies concise — problem + impact + fix, nothing more
-- Match the label style already in the repo (don't impose a new scheme)
-- Never parallelize `gh issue create` in a batch; URL↔title mapping breaks
-- Never treat a blueprint row count as the issue count without running step 1.5; the consolidation pass is on by default and only disables under `--split`
-- Always print the step 1.6 consolidation summary before the catalog table, even under `--auto`, so the consolidation decision is visible in the run record
 - Never write `#<number>` tokens in issue bodies unless you intend a real cross-reference to that exact issue — GitHub auto-links them, so a token like `#3` in a body about "task 3" will link to unrelated issue 3 in the repo. When referring to sibling tasks from a plan, use "task 3" (no hash) or omit the reference entirely — task-to-task dependencies are wired by the caller (e.g. `/spec`) via the native GitHub blocked-by API, not via issue-body text.
