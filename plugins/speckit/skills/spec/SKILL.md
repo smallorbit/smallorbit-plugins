@@ -217,77 +217,11 @@ full-path epic. `AskUserQuestion` supports max 4 options total (including
   - On `Adjust plan`: revise the plan (priorities, tasks, or the epic label),
     then re-show with the same options.
 
-**Wrong shape — silent wait** (never do this):
-
-```
-Here is the plan:
-## Goal
-Harden approval gates in speckit skills.
-...
-Let me know if you'd like changes.
-← turn ends here; silent wait
-```
-
-**Wrong shape — `/catalog` hand-off prose** (never do this):
-
-```
-Here is the plan:
-## Goal
-Harden approval gates in speckit skills.
-...
-Plan ready to feed into `/speckit:catalog` to file as a single prioritised, labelled GitHub issue.
-← turn ends here
-```
-
-This is a defect — the `/catalog` hand-off prose was inherited from the
-interview sub-skill's standalone-mode wording and must not be propagated. The
-orchestrator owns the handoff and the only legitimate way to end this turn is
-with an `AskUserQuestion` call.
-
-**Right shape — full-path plan** (always do this):
-
-```
-Here is the plan:
-## Goal
-Harden approval gates in speckit skills.
-...
-← immediately followed by AskUserQuestion in the same turn:
-AskUserQuestion("Approve this plan and file the issues?", [
-  "Approve and file issues",
-  "Condense to single issue",
-  "Adjust plan",
-  "Cancel"
-])
-```
-
-**Right shape — simple-path plan**:
-
-```
-AskUserQuestion("Approve this plan and file the issue?", [
-  "Approve and file",
-  "Run full interview instead",
-  "Adjust",
-  "Cancel"
-])
-```
-
 Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If the user selects an adjust, re-scope, or cancel option, loop back (revise the plan, fall through to the other path, or abort) before re-asking.
 
 The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
-**On approval (full path only)**: immediately after the user approves the plan, and before invoking `/catalog`, call `TaskCreate` to register the five remaining post-approval phases as a single batch of todos. The orchestrator will use this list as the mechanical contract for what remains to do; subsequent steps open with `TaskUpdate` to `in_progress` and close with `TaskUpdate` to `completed`, and the **Pre-end self-check** below uses this list as its turn-end gate.
-
-```
-TaskCreate([
-  { subject: "file-children",                description: "Step 4 — hand the task list to /catalog with --epic <slug>",          activeForm: "Filing child issues via /catalog" },
-  { subject: "create-epic-tracking-issue",   description: "Step 5 — create the parent epic tracking issue with epic:<slug> label", activeForm: "Creating the epic tracking issue" },
-  { subject: "wire-sub-issues",              description: "Step 5 — attach each child as a GitHub sub-issue of the epic",          activeForm: "Wiring sub-issue relationships" },
-  { subject: "wire-blocked-by-edges",        description: "Step 5 — set GitHub blocked-by edges for each task with Depends On",    activeForm: "Wiring blocked-by relationships" },
-  { subject: "final-report",                 description: "Step 7 — print the summary table (and step 6 if team-suitable)",         activeForm: "Reporting filed issues" }
-])
-```
-
-Skip this `TaskCreate` block on the simple path — single-issue plans short-circuit through `/catalog` and step 7 only, and do not need phase tracking.
+**On approval (full path only)**: immediately after the user approves the plan, and before invoking `/catalog`, call `TaskCreate` to register the five remaining post-approval phases as todos: file-children, create-epic-tracking-issue, wire-sub-issues, wire-blocked-by-edges, final-report. Subsequent steps open with `TaskUpdate` to `in_progress` and close with `TaskUpdate` to `completed`. Skip this on the simple path — single-issue plans do not need phase tracking.
 
 ### 4. File child issues
 
@@ -503,15 +437,8 @@ Close this step with `TaskUpdate(final-report, status: "completed")` once the ta
 
 `TaskList` is the orchestrator's first action whenever it considers ending a turn while `/speckit:spec` is active. Treat it as the mechanical gate on top of all the prose-level continuation rules elsewhere in this skill (in particular the **Continuation Gate (after /catalog returns)** above, which is the empirically-observed stall point). The two rules are intentionally separate: this section is the orchestrator-wide turn-end gate, while the Continuation Gate is a sub-skill-boundary rule for `/catalog` specifically.
 
-**Worked failure-mode example.** 9 children were filed via `/catalog`, the agent ended the turn, and the user had to ask "are you waiting on me for something?" to trigger creation of the epic tracking issue and the dependency wiring. With this section's `TaskList` gate, the orchestrator would have seen `create-epic-tracking-issue` as pending and continued.
-
 ## Constraints
 
-- A turn that presents the plan and ends without an `AskUserQuestion` call is a defect — whether the ending prose is silent waiting, a `/catalog` hand-off suggestion, or any other text.
-- The plan and the `AskUserQuestion` approval call must be emitted in the **same assistant turn** — presenting the plan and ending the turn without calling `AskUserQuestion` is a defect, even if a prose invitation is included.
-- Never create issues without showing the plan and getting approval first
 - Never write plan files to disk — the plan lives in the conversation only
-- Only create an epic if there are 2 or more child issues — skip step 5 entirely for single-issue plans
-- Epic issue must be created last, after all child issue numbers are known
 - If `$ARGUMENTS` is empty, ask what to spec before doing anything else
 - Never invoke `speckit:interview` directly in response to a user typing `/spec` or triggering this skill. `speckit:interview` is a sub-skill called from within step 2 of this skill — it is never a substitute for `speckit:spec`. If you find yourself about to invoke `speckit:interview` as a top-level response to `/spec`, stop and invoke `speckit:spec` instead.
