@@ -1,9 +1,9 @@
 ## 1. Plugin Scaffolding
 
-- [ ] 1.1 Create `plugins/opsx-bridge/plugin.json` with version `0.1.0`, name `opsx-bridge`, description, and skill manifest entries for `apply-via-squad`, `apply-via-swarm`, and `read-change`
-- [ ] 1.2 Create directory structure: `plugins/opsx-bridge/skills/{apply-via-squad,apply-via-swarm,read-change}/`
-- [ ] 1.3 Add `plugins/opsx-bridge/README.md` with overview, install instructions, and a "which dispatcher to pick" decision table mirroring the design doc
-- [ ] 1.4 Register `opsx-bridge` in the marketplace manifest (`marketplaces/smallorbit-plugins.json` or equivalent) so it can be installed
+- [x] 1.1 Create `plugins/opsx-bridge/plugin.json` with version `0.1.0`, name `opsx-bridge`, description, and skill manifest entries for `apply-via-squad`, `apply-via-swarm`, and `read-change`
+- [x] 1.2 Create directory structure: `plugins/opsx-bridge/skills/{apply-via-squad,apply-via-swarm,read-change}/`
+- [x] 1.3 Add `plugins/opsx-bridge/README.md` with overview, install instructions, and a "which dispatcher to pick" decision table mirroring the design doc
+- [x] 1.4 Register `opsx-bridge` in the marketplace manifest (`marketplaces/smallorbit-plugins.json` or equivalent) so it can be installed
 
 ## 2. Internal Sub-Skill: read-change
 
