@@ -47,16 +47,18 @@ openspec list --json | jq -r '.[].name'
 
 Report: `apply-via-squad: no change "<name>". Available: <list>.`
 
-**Apply-readiness.** Validate the change is apply-ready before dispatching. The CLI is the source of truth:
+**Apply-readiness.** The readiness GATE consumes `read-change`'s `applyReady` boolean (= `openspec status`'s `.isComplete`). Dispatch only when `applyReady` is `true`.
+
+`read-change` flattens `applyRequires` to a `string[]` of artifact names — it carries no per-artifact status. So when the gate is closed and the bridge needs to report *which* required artifacts are still incomplete, it sources that status detail by re-querying the CLI directly (the source of truth):
 
 ```bash
 STATUS=$(openspec status --change "<name>" --json)
 ```
 
-Every artifact named in `applyRequires` must have `status: "done"`. Equivalently, `read-change`'s `applyReady` field is `true`. If any required artifact is not `done`:
+If `applyReady` is `false`:
 
 - Refuse to dispatch.
-- Report which `applyRequires` artifacts are incomplete (name + current status).
+- Re-query `openspec status` to report which `applyRequires` artifacts are incomplete (name + current status from the CLI, not from `read-change`).
 - Suggest completing them: `Run /opsx:propose <name> to finish the outstanding artifacts, then re-run apply-via-squad.`
 
 This mirrors the spec's "Apply-readiness unsatisfied" scenario — the bridge proceeds only when readiness is satisfied.
@@ -113,6 +115,8 @@ Include `--epic <change-name>` by default so the crew works on `feature/<change-
 EPIC=(--epic "<change-name>")
 [ -n "$NO_EPIC" ] && EPIC=()
 ```
+
+**Known limitation — `--no-epic` cannot fully suppress spawn-team's epic prompt.** squadkit exposes no `--no-epic` flag. When `--epic` is omitted, spawn-team's documented behavior is to *prompt* for epic confirmation (an `AskUserQuestion`) rather than silently skip the epic. `--mode none` sets the member permission mode only — it does NOT suppress that confirmation prompt. So under `--no-epic` the operator will still see spawn-team's epic-confirmation prompt; the intended contract is that they answer it "use base branch" to keep the crew on the resolved base. A future squadkit `--no-epic` flag would let the bridge pass through and close this loop; until then this is a known, documented interaction the bridge cannot eliminate from its side.
 
 ### 6. Dispatch to spawn-team
 
