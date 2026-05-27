@@ -38,6 +38,8 @@ The full operator-controlled release flow is four explicit steps, with a verify 
 
 For a release with no swarm in flight (no epic, no open `worktree-agent-*` PRs), `/flowkit:ship` runs unconditionally — it is just `cut → release`.
 
+When work originates as an OpenSpec change, `opsx-bridge` can dispatch its implementation into the squad or swarm flow that produces the epic and `worktree-agent-*` PRs this sequence later integrates and ships (see the Plugins section below).
+
 ## Plugins
 
 `squadkit` is the interactive multi-role collaboration plugin (sibling to swarmkit's parallel-issue resolution). It introduces the `roles → squads → crews` vocabulary and ships `spawn-team`, `init`, and a `SessionStart` hook that re-asserts role context on resume.
@@ -47,6 +49,8 @@ For a release with no swarm in flight (no epic, no open `worktree-agent-*` PRs),
 **Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. Discovery crews stay on `develop` since they don't produce code. The supporting flow primitive lives in flowkit:
 
 - `flowkit:cut-epic` — cut the long-lived feature branch standalone (the primitive that `spawn-team --epic` invokes).
+
+`opsx-bridge` connects OpenSpec changes to those same dispatchers. It is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. Given a proposed `openspec/changes/<name>/`, `opsx-bridge:apply-via-squad <change>` derives a squad profile from the proposal's `## Capabilities` and dispatches via `/squadkit:spawn-team`, while `opsx-bridge:apply-via-swarm <change>` maps each `tasks.md` section to a GitHub issue and dispatches via `/swarmkit:swarm-plus`. These are the multi-agent alternative to stock single-agent `/opsx:apply`. See [`plugins/opsx-bridge/README.md`](./plugins/opsx-bridge/README.md).
 
 ## Skill Authoring Conventions
 
