@@ -1,11 +1,11 @@
 ---
 name: push-or-pr
-description: Publish pending commits on the current branch by creating a feature branch and opening a PR against --base — never push directly to the checked-out branch. Sub-skill used by /bump-versions and /flowkit:release.
+description: Publish pending commits on the current branch by creating a feature branch and opening a PR against --base — never push directly to the checked-out branch. Sub-skill used by /bump-versions.
 ---
 
 # push-or-pr
 
-Publish pending commits on the current branch to GitHub **only** via a pull request. The script never pushes to the branch you are on; it saves your commits on a dated feature branch, resets your local copy of that branch to match `origin/<branch>`, pushes the feature branch, and opens a PR. Skills that operate on `develop` (or any shared line) call this sub-skill so publishing always goes through review.
+Publish pending commits on the current branch to GitHub **only** via a pull request. The script never pushes to the branch you are on; it saves your commits on a dated feature branch, resets your local copy of that branch to match `origin/<branch>`, pushes the feature branch, and opens a PR. Skills that operate on `main` (or any shared line) call this sub-skill so publishing always goes through review.
 
 The skill does not merge the PR, create tags, or run post-merge sync — those remain caller responsibilities.
 
@@ -18,7 +18,7 @@ RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
   --prefix "$PREFIX" \
   --title "$PR_TITLE" \
   --body "$PR_BODY" \
-  --base "${BASE:-develop}")
+  --base "${BASE:-main}")
 ```
 
 `$SKILL_DIR` is the absolute path of the *push-or-pr* skill on disk. Callers resolve it as follows:
@@ -33,7 +33,7 @@ RESULT=$(bash "$SKILL_DIR/scripts/push_or_pr.sh" \
 | `--prefix` | when there are pending commits | — | Branch-name prefix for the auto-created feature branch (e.g. `chore/bump-plugins`). The script appends `-YYYY-MM-DD` and a numeric suffix on collision. |
 | `--title` | when there are pending commits | — | PR title. |
 | `--body` | when there are pending commits | — | PR body. Caller assembles per [`plugins/_shared/pr-body.md`](../../../_shared/pr-body.md). Multi-line strings are fine — the caller quotes the value. |
-| `--base` | always optional | `develop` | Base branch for the PR. |
+| `--base` | always optional | `main` | Base branch for the PR. |
 
 If there are no pending commits (`noop`), PR args are unused. If there are pending commits and any of `--prefix` / `--title` / `--body` is missing, the script exits non-zero with exit code 2.
 

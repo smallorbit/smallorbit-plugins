@@ -1,17 +1,17 @@
 ---
 name: sync
-description: Sync local develop after a merge — pull latest, prune stale remote-tracking refs, and delete merged local branches.
+description: Sync local main after a merge — pull latest, prune stale remote-tracking refs, and delete merged local branches.
 triggers:
   - "/sync"
-  - "sync develop"
-  - "sync back to develop"
+  - "sync main"
+  - "sync back to main"
   - "clean up after merge"
 allowed-tools: Bash
 ---
 
 # sync
 
-Return to a clean `develop` state after a PR has been merged. Pulls the latest from origin, prunes stale remote-tracking refs, and removes local branches that have already been merged into `develop`.
+Return to a clean `main` state after a PR has been merged. Pulls the latest from origin, prunes stale remote-tracking refs, and removes local branches that have already been merged into `main`.
 
 ## Input
 
@@ -19,13 +19,13 @@ No arguments.
 
 ## Process
 
-### 1. Switch to develop and pull
+### 1. Switch to main and pull
 
-Check out `develop` and pull the latest from `origin` (never leave `develop` stale before the prune/cleanup steps below):
+Check out `main` and pull the latest from `origin` (never leave `main` stale before the prune/cleanup steps below):
 
 ```bash
-git checkout develop
-git pull origin develop
+git checkout main
+git pull origin main
 ```
 
 ### 2. Prune stale remote-tracking refs
@@ -36,10 +36,10 @@ git fetch --prune
 
 ### 3. Delete merged local branches
 
-List local branches fully merged into `develop` (excluding `develop`, `main`, and the current branch), then delete them:
+List local branches fully merged into `main` (excluding `main` and the current branch), then delete them:
 
 ```bash
-git branch --merged develop | grep -vE '^\*|develop|main' | xargs -r git branch -d
+git branch --merged main | grep -vE '^\*|^[[:space:]]*main$' | xargs -r git branch -d
 ```
 
 ### 4. Report

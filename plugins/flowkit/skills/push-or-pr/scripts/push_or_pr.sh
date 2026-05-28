@@ -14,7 +14,7 @@ set -euo pipefail
 #                      "-YYYY-MM-DD" and a numeric suffix on collision.
 #   --title <title>    PR title.
 #   --body <body>      PR body. Multi-line strings are fine (caller quotes).
-#   --base <branch>    Base branch for the PR. Default: develop.
+#   --base <branch>    Base branch for the PR. Default: main.
 #
 # Behavior:
 #   1. Compares HEAD against origin/<current-branch>. If no pending commits,
@@ -37,7 +37,7 @@ set -euo pipefail
 PREFIX=""
 PR_TITLE=""
 PR_BODY=""
-BASE="develop"
+BASE="main"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
