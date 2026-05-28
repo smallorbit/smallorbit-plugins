@@ -2,14 +2,17 @@
 
 Companion to [spec.md](./spec.md). Not part of the OpenSpec spec.
 Paths relative to `<repo-root>/`.
-Line numbers verified on 2026-05-27.
 
-> **Citation-stability note.** `read-change/SKILL.md` and `apply-via-swarm/SKILL.md`
-> citations use exact line numbers (stable on this branch). `apply-via-squad/SKILL.md`
-> line numbers are **as-of-this-branch** — a fix-round PR (#997) added documentation
-> lines to that file after this branch was cut, so a post-merge re-derivation may shift
-> them by a few lines. Each `apply-via-squad` citation is therefore also anchored to a
-> process-step heading and a short quoted snippet so small drift does not invalidate it.
+> **Citation-stability note.** This REFERENCES.md was authored from a swarm worker
+> branch cut before the apply-via-squad (#997) and apply-via-swarm (#998) fix-rounds
+> landed on their parent branches, so the cited line numbers in those two files are
+> **pre-fix** and have drifted in the integrated tree. Citations remain useful because
+> each is also anchored to a process-step heading and a short quoted snippet — find the
+> snippet, and the surrounding lines are the right region. A `/spec-baseline` audit
+> pass against the integrated tree will reconcile the exact line numbers; until then,
+> trust the headings and snippets over the line numbers for `apply-via-squad` and
+> `apply-via-swarm`. `read-change/SKILL.md` citations were authored against the same
+> file state that landed, so its line numbers are accurate.
 
 Both bridge skills (`apply-via-squad` and `apply-via-swarm`) implement the cross-cutting
 requirements — change discovery, apply-readiness, base resolution, reconciliation, and
