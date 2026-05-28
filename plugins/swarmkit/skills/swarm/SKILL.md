@@ -13,13 +13,13 @@ Spawn parallel agents for GitHub issues: $ARGUMENTS
 
 Parse `$ARGUMENTS` to determine the mode:
 
-- **No arguments** → **loop mode**, all open issues → `develop`
-- **Label text** (non-numeric, e.g. `bug`, `priority:high`) → **loop mode**, filtered by label → `develop`
-- **Issue numbers** (`12 15 18`, `#12 #15 #18`, range `12-18`) → **one-shot mode**, specific issues → `develop`
+- **No arguments** → **loop mode**, all open issues → `main`
+- **Label text** (non-numeric, e.g. `bug`, `priority:high`) → **loop mode**, filtered by label → `main`
+- **Issue numbers** (`12 15 18`, `#12 #15 #18`, range `12-18`) → **one-shot mode**, specific issues → `main`
 - `--model <tier>` (`sonnet`, `opus`) → model override for all agents
 - `--base <branch>` → override default base branch
 - `--no-epic` → suppress feature-branch mode for this run; PRs target `$BASE` directly
-- `--epic <slug>` → explicit slug for the auto-cut epic branch (verbatim; `flowkit:cut-epic` enforces the `feature/` prefix)
+- `--epic <slug>` → explicit slug for the auto-cut epic branch (the inline cut enforces the `feature/<slug>-<N>` shape)
 
 ---
 
@@ -36,20 +36,40 @@ else:                                              EPIC_MODE=on
 
 ### When EPIC_MODE=on
 
-**Resolve the slug** (in order):
+**Resolve the branch name** `EPIC_BRANCH` (in order):
 
-1. `--epic <slug>` arg → pass verbatim to `flowkit:cut-epic` (`cut-epic` enforces the `feature/` prefix).
-2. One-shot multi-issue → pass the lowest issue number to `cut-epic`; it resolves the slug from the issue title via `gh issue view`.
-3. Loop mode (no issues, no label) → pass `feature/swarm-$(date +%Y-%m-%d)` as the full branch name (cut-epic accepts the `feature/…` input shape directly).
-4. Loop mode + label → pass `feature/<label>-$(date +%Y-%m-%d)` as the full branch name.
+1. `--epic <slug>` arg → if it already starts with `feature/`, use verbatim; otherwise prepend `feature/`.
+2. One-shot multi-issue → derive slug from the lowest issue number's title (`gh issue view <N> --json title --jq '.title'`), kebab-case it (lowercase; non-alphanumerics → `-`; collapse runs; trim leading/trailing `-`), and form `feature/<slug>-<lowest-issue>`.
+3. Loop mode (no label) → `feature/swarm-$(date +%Y-%m-%d)`.
+4. Loop mode + label → `feature/<label>-$(date +%Y-%m-%d)`.
 
-**Empty-board edge case (loop mode only)**: defer the cut-epic invocation until the first cycle that selects ≥1 issue. If the board is clear at loop entry, announce "Board is clear" and exit without cutting any branch.
+**Empty-board edge case (loop mode only)**: defer the inline cut until the first cycle that selects ≥1 issue. If the board is clear at loop entry, announce "Board is clear" and exit without cutting any branch.
 
-**Cross-pin defensive guard**: before invoking `cut-epic`, read `claude.flowkit.prBase`. If it is set AND starts with `feature/` AND the value differs from the branch about to be cut, exit with:
+**Cross-pin defensive guard**: before cutting, read `claude.flowkit.prBase`. If it is set AND starts with `feature/` AND the value differs from the branch about to be cut, exit with:
 
-> `swarm: an epic is already pinned (\`<existing>\`); pass \`--no-epic\` to swarm against develop, or \`--epic <existing-slug>\` to reuse the pinned branch.`
+> `swarm: an epic is already pinned (\`<existing>\`); pass \`--no-epic\` to swarm against main, or \`--epic <existing-slug>\` to reuse the pinned branch.`
 
-**Invoke `flowkit:cut-epic`** via the Skill tool: `Skill("flowkit:cut-epic", "<resolved-arg>")`. `cut-epic` is idempotent — if the branch already exists locally or on origin it is reused and the pin is refreshed. Capture `EPIC_BRANCH` from cut-epic's report output (the resolved branch name, e.g. `feature/report-serializer-101`).
+**Cut the feature branch inline** with `git`/`gh`. This is idempotent — if the branch already exists on origin, fetch and check it out instead of recreating, and refresh the pin:
+
+```bash
+git fetch origin main
+if git ls-remote --exit-code --heads origin "$EPIC_BRANCH" >/dev/null 2>&1; then
+  # Resume path — branch exists on origin
+  git fetch origin "$EPIC_BRANCH"
+  git checkout -B "$EPIC_BRANCH" "origin/$EPIC_BRANCH"
+else
+  # First cut — branch off main and push
+  git checkout -B "$EPIC_BRANCH" origin/main
+  git push -u origin "$EPIC_BRANCH"
+fi
+git config claude.flowkit.prBase "$EPIC_BRANCH"
+```
+
+Announce the result:
+
+> Cut `<EPIC_BRANCH>` from `origin/main` and pinned `claude.flowkit.prBase`. All PRs will target `<EPIC_BRANCH>`.
+
+(If the branch already existed and was reused, swap the verb: `Resumed <EPIC_BRANCH> on origin and refreshed pin.`)
 
 ### When EPIC_MODE=off
 
@@ -74,12 +94,12 @@ fi
 On success the script exits 0 and emits a single JSON object on stdout:
 
 ```json
-{"base": "develop", "base_existed": true, "base_created": false, "gh_authenticated": true, "repo": "owner/name"}
+{"base": "main", "base_existed": true, "base_created": false, "gh_authenticated": true, "repo": "owner/name"}
 ```
 
 Parse the JSON. If `gh_authenticated` is `false`, **stop immediately** and surface the script's stderr to the user — no swarm work can proceed without `gh` auth. If `base_created` is `true`, announce:
 
-> Created `<base>` branch from `main`. All PRs will target `<base>`.
+> Created `<base>` branch from the repo's default branch. All PRs will target `<base>`.
 
 If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and stop.
 
@@ -185,11 +205,11 @@ GitHub will automatically remove `status:in-progress` visibility when the issue 
 
 Apply the hybrid spawn strategy based on the dependency graph from Step 2:
 
-In epic mode, agents still branch from `origin/$BASE` (e.g. `origin/develop`) for their initial worktree, but their PRs target `$EPIC_BRANCH` because `claude.flowkit.prBase` is pinned to it. Stack-root PRs target `$EPIC_BRANCH` instead of `$BASE`; stack-leaf PRs still target their predecessor (which ultimately roots at `$EPIC_BRANCH`).
+In epic mode, agents branch from `$EPIC_BRANCH` (which was cut from `origin/main` in the epic-mode resolution step) for their initial worktree, and their PRs target `$EPIC_BRANCH` because `claude.flowkit.prBase` is pinned to it. Stack-root PRs target `$EPIC_BRANCH` instead of `$BASE`; stack-leaf PRs still target their predecessor (which ultimately roots at `$EPIC_BRANCH`).
 
 **Independent issues** (no dependencies within this batch):
 - Spawn all in parallel
-- Each agent branches from `$BASE` (e.g., `develop`)
+- Each agent branches from `$BASE` (e.g., `main`, or `$EPIC_BRANCH` when epic mode is on)
 - Use `run_in_background: true`
 
 **Dependent chains** (issues with dependencies):
@@ -220,12 +240,12 @@ Each agent prompt MUST include:
 2. **EXPECTED OUTCOME**: branch name, commit format, PR closing the issue(s)
 3. **MUST DO**: concrete file changes from the issue body
 4. **MUST NOT DO**: scope boundaries
-5. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/release/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
+5. **CONTEXT**: Instruct agents that their CWD is the repo root — use **relative paths only** for all file operations (e.g., `plugins/flowkit/skills/ship/SKILL.md`). Do NOT include the absolute repo path — agents will resolve it into absolute paths that bypass the worktree and edit the main directory instead.
 
 Each agent prompt MUST include these **workflow steps** (in order):
 
 ```
-1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout develop` would fail if `develop` is already checked out in the main repo. `<base>` is `develop` for independent issues and `worktree-agent-<dependency-issue>` for dependent ones.
+1. Create and check out branch from the appropriate base. Use `origin/<base>` as the starting point so this works inside an isolated worktree — a plain `git checkout <base>` would fail if `<base>` is already checked out in the main repo. `<base>` is `main` (or the `feature/<slug>-<N>` epic branch when one was cut) for independent issues and `worktree-agent-<dependency-issue>` for dependent ones.
 
    git fetch origin <base>
    git checkout -B worktree-agent-<issue> origin/<base>
@@ -249,7 +269,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
    git add <files> && git commit -m "<type>(<scope>): <description>"
 4. Push the branch:
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting the appropriate base — `develop` for independent issues, `worktree-agent-<dependency-issue>` for dependent ones. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+5. Create PR targeting the appropriate base — `main` (or the pinned `feature/<slug>-<N>` branch via `claude.flowkit.prBase`) for independent issues, `worktree-agent-<dependency-issue>` for dependent ones. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
 
    <!-- include: plugins/_shared/pr-body.md -->
    <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
@@ -287,7 +307,7 @@ On success the script exits 0 and emits a single JSON object on stdout:
   "pushed_now": false,
   "pr_exists": true,
   "pr_url": "https://github.com/owner/name/pull/210",
-  "pr_base": "develop"
+  "pr_base": "main"
 }
 ```
 
@@ -315,7 +335,7 @@ Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This fre
 | #18, #19 | #26 | chore/clean-hooks   | Open |
 ```
 
-All PRs are left open for review. If 1 PR open: use `/merge-pr` to merge it. If 2+ PRs: use `/merge-stack` — retargets non-root PRs to the stack root's base and merges bottom-up: root PRs first, leaves last. In epic mode, after all child PRs are merged into the epic branch via `/merge-stack`, run `/ship-epic` to rebase-merge the epic branch onto `develop`, clear the pin, and delete the epic branch.
+All PRs are left open for review. If 1 PR open: use `/merge-pr` to merge it. If 2+ PRs: use `/merge-stack` — retargets non-root PRs to the stack root's base and merges bottom-up: root PRs first, leaves last. In epic mode, after all child PRs are merged into the epic branch via `/merge-stack`, open a single PR from the epic branch to `main` and squash-merge it (verify the integrated state first); then unset `claude.flowkit.prBase` and delete the epic branch.
 
 ---
 
@@ -380,7 +400,7 @@ Parse the returned JSON and confirm `base_restored: true`. If `config_unset: fal
 
 When `config_kept_for_epic: true` appears in the JSON, announce:
 
-> Epic branch `<EPIC_BRANCH>` is left in place with `claude.flowkit.prBase` pinned. Run `/ship-epic` to promote it to `develop` and clear the pin.
+> Epic branch `<EPIC_BRANCH>` is left in place with `claude.flowkit.prBase` pinned. After all child PRs land via `/merge-stack`, open a final PR from `<EPIC_BRANCH>` to `main` and squash-merge it; then unset `claude.flowkit.prBase` and delete the epic branch.
 
 Optionally, run `swarmkit:clean-remote-worktrees` afterwards to sweep orphaned remote `worktree-agent-*` branches left behind by merged PRs. This is not automatic — invoke it when you want to tidy up.
 
@@ -394,7 +414,7 @@ Issues remaining: #25
 Open PRs: #31, #32, #33
 
 Open PRs are ready for review. If 1 PR open: use `/merge-pr` to merge it. If 2+ PRs: use `/merge-stack` — retargets non-root PRs to the stack root's base and merges bottom-up: root PRs first, leaves last.
-In epic mode: after /merge-stack fans child PRs into the epic branch, run /ship-epic to promote the epic to develop and clear the pin.
+In epic mode: after /merge-stack fans child PRs into the epic branch, open a final epic-to-main PR, squash-merge it, then unset `claude.flowkit.prBase` and delete the epic branch.
 ─────────────────────────────────────────────
 ```
 
