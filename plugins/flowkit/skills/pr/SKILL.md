@@ -46,11 +46,17 @@ If the current branch is `main` or `master`, stop and report:
 
 Branch creation is no longer part of `/pr`. The operator creates the branch inline — `/pr` only commits and opens.
 
-### 2. Commit changes
+### 2. Commit changes (skipped on clean workspace)
 
-Follow `/commit` with `$ARGUMENTS` to stage and commit all current workspace changes using conventional commits. The commit sub-skill derives the type, scope, and subject from the staged diff — no operator interview.
+Check whether the workspace has any uncommitted changes (tracked or untracked) — the orchestrator decides the skip, not the commit sub-skill:
 
-If the workspace is already clean (nothing to commit), skip this step.
+```bash
+if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+  WORKSPACE_CLEAN=1
+fi
+```
+
+If `WORKSPACE_CLEAN` is set, skip directly to step 3 — there is nothing to commit. Otherwise follow `/commit` with `$ARGUMENTS` to stage and commit the workspace using conventional commits. The commit sub-skill derives the type, scope, and subject from the staged diff — no operator interview.
 
 ### 3. Open PR
 
