@@ -63,13 +63,13 @@ REPO_NAME=$(basename "$REPO_ROOT")
 SQUAD_CONFIG="$REPO_ROOT/.squadkit/config.json"
 ```
 
-Read the base branch defensively from `.squadkit/config.json`. If the file or key is missing, fall back to `develop`:
+Read the base branch defensively from `.squadkit/config.json`. If the file or key is missing, fall back to `main`:
 
 ```bash
-BASE_BRANCH=$(jq -r '.baseBranch // "develop"' "$SQUAD_CONFIG" 2>/dev/null || echo "develop")
+BASE_BRANCH=$(jq -r '.baseBranch // "main"' "$SQUAD_CONFIG" 2>/dev/null || echo "main")
 ```
 
-Never hardcode `develop` elsewhere in the runbook — every reference uses `${BASE_BRANCH}` resolved here.
+Never hardcode `main` elsewhere in the runbook — every reference uses `${BASE_BRANCH}` resolved here.
 
 ### 2. Parse arguments
 
@@ -263,27 +263,38 @@ If `--epic <slug>` was provided, the skill cuts the epic branch. Otherwise promp
 When cutting an epic:
 
 1. Resolve `<issue>` from `--epic` arguments or prompt for it. The expected slug is kebab-case (`[a-z0-9-]+`).
-2. **Cross-pin guard.** Before invoking cut-epic, read the existing pin:
+2. **Cross-pin guard.** Before cutting, read the existing pin:
 
    ```bash
    EXISTING_PIN=$(git config --local --get claude.flowkit.prBase 2>/dev/null || true)
    if [[ -n "$EXISTING_PIN" && "$EXISTING_PIN" =~ ^feature/ && "$EXISTING_PIN" != "feature/${slug}-${issue}" ]]; then
      echo "spawn-team: an epic is already pinned (\`$EXISTING_PIN\`)." >&2
-     echo "  Re-run without --epic and answer \`Use \${BASE_BRANCH}\` to spawn against the base branch instead," >&2
+     echo "  Clear the pin with \`git config --unset claude.flowkit.prBase\` and re-run," >&2
+     echo "  re-run without --epic and answer \`Use \${BASE_BRANCH}\` to spawn against the base branch instead," >&2
      echo "  or re-run with --epic matching the pinned slug to reuse it." >&2
      exit 1
    fi
    ```
 
-   When the existing pin matches the resolved feature branch, proceed silently — cut-epic is idempotent and will reuse the branch.
+   When the existing pin matches the resolved feature branch, proceed silently — the cutting block below is idempotent and will reuse the branch.
 
-3. Invoke `flowkit:cut-epic` via the Skill tool, forwarding the resolved slug and issue number verbatim (cut-epic input shape 2 — issue + slug pair):
+3. Cut (or reuse) the epic branch inline. squadkit owns the epic-cutting primitive directly — it does not delegate to an external skill. The branch is always cut from `origin/main` (never from a local stale branch or any other base), and the pin (`claude.flowkit.prBase`) is set unconditionally so every member's `flowkit:open-pr` invocation in this session targets the epic branch automatically:
 
+   ```bash
+   SLUG="<slug>"; ISSUE="<issue>"; EPIC="feature/${SLUG}-${ISSUE}"
+   # Idempotent reuse: if branch exists on origin, fetch + checkout + refresh pin
+   if git ls-remote --exit-code --heads origin "$EPIC" >/dev/null 2>&1; then
+     git fetch origin "$EPIC"
+     git checkout -B "$EPIC" "origin/$EPIC"
+   else
+     git fetch origin main
+     git checkout -B "$EPIC" origin/main
+     git push -u origin "$EPIC"
+   fi
+   git config claude.flowkit.prBase "$EPIC"
    ```
-   Skill({skill: "flowkit:cut-epic", arguments: "<slug> <issue>"})
-   ```
 
-   cut-epic owns the rest: idempotent branch create-or-reuse from `origin/${BASE_BRANCH}`, push to origin, and pin `claude.flowkit.prBase` to `feature/<slug>-<issue>`. Surface cut-epic's report in spawn-team's final summary.
+   Surface the resulting branch state (created vs. reused) in spawn-team's final summary.
 
 4. Set `WORK_BRANCH=feature/<slug>-<issue>`. The pin is now live; every member's `flowkit:open-pr` invocation in this session targets the epic branch automatically.
 
@@ -599,7 +610,6 @@ These are observed limitations of the `Agent` and `TeamCreate` primitives at the
 
 | Caller | Behavior |
 |--------|----------|
-| `flowkit:cut-epic` | The canonical epic-cutting primitive. `spawn-team --epic` invokes this skill via the Skill tool so both entry points share one implementation. |
 | `flowkit:open-pr` / `flowkit:pr` | Member PRs target `claude.flowkit.prBase` automatically once the spawn pins it. |
 | `swarmkit:gh-fetch-issues` | Resolves `--issues <range>` into a filtered (open + non-on-hold) list for the lead's first dispatch prompt. |
 | `swarmkit:clean-worktrees` | Pre-flight sweep when stale `.claude/worktrees/*` paths exist that don't match the resolved roster. |
