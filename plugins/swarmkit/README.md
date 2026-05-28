@@ -50,7 +50,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch and route all child PRs to it (run `/ship-epic` to close out). Single-issue one-shot runs target `develop` directly. |
+| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). Single-issue one-shot runs target `main` directly. |
 | **swarm-plus** | `/swarm-plus` | Wraps `/swarm` with an automatic review/fix pass. After each swarm PR opens, dispatches the vendored `swarm-reviewer` agent per PR; if the reviewer flags blockers or concerns, dispatches a worker to push follow-up commits. Single pass per PR. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when any `worktree-agent-*` paths remain. |
@@ -81,16 +81,17 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 ```
 /next-issue                          # See what's ready to work on
-/swarm 12 15 18                      # Auto-cuts feature branch, opens PRs against it
-/merge-stack                         # Fan child PRs into the epic branch bottom-up
-/ship-epic                           # Rebase-merge epic → develop, clear pin, delete epic branch
+/swarm 12 15 18                      # Auto-cuts feature/<slug>-<N> from main, opens PRs against it
+/merge-stack                         # Squash-merge child PRs into the epic branch bottom-up
+# verify on the epic branch          # typecheck/test/lint
+# open + squash-merge epic→main PR   # then unset claude.flowkit.prBase and delete epic branch
 ```
 
-### Single issue (flat to develop)
+### Single issue (flat to main)
 
 ```
-/swarm 12                            # No epic cut — PR targets develop directly
-/merge-pr                            # Merge the one PR (flowkit skill)
+/swarm 12                            # No epic cut — PR targets main directly
+/merge-pr                            # Squash-merge the one PR (flowkit skill)
 ```
 
 ### Loop mode (clear the board)
@@ -102,23 +103,23 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 ## How Swarm Works
 
-1. Ensures a `develop` branch exists (creates from `main` if needed)
+1. Verifies `main` exists on origin and the working tree is ready
 2. Fetches issues, analyzes dependencies, and presents a swarm plan
-3. If the run will spawn ≥2 agents, cuts a `feature/<slug>-<N>` branch via `flowkit:cut-epic` and pins `claude.flowkit.prBase` to it — all spawned PRs target the epic branch
+3. If the run will spawn ≥2 agents, cuts a `feature/<slug>-<N>` branch from `origin/main` inline (idempotent — resumes the branch if it already exists on origin) and pins `claude.flowkit.prBase` to it — all spawned PRs target the epic branch
 4. Spawns one agent per issue (or grouped set) in isolated git worktrees
 5. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-6. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to merge child PRs into the epic branch bottom-up; then run `/ship-epic` to rebase-merge the epic onto `develop`
+6. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to squash-merge child PRs into the epic branch bottom-up; then open a single PR from the epic to `main`, squash-merge it, unpin, and delete the epic branch
 7. Cleans up worktrees and orphaned branches
 
-**One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack → /ship-epic` to land.
-**Single issue (one-shot)**: `/swarm 12` — flat to `develop`, no epic cut; use `/merge-pr` to merge.
+**One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack` then a final epic→main squash to land.
+**Single issue (one-shot)**: `/swarm 12` — flat to `main`, no epic cut; use `/merge-pr` to merge.
 **Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear; epic branch is cut once and reused across cycles.
 **Label filter**: `/swarm bug` — loop mode, but only `bug`-labeled issues.
 
 ### Flags
 
 - `--model <sonnet|opus>` — override model selection for all agents
-- `--base <branch>` — override the default base branch (`develop`); also suppresses the epic cut
+- `--base <branch>` — override the default base branch (`main`); also suppresses the epic cut
 - `--no-epic` — suppress feature-branch mode for this run; PRs target `$BASE` directly
 - `--epic <slug>` — explicit slug for the auto-cut epic branch
 
@@ -130,7 +131,7 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 2. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR in the background — no waiting for other swarm agents.
 3. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
 4. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
-5. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `develop` — so its commits stack directly onto the PR.
+5. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
 6. After all workers finish, a final table summarizes verdict and worker action per PR.
 
 **Single pass** — there is no reviewer-after-worker re-review. Use `/review <pr>` manually if a second pass is desired.
@@ -147,17 +148,17 @@ All `/swarm` flags are inherited. Swarm-plus adds:
 
 Swarmkit is opinionated. Understanding these assumptions upfront will save you friction.
 
-### Branching Model: `develop` → `main`
+### Branching Model: Single-Trunk GitHub Flow
 
-By default, all PRs target a `develop` branch. If `develop` doesn't exist, `/swarm` creates it from `main` automatically.
+By default, all PRs target `main`. Multi-issue runs auto-cut a short-lived `feature/<slug>-<N>` branch from `main` and route the swarm's PRs through it, but the trunk is always `main` — no `develop` intermediary.
 
-This assumes a **release-branch workflow**: feature work merges into `develop`, and a release process promotes `develop` → `main`. Issues are intentionally left open after their PRs merge to `develop`; they're closed when the release ships.
+Issues close natively via each PR's `Closes #N` footer the moment the PR merges to `main` (directly or via the epic→main squash).
 
-**If you use trunk-based development** (everything goes to `main`):
+**To bypass the epic cut** (every PR targets `main` directly):
 
 ```bash
-/swarm --base main 12 15 18   # one-shot, targeting main
-/swarm --base main            # loop mode, targeting main
+/swarm --no-epic 12 15 18   # one-shot, no epic branch
+/swarm --no-epic            # loop mode, no epic branch
 ```
 
 ### Branch Naming: `worktree-agent-<issue>`
@@ -181,7 +182,7 @@ When an agent is spawned for an issue, swarmkit applies `status:in-progress` to 
 
 ### Issue Lifecycle
 
-Swarmkit **never closes issues** — that's intentional. Closing is left to the release process (when your base branch merges to `main`). This keeps issues open and visible on the board until the work is actually shipped.
+Swarmkit **never closes issues explicitly** — closing is left to GitHub. Each PR's body carries a `Closes #N` footer that GitHub honors natively when the PR merges to `main` (whether directly, or via the epic→main squash). No manual `gh issue close` is required.
 
 ## Configuration Notes
 

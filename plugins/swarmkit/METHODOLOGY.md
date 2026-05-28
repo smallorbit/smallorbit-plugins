@@ -44,8 +44,8 @@ When `/swarm` receives a batch of issues, it parses each issue body for `Depends
 Concretely, an independent agent starts like this:
 
 ```bash
-git checkout develop && git pull origin develop
-git checkout -b worktree-agent-<issue>
+git fetch origin main
+git checkout -B worktree-agent-<issue> origin/main
 ```
 
 A dependent agent starts like this instead:
@@ -61,7 +61,7 @@ The dependent agent's pull request then targets the dependency's branch rather t
 gh pr create --base worktree-agent-<dependency-issue> --head worktree-agent-<issue> ...
 ```
 
-This is the stack. Each pull request in a chain has a head branch and a base branch that is the head branch of the pull request below it. The lowest PR in a chain targets `develop` (or whatever base was configured). GitHub understands this relationship natively and, critically, automatically retargets the dependent PR to the base branch when the dependency merges.
+This is the stack. Each pull request in a chain has a head branch and a base branch that is the head branch of the pull request below it. The lowest PR in a chain targets `main` (or the pinned `feature/<slug>-<N>` epic branch when one was cut). GitHub understands this relationship natively and, critically, automatically retargets the dependent PR to the base branch when the dependency merges.
 
 The reason this works as a concurrency primitive is that the dependent agent already has access to everything the upstream agent produced — the upstream output is in the working tree from the moment the dependent branch is created. The dependent agent never needs to wait for the upstream pull request to merge. That is also why swarmkit forbids merging a dependency PR mid-swarm "to unblock" a downstream agent: the downstream agent is already unblocked by virtue of branching from the upstream tip, and an early merge would bypass your review gate for no gain.
 
@@ -71,7 +71,7 @@ The naive way to merge a stack bottom-up fails badly on GitHub: when the root PR
 
 `/merge-stack` sidesteps this with an up-front retarget. Before any merge runs, every non-root PR in a multi-PR chain is retargeted to the base branch with `gh pr edit <N> --base $BASE`. Once a child's base is the base branch, deleting its predecessor's branch no longer looks like abandonment — the auto-close cascade never fires. This is the direction used by Graphite, git-spice, Sapling, and Phabricator, and it means the diff a reviewer approves is the diff that lands: no successive rebases into the root, no CI re-runs on a growing stack, no ref-juggling to preserve closing metadata.
 
-With retargeting in place, every PR merges uniformly with `gh pr merge <N> --squash --delete-branch`. There is no per-role strategy matrix and no intermediate-branch sweep — `--delete-branch` handles cleanup inline. Each PR's own body closes its own `Closes #N` references natively as it merges. Chains merge from the root upward to the leaf; independent PRs (whose base is already `develop` and that have nothing stacked on them) may merge in any order.
+With retargeting in place, every PR merges uniformly with `gh pr merge <N> --squash --delete-branch`. There is no per-role strategy matrix and no intermediate-branch sweep — `--delete-branch` handles cleanup inline. Each PR's own body closes its own `Closes #N` references natively as it merges. Chains merge from the root upward to the leaf; independent PRs (whose base is already `$BASE` and that have nothing stacked on them) may merge in any order. Squash-merge does not require fast-forward, so GitHub's tree-based diff transparently drops already-applied predecessor commits — no per-merge downstream rebase is needed.
 
 If a merge halts partway up a chain (for example, because of a conflict), the remaining PRs above the halt point are marked blocked and reported at the end. Each PR above the halt still targets the base branch after the retarget, so the user can resolve the conflict and re-run `/merge-stack` without re-threading the stack.
 
@@ -97,75 +97,76 @@ Swarm automatically cuts a feature branch whenever a run will spawn two or more 
 - **Loop mode (all issues)**: `/swarm` — any board with ≥1 issue → epic cut at first non-empty cycle.
 - **Loop mode (label filter)**: `/swarm bug` — same trigger as loop mode.
 
-Single-issue one-shot (`/swarm 12`) always stays flat. The logic is: a standalone issue, by definition, cannot form a stack that needs isolation from `develop`.
+Single-issue one-shot (`/swarm 12`) always stays flat. The logic is: a standalone issue, by definition, cannot form a stack that needs isolation from `main`.
 
 ### What Happens at Epic Cut
 
-When the trigger fires, swarm invokes `flowkit:cut-epic` via the Skill tool before any agent spawns. `cut-epic` is idempotent — if the branch already exists on origin it is reused and the pin is refreshed. After `cut-epic` completes:
+When the trigger fires, swarm cuts the feature branch inline with `git`/`gh` before any agent spawns — no external skill dependency. The cut is idempotent: if the branch already exists on origin it is fetched and reused and the pin is refreshed. After the cut:
 
-- The feature branch `feature/<slug>-<N>` exists on origin.
+- The feature branch `feature/<slug>-<N>` exists on origin (forked from `origin/main`).
 - `claude.flowkit.prBase` is pinned to that branch in the local repo config.
 - Every subsequent `/open-pr` invocation in this repo (and every spawned agent's `gh pr create`) auto-targets the feature branch.
 
-The slug is derived as follows:
+The branch name is derived as follows:
 
-| Run shape | Slug argument to cut-epic |
+| Run shape | Branch name |
 |---|---|
-| One-shot multi-issue | Lowest issue number (cut-epic resolves slug from the issue title) |
-| Loop mode, no label | `feature/swarm-<YYYY-MM-DD>` (full branch name; cut-epic accepts it directly) |
+| One-shot multi-issue | `feature/<slug>-<lowest-issue>` (slug derived from the lowest issue's title, kebab-cased) |
+| Loop mode, no label | `feature/swarm-<YYYY-MM-DD>` |
 | Loop mode + label | `feature/<label>-<YYYY-MM-DD>` |
-| `--epic <slug>` explicit | The given slug verbatim |
+| `--epic <slug>` explicit | The given slug verbatim (with `feature/` prepended if missing) |
 
 ### Inheritance
 
-Every spawned agent's PR targets the feature branch automatically via `claude.flowkit.prBase`. Stack-root PRs (independent issues) target the feature branch; stack-leaf PRs still target their predecessor, which ultimately roots at the feature branch. When `/merge-stack` later retargets non-root PRs, it retargets them to the feature branch (not `develop`), maintaining the same stack shape — just rooted at the epic instead of `develop`.
+Every spawned agent's PR targets the feature branch automatically via `claude.flowkit.prBase`. Stack-root PRs (independent issues) target the feature branch; stack-leaf PRs still target their predecessor, which ultimately roots at the feature branch. When `/merge-stack` later retargets non-root PRs, it retargets them to the feature branch (not `main`), maintaining the same stack shape — just rooted at the epic instead of `main`.
 
 ### Loop-Mode Reuse
 
 In loop mode the feature branch is cut once — at the first cycle that selects ≥1 issue. Subsequent cycles reuse the same branch. A cycle that selects zero issues does not cut anything. If the board is clear at loop entry, the loop exits "Board is clear" before any cut happens.
 
-### Ship-Epic Handoff
+### Epic→Main Handoff
 
 After all child PRs are merged into the feature branch via `/merge-stack`, the feature branch carries N squash commits — one per merged-from-stack PR. Swarm's responsibility ends here: PRs are open (or merged into the feature branch), and the pin is intact.
 
-The canonical release sequence from this point is four steps, run by the operator with a verify gate between integration and promotion:
+The canonical release sequence from this point is three steps, run by the operator with a verify gate between integration and promotion:
 
 ```
 /swarmkit:merge-stack            # land the open worktree-agent-* PRs into the feature branch
 # verify on the feature branch — run typecheck/test/lint against the integrated state
-/flowkit:ship-epic               # rebase-merge the feature branch to develop, unset prBase, delete it
-/flowkit:ship                    # cut → release: develop → main
+# open + squash-merge a single epic→main PR; then:
+#   git config --unset claude.flowkit.prBase
+#   git push origin --delete feature/<slug>-<N>
+/flowkit:ship                    # tag main + create GitHub Release
 ```
 
-`/flowkit:ship-epic` does the develop promotion:
+The epic→main promotion is a single squash-merge:
 
-1. Open the feature→`develop` PR with aggregated `Closes #N` from the squash commits.
-2. Rebase-merge (so the squash commits replay onto `develop` linearly, no merge bubbles).
+1. Open the `feature/<slug>-<N> → main` PR with aggregated `Closes #N` (already carried by each child PR's squash commit message).
+2. Squash-merge (one final commit on `main` summarizing the epic).
 3. Unset `claude.flowkit.prBase`.
 4. Delete the feature branch on origin.
-5. Fast-forward local `develop`.
 
-`/flowkit:ship` then handles the develop→main release: cut a release candidate, merge to main, tag, close issues. It is the release closer only — it does not invoke `merge-stack` or `ship-epic`, and aborts up front if any open `worktree-agent-*` PRs still target the resolved base.
+`/flowkit:ship` then handles the release: preflight on `main`, derive next semver from conventional commits, tag, push, and create a GitHub Release. It is the release closer only — it does not invoke `merge-stack`, and aborts up front if any open `worktree-agent-*` PRs still target the resolved base.
 
-Swarm never invokes `/ship-epic` or `/ship`. The operator must explicitly trigger promotion and release.
+Swarm never invokes `/flowkit:ship`. The operator must explicitly trigger promotion and release.
 
 ### Escape Hatches
 
-- **`--no-epic`** — suppress the cut for a single run; PRs target `$BASE` directly. Use when you want the old flat-to-`develop` shape for a specific multi-issue run.
-- **`--base <branch>`** — overrides targeting entirely and suppresses the cut. Use for trunk-based dev (`--base main`) or any explicit targeting assertion.
+- **`--no-epic`** — suppress the cut for a single run; PRs target `$BASE` directly. Use when you want every PR to target `main` directly for a specific multi-issue run.
+- **`--base <branch>`** — overrides targeting entirely and suppresses the cut. Use for any explicit targeting assertion.
 - **`--epic <slug>`** — provide an explicit slug instead of the derived one. Useful when the lowest issue title produces an unwieldy slug, or when you want to resume an existing epic by name.
 
 ### Cross-Pin Guard
 
-Before invoking `cut-epic`, swarm reads `claude.flowkit.prBase`. If it is set, starts with `feature/`, and differs from the branch about to be cut, swarm exits with:
+Before cutting the epic branch, swarm reads `claude.flowkit.prBase`. If it is set, starts with `feature/`, and differs from the branch about to be cut, swarm exits with:
 
-> `swarm: an epic is already pinned (\`<existing>\`); pass \`--no-epic\` to swarm against develop, or \`--epic <existing-slug>\` to reuse the pinned branch.`
+> `swarm: an epic is already pinned (\`<existing>\`); pass \`--no-epic\` to swarm against main, or \`--epic <existing-slug>\` to reuse the pinned branch.`
 
 This prevents silently overwriting an in-flight epic from a parallel `squadkit:spawn-team --epic` run or a previous swarm session.
 
 ### Symmetry with squadkit
 
-`swarmkit:swarm --epic` and `squadkit:spawn-team --epic` share the same primitive stack: `flowkit:cut-epic` cuts the branch and sets the pin; spawned PRs target the epic; `flowkit:ship-epic` is the operator-driven closer. The difference is orchestration: swarm dispatches fire-and-forget parallel agents against a list of issues; spawn-team dispatches an interactive team-lead + builder crew against a blueprint.
+`swarmkit:swarm --epic` and `squadkit:spawn-team --epic` share the same inline-cut pattern: both cut `feature/<slug>-<N>` from `origin/main` and pin `claude.flowkit.prBase`; spawned PRs target the epic; the operator drives the final epic→main squash. The difference is orchestration: swarm dispatches fire-and-forget parallel agents against a list of issues; spawn-team dispatches an interactive team-lead + builder crew against a blueprint.
 
 ## End-to-End Walkthrough
 
@@ -175,9 +176,9 @@ Consider a small epic with three issues.
 - **#102** — adds a CSV exporter that uses `ReportSerializer`. Depends on #101.
 - **#103** — adds a CLI flag that calls the CSV exporter. Depends on #102.
 
-You invoke `/swarm 101 102 103`. Because three issues are given, `EPIC_MODE=on`. Swarmkit derives the slug from issue #101's title — the lowest number in the batch. It invokes `flowkit:cut-epic` with `101`, which creates `feature/report-serializer-101` on origin and pins `claude.flowkit.prBase` to it. Swarmkit then fetches the three issue bodies, parses `Depends on` and `Blocked by` references, and produces a topological order: #101 is independent, #102 depends on #101, #103 depends on #102. The swarm plan is presented before any agent runs, showing three agents, their branches (`worktree-agent-101`, `worktree-agent-102`, `worktree-agent-103`), the files affected, and the proposed model per agent.
+You invoke `/swarm 101 102 103`. Because three issues are given, `EPIC_MODE=on`. Swarmkit derives the slug from issue #101's title — the lowest number in the batch. It cuts `feature/report-serializer-101` from `origin/main` inline via `git`/`gh` and pins `claude.flowkit.prBase` to it. Swarmkit then fetches the three issue bodies, parses `Depends on` and `Blocked by` references, and produces a topological order: #101 is independent, #102 depends on #101, #103 depends on #102. The swarm plan is presented before any agent runs, showing three agents, their branches (`worktree-agent-101`, `worktree-agent-102`, `worktree-agent-103`), the files affected, and the proposed model per agent.
 
-Agent 101 spawns first. It branches from `origin/develop`, writes the `ReportSerializer` class, commits with `feat(reports): add ReportSerializer`, pushes `worktree-agent-101`, and opens PR #201 with base `feature/report-serializer-101` and head `worktree-agent-101`.
+Agent 101 spawns first. It branches from `origin/feature/report-serializer-101`, writes the `ReportSerializer` class, commits with `feat(reports): add ReportSerializer`, pushes `worktree-agent-101`, and opens PR #201 with base `feature/report-serializer-101` and head `worktree-agent-101`.
 
 Agent 102 waits for #201 to exist, then spawns. It does not wait for #201 to merge. It fetches `origin/worktree-agent-101` and branches from that tip, so the new `ReportSerializer` class is already in its working tree. It adds the CSV exporter on top, commits, pushes `worktree-agent-102`, and opens PR #202 with base `worktree-agent-101` and head `worktree-agent-102`.
 
@@ -198,7 +199,7 @@ Chain 1:  feature/report-serializer-101 ← PR #201 ← PR #202 ← PR #203
 
 Step 1 squash-merges #201 into the epic branch and deletes `worktree-agent-101`. Because #202 was already retargeted, GitHub does not auto-close it. Steps 2 and 3 do the same for #202 and #203. Each PR carries its own `Closes #10N` reference, so each issue closes natively on merge. The epic branch now carries three squash commits.
 
-You run `/ship-epic`. It opens a PR from `feature/report-serializer-101` to `develop`, rebase-merges it (so the three squash commits replay onto `develop` linearly — no merge bubble), deletes the epic branch on origin, unsets `claude.flowkit.prBase`, and fast-forwards local `develop`. The result: `git log --first-parent origin/develop` shows three new squash commits in order, exactly one commit per issue, with no merge commits.
+You open one final PR from `feature/report-serializer-101` to `main`, verify the integrated state, and squash-merge it. The aggregated `Closes #101 / #102 / #103` references from the child PRs' squash commit messages close the issues natively. You then unset `claude.flowkit.prBase` (`git config --unset claude.flowkit.prBase`) and delete the epic branch (`git push origin --delete feature/report-serializer-101`). The result: one new squash commit on `main` covering the whole epic, with `Closes #101`, `Closes #102`, `Closes #103` baked into its body.
 
 Finally `/clean-worktrees` removes the three worktree directories and the three local `worktree-agent-*` branches.
 
