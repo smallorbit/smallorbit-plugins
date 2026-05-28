@@ -266,8 +266,9 @@ When cutting an epic:
 2. **Cross-pin guard.** Before cutting, read the existing pin:
 
    ```bash
+   SLUG="<slug>"; ISSUE="<issue>"
    EXISTING_PIN=$(git config --local --get claude.flowkit.prBase 2>/dev/null || true)
-   if [[ -n "$EXISTING_PIN" && "$EXISTING_PIN" =~ ^feature/ && "$EXISTING_PIN" != "feature/${slug}-${issue}" ]]; then
+   if [[ -n "$EXISTING_PIN" && "$EXISTING_PIN" =~ ^feature/ && "$EXISTING_PIN" != "feature/${SLUG}-${ISSUE}" ]]; then
      echo "spawn-team: an epic is already pinned (\`$EXISTING_PIN\`)." >&2
      echo "  Clear the pin with \`git config --unset claude.flowkit.prBase\` and re-run," >&2
      echo "  re-run without --epic and answer \`Use \${BASE_BRANCH}\` to spawn against the base branch instead," >&2
@@ -281,7 +282,7 @@ When cutting an epic:
 3. Cut (or reuse) the epic branch inline. squadkit owns the epic-cutting primitive directly — it does not delegate to an external skill. The branch is always cut from `origin/main` (never from a local stale branch or any other base), and the pin (`claude.flowkit.prBase`) is set unconditionally so every member's `flowkit:open-pr` invocation in this session targets the epic branch automatically:
 
    ```bash
-   SLUG="<slug>"; ISSUE="<issue>"; EPIC="feature/${SLUG}-${ISSUE}"
+   EPIC="feature/${SLUG}-${ISSUE}"
    # Idempotent reuse: if branch exists on origin, fetch + checkout + refresh pin
    if git ls-remote --exit-code --heads origin "$EPIC" >/dev/null 2>&1; then
      git fetch origin "$EPIC"
