@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Wrap up existing changes and open a pull request. Combines create-branch, commit, and open-pr into a single workflow.
+description: Wrap up existing changes and open a pull request. Commits any uncommitted workspace changes, then pushes the current branch and opens a PR against main (or the pinned base).
 triggers:
   - "/pr"
   - "create a PR for this"
@@ -11,13 +11,28 @@ allowed-tools: Bash
 
 # PR
 
-Convenience orchestrator that runs `/create-branch`, `/commit`, and `/open-pr` in sequence to take uncommitted workspace changes all the way to an open pull request.
+One-shot orchestrator that takes uncommitted workspace changes all the way to an open pull request. Under GitHub Flow with squash-merge, the common case is: operator creates a branch inline, makes changes, runs `/pr`. Branch creation is the operator's responsibility — flowkit no longer ships a `/create-branch` skill.
 
 ## Input
 
-`$ARGUMENTS` — description of the work. Used to name the branch, write the commit message, and title the PR. If omitted, each sub-skill infers from context.
+`$ARGUMENTS` — description of the work. Used to inform the commit message and PR title/body. If omitted, each sub-skill infers from context (staged diff, branch name, commit log).
 
 ## Process
+
+### 0. Preflight migration check
+
+If the repository is set up for the legacy v3 develop/RC/main flow, refuse to run and direct the operator at `/flowkit:migrate-v4`:
+
+```bash
+DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+DEVELOP_EXISTS=$(git ls-remote --heads origin develop | grep -c 'refs/heads/develop' || true)
+MAIN_EXISTS=$(git ls-remote --heads origin main | grep -c 'refs/heads/main' || true)
+
+if [ "$DEFAULT_BRANCH" = "develop" ] || { [ "$DEVELOP_EXISTS" -gt 0 ] && [ "$MAIN_EXISTS" -eq 0 ]; }; then
+  echo "This repo is set up for flowkit v3 (develop/main split). Run \`/flowkit:migrate-v4\` to migrate to single-trunk before using v4 skills." >&2
+  exit 1
+fi
+```
 
 ### 1. Check current branch
 
@@ -25,23 +40,23 @@ Convenience orchestrator that runs `/create-branch`, `/commit`, and `/open-pr` i
 git rev-parse --abbrev-ref HEAD
 ```
 
-If the current branch is already a non-protected branch (not `develop`, `main`, or `master`), skip step 2 and go directly to step 3.
+If the current branch is `main` or `master`, stop and report:
 
-### 2. Create branch (if on a protected branch)
+> Cannot open a PR from a protected branch. Check out a feature branch first (e.g. `git checkout -b <name>`).
 
-Follow `/create-branch` with `$ARGUMENTS` to create and check out a new branch off `origin/develop`.
+Branch creation is no longer part of `/pr`. The operator creates the branch inline — `/pr` only commits and opens.
 
-### 3. Commit changes
+### 2. Commit changes
 
-Follow `/commit` with `$ARGUMENTS` to stage and commit all current workspace changes using conventional commits.
+Follow `/commit` with `$ARGUMENTS` to stage and commit all current workspace changes using conventional commits. The commit sub-skill derives the type, scope, and subject from the staged diff — no operator interview.
 
 If the workspace is already clean (nothing to commit), skip this step.
 
-### 4. Open PR
+### 3. Open PR
 
-Follow `/open-pr` with `$ARGUMENTS` to push the branch and open a GitHub pull request.
+Follow `/open-pr` with `$ARGUMENTS` to push the branch and open a GitHub pull request against the resolved base (`--base` arg → `claude.flowkit.prBase` → `main`).
 
-### 5. Report
+### 4. Report
 
 Output the PR URL.
 
