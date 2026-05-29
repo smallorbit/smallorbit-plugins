@@ -5,6 +5,13 @@ Pickup loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the
 
 ## Requirements
 
+### Requirement: Model dispatch
+Pickup SHALL execute entirely within a Haiku-class sub-agent regardless of the parent session's active model. The outer invocation tier is a thin dispatcher that locates `.sessionkit/HANDOFF.md` and spawns the sub-agent with all instructions inline as a self-contained prompt — it MUST NOT reference the skill by name (which would cause infinite re-dispatch). All file reads, parsing, task hydration, and orientation output occur inside the sub-agent.
+
+#### Scenario: Invoked on any model
+- **WHEN** Pickup is invoked from a session running any model (Opus, Sonnet, or Haiku)
+- **THEN** the actual execution occurs inside a Haiku sub-agent; the parent session's model does not perform any pickup work beyond the initial dispatch
+
 ### Requirement: Graceful absent-file handling
 Pickup SHALL check for `.sessionkit/HANDOFF.md` before proceeding. If the file does not exist, Pickup MUST report the absence and stop — it MUST NOT attempt to orient, hydrate tasks, or ask what to do next.
 
