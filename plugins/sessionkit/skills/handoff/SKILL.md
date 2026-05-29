@@ -26,8 +26,8 @@ If `--full` is present, strip it from `$ARGUMENTS` before folding the remaining 
 
 Handoff runs its synthesis on Haiku regardless of the session's active model — the document is structured output and Haiku is materially faster for it. The work is split:
 
-- **Outer tier (this skill, any model)** — does only what the live session is uniquely able to do or what must reach the user: summarize the conversation arc, and resolve the user-facing `.gitignore` prompt.
-- **Haiku sub-agent** — gathers mechanical state (git + task list), computes fingerprints, decides delta vs full, and writes the document to disk.
+- **Outer tier (this skill, any model)** — does what the live session is uniquely able to do or what must reach the user: summarize the conversation arc, gather the task list (a sub-agent's `TaskList`/`TaskGet` see a different task store, not this session's — see step 2.5), and resolve the user-facing `.gitignore` prompt.
+- **Haiku sub-agent** — gathers git state, computes fingerprints, decides delta vs full, and writes the document to disk, using the task JSON the outer tier hands it.
 
 The outer tier MUST pass full self-contained instructions to the sub-agent inline. It MUST NOT tell the sub-agent to "run the handoff skill" or reference this skill by name — that would re-trigger the skill and recurse.
 
@@ -46,6 +46,12 @@ Produce the bullets only the live session can derive — the sub-agent has no vi
 - **Context** — key decisions, gotchas, dead ends, external references the next agent needs.
 
 Fold the remaining `$ARGUMENTS` text into Goal or Context where it fits. This summary becomes an input to the sub-agent in step 4.
+
+### 2.5. Gather the task list (outer tier)
+
+Call `TaskList`, then `TaskGet` once per task ID. Collect every task whose `status !== "deleted"` and serialize them to a JSON array containing only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, `blocks` (empty array `[]` if none). This becomes the `taskListJson` input to the sub-agent in step 4.
+
+This MUST run in the outer tier: a sub-agent's `TaskList`/`TaskGet` resolve to a different task store and will not return this session's tasks — passing the serialized JSON as data is the only reliable way to capture the live task list.
 
 ### 3. Resolve `.gitignore` coverage (outer tier — user-facing)
 
@@ -67,11 +73,11 @@ Invoke the `Agent` tool with:
 
 - `subagent_type`: `"general-purpose"`
 - `model`: `"haiku"`
-- `prompt`: a single self-contained message containing (a) the conversation summary from step 2, (b) the `--full` flag state, and (c) the verbatim operating instructions below. Do not reference this skill by name anywhere in the prompt.
+- `prompt`: a single self-contained message containing (a) the conversation summary from step 2, (b) the `taskListJson` from step 2.5, (c) the `--full` flag state, and (d) the verbatim operating instructions below. Do not reference this skill by name anywhere in the prompt.
 
-> You are writing a session handoff document to `.sessionkit/HANDOFF.md`. Follow these steps exactly and report the outcome. Do not ask the user anything — you have no user access.
+> You are writing a session handoff document to `.sessionkit/HANDOFF.md`. Follow these steps exactly and report the outcome. Do not ask the user anything — you have no user access. The task list has been gathered for you and provided as `taskListJson`; do NOT call `TaskList` or `TaskGet` yourself — your task context differs from the session's, so those tools would return the wrong tasks.
 >
-> **A. Gather mechanical state.** Run in parallel:
+> **A. Gather git state.** Run in parallel:
 > ```bash
 > git rev-parse HEAD 2>/dev/null || echo "no-head"
 > git branch --show-current
@@ -80,11 +86,11 @@ Invoke the `Agent` tool with:
 > git log --oneline -5
 > git diff --cached
 > ```
-> Also call `TaskList`, then `TaskGet` once per task ID. Collect every task whose `status !== "deleted"`.
+> Use the provided `taskListJson` as the task list — it already excludes deleted tasks.
 >
 > **B. Compute fingerprints.**
 > - `gitFingerprint` = `<HEAD-sha>:<sorted-staged-files-hash>:<sorted-unstaged-files-hash>`.
-> - `taskFingerprint` = SHA-1 of the canonicalized Task List JSON (sorted by `id`, fields stripped to `id,subject,status,blockedBy`). Compute via `printf %s "$json" | shasum -a 1 | cut -d' ' -f1`.
+> - `taskFingerprint` = SHA-1 of the canonicalized `taskListJson` (sorted by `id`, fields stripped to `id,subject,status,blockedBy`). Compute via `printf %s "$json" | shasum -a 1 | cut -d' ' -f1`.
 >
 > **C. Skip-unchanged check.** If `.sessionkit/HANDOFF.md` exists, Read it and find the first-line meta header `<!-- handoff-meta gitFingerprint=<sha> taskFingerprint=<sha> -->`. Compare with two independent reuse decisions:
 > - `gitFingerprint` matches → reuse `## Git State` and `## Progress` verbatim, else regenerate them.
@@ -149,7 +155,7 @@ Invoke the `Agent` tool with:
 > **G. Inference rules.**
 > - **Progress** — bullets from staged/unstaged file lists, recent commits, plus the conversation summary's progress bullets.
 > - **Remaining Work** — bullets in priority order from the Task List plus unfinished threads in the conversation summary.
-> - **Task List** — serialize the step-A tasks as one fenced `json` block. Include only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, `blocks`. Exclude `owner`, `metadata`, and deleted tasks. Empty array `[]` if none. Preserve original task `id` so pickup can rewire `blockedBy`.
+> - **Task List** — emit `taskListJson` as one fenced `json` block, preserving each task's original `id` so pickup can rewire `blockedBy`. It is already filtered to the right fields and excludes deleted tasks; emit `[]` if it is empty.
 > - **Goal** / **Context** — take from the conversation summary provided to you.
 >
 > **H. Report back.** Return one line stating the chosen mode and reuse outcome, e.g. `delta — refreshed Goal/Context, regenerated Git State + Progress` or `full — regenerated all sections`. Confirm the document was written to `.sessionkit/HANDOFF.md`.
