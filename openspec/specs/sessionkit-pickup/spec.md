@@ -6,11 +6,19 @@ Pickup loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the
 ## Requirements
 
 ### Requirement: Model dispatch
-Pickup SHALL execute entirely within a Haiku-class sub-agent regardless of the parent session's active model. The outer invocation tier is a thin dispatcher that locates `.sessionkit/HANDOFF.md` and spawns the sub-agent with all instructions inline as a self-contained prompt — it MUST NOT reference the skill by name (which would cause infinite re-dispatch). All file reads, parsing, task hydration, and orientation output occur inside the sub-agent.
+Pickup SHALL run its reading, parsing, and orientation synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL read and parse `.sessionkit/HANDOFF.md`, produce the orientation summary, extract the task snapshot, and derive the readiness options, returning them as structured output. The outer tier SHALL retain only the operations that must affect this session or reach the user: the absent-file guard, `TaskCreate`/`TaskUpdate` hydration, the branch-mismatch suggestion, and the final `AskUserQuestion`. The outer tier SHALL pass all operating instructions to the sub-agent inline as a self-contained prompt and MUST NOT reference the skill by name (which would cause infinite re-dispatch).
 
 #### Scenario: Invoked on any model
 - **WHEN** Pickup is invoked from a session running any model (Opus, Sonnet, or Haiku)
-- **THEN** the actual execution occurs inside a Haiku sub-agent; the parent session's model does not perform any pickup work beyond the initial dispatch
+- **THEN** parsing and orientation synthesis occur inside a Haiku sub-agent; the parent session only performs the absent-file guard, task hydration, branch suggestion, and readiness prompt using the sub-agent's structured return
+
+#### Scenario: Task hydration lands in the live session
+- **WHEN** the sub-agent returns a non-empty task snapshot
+- **THEN** the outer tier performs the `TaskCreate`/`TaskUpdate` calls so the hydrated tasks appear in the parent session's task list, not the sub-agent's isolated context
+
+#### Scenario: No skill self-reference in dispatch prompt
+- **WHEN** the outer tier builds the sub-agent prompt
+- **THEN** the prompt contains direct operating instructions and never names the skill, preventing recursive re-dispatch
 
 ### Requirement: Graceful absent-file handling
 Pickup SHALL check for `.sessionkit/HANDOFF.md` before proceeding. If the file does not exist, Pickup MUST report the absence and stop — it MUST NOT attempt to orient, hydrate tasks, or ask what to do next.
