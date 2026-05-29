@@ -6,22 +6,26 @@ Handoff captures the current session's goal, progress, git state, task list, rem
 ## Requirements
 
 ### Requirement: Model dispatch
-Handoff SHALL run its document synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL gather mechanical state (git + task list), compute fingerprints, decide delta vs full, and write the document to disk. The outer tier SHALL retain only the two responsibilities a sub-agent cannot fulfill: summarizing the live conversation arc (which only the parent session can observe) and resolving the user-facing `.gitignore` prompt. The outer tier SHALL pass all operating instructions to the sub-agent inline as a self-contained prompt and MUST NOT reference the skill by name (which would cause infinite re-dispatch).
+Handoff SHALL run its document synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL gather git state, compute fingerprints, decide delta vs full, and write the document to disk. The outer tier SHALL retain the responsibilities a sub-agent cannot fulfill: summarizing the live conversation arc (which only the parent session can observe), gathering the task list (a sub-agent's `TaskList`/`TaskGet` resolve to a different task store than the session's), and resolving the user-facing `.gitignore` prompt. The outer tier SHALL pass the conversation summary and the serialized task list to the sub-agent as data, and SHALL pass all operating instructions inline as a self-contained prompt that MUST NOT reference the skill by name (which would cause infinite re-dispatch).
 
 #### Scenario: Invoked on any model
 - **WHEN** Handoff is invoked from a session running any model (Opus, Sonnet, or Haiku)
-- **THEN** fingerprinting, delta/full routing, and document synthesis occur inside a Haiku sub-agent; the parent session only contributes the conversation summary and the `.gitignore` decision
+- **THEN** fingerprinting, delta/full routing, and document synthesis occur inside a Haiku sub-agent; the parent session contributes the conversation summary, the serialized task list, and the `.gitignore` decision
+
+#### Scenario: Task list reflects the session
+- **WHEN** the parent session has tracked tasks
+- **THEN** the outer tier gathers them via `TaskList`/`TaskGet` and passes the serialized JSON to the sub-agent, so the `## Task List` section reflects this session's tasks rather than the sub-agent's isolated task store
 
 #### Scenario: No skill self-reference in dispatch prompt
 - **WHEN** the outer tier builds the sub-agent prompt
 - **THEN** the prompt contains direct operating instructions and never names the skill, preventing recursive re-dispatch
 
 ### Requirement: Context collection
-Handoff SHALL gather git state (HEAD SHA, branch, staged files, unstaged files, recent commits) and task list in parallel before synthesizing the document.
+Handoff SHALL gather git state (HEAD SHA, branch, staged files, unstaged files, recent commits) and the task list before synthesizing the document. The outer tier gathers the task list; the sub-agent gathers git state. Each tier MAY run its own reads in parallel.
 
 #### Scenario: Context gathered
 - **WHEN** Handoff is invoked
-- **THEN** git state and task list are collected in parallel before any synthesis begins
+- **THEN** the task list is collected by the outer tier and git state by the sub-agent, both before any synthesis begins
 
 ### Requirement: Fingerprint-based section reuse
 Handoff SHALL compute a `gitFingerprint` (HEAD SHA + sorted staged/unstaged file hashes) and a `taskFingerprint` (SHA-1 of the canonicalized task list JSON). Each fingerprint governs its own pair of sections independently: `gitFingerprint` controls `## Git State` and `## Progress`; `taskFingerprint` controls `## Task List` and `## Remaining Work`. Sections whose fingerprint matches the prior header SHALL be reused byte-for-byte. `## Goal` and `## Context` SHALL always be regenerated.
