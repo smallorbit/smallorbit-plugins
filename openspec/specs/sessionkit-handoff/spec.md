@@ -6,11 +6,15 @@ Handoff captures the current session's goal, progress, git state, task list, rem
 ## Requirements
 
 ### Requirement: Model dispatch
-Handoff SHALL execute entirely within a Haiku-class sub-agent regardless of the parent session's active model. The outer invocation tier is a thin dispatcher that collects the handoff path and spawns the sub-agent with all instructions inline as a self-contained prompt — it MUST NOT reference the skill by name (which would cause infinite re-dispatch). All file reads, delta computation, fingerprint calculations, and document synthesis occur inside the sub-agent.
+Handoff SHALL run its document synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL gather mechanical state (git + task list), compute fingerprints, decide delta vs full, and write the document to disk. The outer tier SHALL retain only the two responsibilities a sub-agent cannot fulfill: summarizing the live conversation arc (which only the parent session can observe) and resolving the user-facing `.gitignore` prompt. The outer tier SHALL pass all operating instructions to the sub-agent inline as a self-contained prompt and MUST NOT reference the skill by name (which would cause infinite re-dispatch).
 
 #### Scenario: Invoked on any model
 - **WHEN** Handoff is invoked from a session running any model (Opus, Sonnet, or Haiku)
-- **THEN** the actual execution occurs inside a Haiku sub-agent; the parent session's model does not perform any handoff work beyond the initial dispatch
+- **THEN** fingerprinting, delta/full routing, and document synthesis occur inside a Haiku sub-agent; the parent session only contributes the conversation summary and the `.gitignore` decision
+
+#### Scenario: No skill self-reference in dispatch prompt
+- **WHEN** the outer tier builds the sub-agent prompt
+- **THEN** the prompt contains direct operating instructions and never names the skill, preventing recursive re-dispatch
 
 ### Requirement: Context collection
 Handoff SHALL gather git state (HEAD SHA, branch, staged files, unstaged files, recent commits) and task list in parallel before synthesizing the document.
