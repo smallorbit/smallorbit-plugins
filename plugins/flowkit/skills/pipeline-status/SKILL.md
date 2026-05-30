@@ -38,6 +38,8 @@ gh pr list --base main --state open \
 
 # Released — most recent v* tag (commits since it on main = unreleased)
 # grep -v '--v' excludes per-plugin tags (e.g. vaultkit--v1.1.8) that otherwise leak into the v* glob
+# selects globally highest calver tag; assumes linear main history where the latest tag is always
+# reachable from HEAD — safe to prefer over git describe's ancestry-based selection in this topology
 LAST_TAG=$(git tag --list 'v*' | grep -v -- '--v' | sort -V | tail -1)
 if [ -n "$LAST_TAG" ]; then
   UNRELEASED=$(git log "$LAST_TAG"..origin/main --oneline | wc -l | tr -d ' ')
