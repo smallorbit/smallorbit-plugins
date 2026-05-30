@@ -16,9 +16,9 @@ import MergeStackDiagram from '../../components/post/MergeStackDiagram.astro';
 
 Spawning parallel agents is the easy part. The hard part is the merge.
 
-A naive approach: dispatch four agents on four issues, each opens a PR against `develop`, you merge them in any order. This works right up until two agents touch the same file, or until the second merge produces a conflict that didn't exist when the PR was opened. Then you spend the rest of the afternoon untangling it by hand.
+A naive approach: dispatch four agents on four issues, each opens a PR against `main`, you merge them in any order. This works right up until two agents touch the same file, or until the second merge produces a conflict that didn't exist when the PR was opened. Then you spend the rest of the afternoon untangling it by hand.
 
-`/swarm` picks a different shape. When the batch has dependencies — `Depends on #N` or `Blocked by #N` from `/spec`, or from a native GitHub `blockedBy` link — each dependent PR targets its dependency's branch instead of `develop`, producing a stack rooted at `develop`. Independent issues produce flat sibling PRs against `develop`. Either way, `/merge-stack` walks the result and lands it in one shot.
+`/swarm` picks a different shape. When the batch has dependencies — `Depends on #N` or `Blocked by #N` from `/spec`, or from a native GitHub `blockedBy` link — each dependent PR targets its dependency's branch instead of `main`, producing a stack rooted at `main`. Independent issues produce flat sibling PRs against `main`. Either way, `/merge-stack` walks the result and lands it in one shot.
 
 ## The workflow
 
@@ -45,13 +45,13 @@ You have a clean three-PR stack. Root targets `develop`. Middle PR's base is the
 
 You now have two closed PRs that were perfectly healthy thirty seconds ago.
 
-`/merge-stack` does the obvious fix in a non-obvious place: *before* the first merge runs, it retargets every non-root PR to the base branch (the feature branch for multi-issue epic swarms; `develop` for flat or `--no-epic` runs).
+`/merge-stack` does the obvious fix in a non-obvious place: *before* the first merge runs, it retargets every non-root PR to the base branch (the feature branch for multi-issue epic swarms; `main` for flat or `--no-epic` runs).
 
 ```bash
 gh pr edit <N> --base <base-branch>
 ```
 
-Once a child's base is the shared base branch, deleting its predecessor's branch on merge no longer looks like abandonment. The auto-close cascade simply doesn't fire. After that, every PR in the stack merges with the same boring command:
+Once a child's base is the shared base branch, deleting its predecessor's branch on merge no longer looks like abandonment. The auto-close cascade simply doesn't fire. After that, every PR in the stack merges with the same command:
 
 ```bash
 gh pr merge <N> --squash --delete-branch
@@ -74,7 +74,7 @@ git push --force-with-lease origin <head-branch>
 
 `git rebase`'s patch-id matching is what carries the load. It recognizes the predecessor's commits as already applied — under a different SHA — and drops them, emitting `warning: skipped previously applied commit <sha>` for each one. That's the happy path, not an error. The downstream PR then has only its own new commits on top of the fresh base branch, and the next squash merge runs cleanly.
 
-For independent PRs (no chain), this step is skipped — they target `develop` directly and have no predecessor commits to drop. If a rebase fails with a real content conflict (not a patch-id-matchable duplicate), the chain stops at that PR, the rest of the chain is marked blocked, and unrelated PRs continue.
+For independent PRs (no chain), this step is skipped — they target `main` directly and have no predecessor commits to drop. If a rebase fails with a real content conflict (not a patch-id-matchable duplicate), the chain stops at that PR, the rest of the chain is marked blocked, and unrelated PRs continue.
 
 <Diagram caption="/merge-stack: retarget all non-root PRs to the base branch first, then walk the chain root-to-leaf, rebasing what's left between each merge.">
   <MergeStackDiagram />
@@ -84,12 +84,12 @@ For independent PRs (no chain), this step is skipped — they target `develop` d
 
 After `/merge-stack`:
 
-- One squash commit per issue on the base branch (the feature branch for multi-issue epic swarms, or `develop` for flat runs).
+- One squash commit per issue on the base branch (the feature branch for multi-issue epic swarms, or `main` for flat runs).
 - No orphaned remote branches.
 - No merge bubbles.
 - All referenced issues closed.
 
-For epic swarms, run `/ship-epic` next to rebase-merge the feature branch onto `develop` linearly — so `develop`'s first-parent history stays one squash per issue, with no merge commits.
+For epic swarms, run `/ship` next to tag and release from `main` — semver tag, GitHub release notes generated automatically.
 
 If a PR fails review or merge mid-stack, the chain stops cleanly. Because retargeting happened up front, every still-open downstream PR already targets the base branch — resuming is just fixing the conflict and re-running.
 

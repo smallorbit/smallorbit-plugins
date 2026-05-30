@@ -3,21 +3,20 @@ name: flowkit
 role: Git workflow automation — branching, PRs, and releases
 oneLiner: Ship features faster with opinionated Git flow built for Claude Code.
 commands:
-  - /flowkit:create-branch
+  - /flowkit:commit
   - /flowkit:pr
+  - /flowkit:open-pr
   - /flowkit:merge-pr
-  - /flowkit:cut
-  - /flowkit:release
+  - /flowkit:ship
   - /flowkit:sync
-  - /flowkit:ship-epic
-  - /flowkit:restack
   - /flowkit:pipeline-status
-  - /flowkit:cut-epic
+  - /flowkit:migrate-v4
 summary: >
-  flowkit wraps the full develop → release → main lifecycle into a set of
-  Claude Code skills. It handles branch creation, PR opening with structured
-  bodies, squash-merging, rebase-merge release tagging, and epic promotion —
-  so every merge follows the same convention without manual steps.
+  flowkit wraps the full feature-branch → squash-merge → release lifecycle into
+  a set of Claude Code skills. It handles committing dirty workspaces, opening
+  PRs with structured bodies against main, squash-merging, semver tagging, and
+  GitHub release creation — so every merge and release follows the same
+  convention without manual steps.
 ---
 
 flowkit is the backbone of the smallorbit release pipeline.
