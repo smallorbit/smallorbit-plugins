@@ -317,9 +317,14 @@ After creating the epic, wire up relationships:
 1. **Add sub-issues**: Open with `TaskUpdate(wire-sub-issues, status: "in_progress")`. For each child issue, add it as a sub-issue of the epic:
    ```bash
    gh api repos/{owner}/{repo}/issues/{epic_number}/sub_issues \
-     -X POST -F sub_issue_id={child_issue_id}
+     -X POST -F sub_issue_id={child_database_id}
    ```
-   Use the numeric `id` (not the issue number) — fetch it from `gh issue view {number} --json id`. Close with `TaskUpdate(wire-sub-issues, status: "completed")` once every child has been attached.
+   `sub_issue_id` requires the integer **databaseId**, not the GraphQL node ID that `gh issue view --json id` returns (which causes a 422). Fetch the databaseId via GraphQL:
+   ```bash
+   gh api graphql -f query='query { repository(owner:"OWNER",name:"REPO") { issue(number:N){ databaseId } } }' \
+     --jq '.data.repository.issue.databaseId'
+   ```
+   Replace `OWNER`, `REPO`, and `N` with the actual values for each child issue. Close with `TaskUpdate(wire-sub-issues, status: "completed")` once every child has been attached.
 
 2. **Wire blocked-by relationships**: Open with `TaskUpdate(wire-blocked-by-edges, status: "in_progress")`. For each task with a `Depends On` value in the plan, set the GitHub blocked-by relationship:
    ```bash
