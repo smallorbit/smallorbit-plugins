@@ -62,7 +62,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 # At least one commit since the last v* tag (or no prior tag at all)
-LAST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
+# grep -v '--v' excludes per-plugin tags (e.g. vaultkit--v1.1.8) that otherwise leak into the v* glob
+LAST_TAG=$(git tag --list 'v*' | grep -v -- '--v' | sort -V | tail -1)
 if [ -n "$LAST_TAG" ]; then
   COMMITS_SINCE=$(git rev-list --count "${LAST_TAG}..HEAD")
   if [ "$COMMITS_SINCE" -eq 0 ]; then
