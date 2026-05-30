@@ -57,19 +57,7 @@ If `tasksToCreate` is empty, emit one line: `No task list snapshot — skipping 
 
 ### 6. Confirm readiness
 
-Get the current branch:
-
-```bash
-git branch --show-current
-```
-
-If the current branch differs from the `**Branch**` value in the handoff header (if present), suggest — do not run:
-
-```bash
-git checkout <branch-from-handoff>
-```
-
-Then ask the user what to tackle first. Derive 2–4 concrete next-action options from the top items in **Remaining Work** (highest-priority first). Each option should have a short label and a brief scope/effort note.
+Derive 2–4 concrete next-action options from the top items in **Remaining Work** (highest-priority first). Each option should have a short label and a brief scope/effort note.
 
 If 2 or more options exist, use `AskUserQuestion`:
 - **question**: `Context loaded. Ready to continue work on: <goal>. What would you like to tackle first?`

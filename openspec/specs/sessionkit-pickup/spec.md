@@ -31,7 +31,7 @@ Pickup SHALL parse the canonical sections (Goal, Progress, Remaining Work, Conte
 - **THEN** Pickup ignores it without error and continues parsing
 
 ### Requirement: Orientation summary
-Pickup SHALL produce a structured orientation summary from the parsed content. The summary SHALL cover: Goal (restated clearly), Progress (what was done and decided), Remaining Work (in priority order), and Context (gotchas and notes). The summary SHALL be concise — it MUST NOT reproduce the document verbatim. Pickup MUST NOT include a Git State section in the orientation — the handoff document does not contain one.
+Pickup SHALL produce a structured orientation summary from the parsed content. The summary SHALL cover: Goal (restated clearly), Progress (what was done and decided), Remaining Work (in priority order), and Context (gotchas and notes). The summary SHALL be concise — it MUST NOT reproduce the document verbatim.
 
 #### Scenario: Orientation presented
 - **WHEN** the handoff file is successfully parsed
