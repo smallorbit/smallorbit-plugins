@@ -83,25 +83,22 @@ Compose the entry sub-chains into a single ordered chain. Standard step library 
 | Merge a single PR | `/flowkit:merge-pr` |
 | Merge a stacked PR set | `/swarmkit:merge-stack` |
 | Verify the integrated state | manual: project's typecheck/test/lint on the feature branch |
-| Promote epic → develop | `/flowkit:ship-epic` |
-| Sync local develop with origin | `/flowkit:sync` |
+| Sync local main with origin | `/flowkit:sync` |
 | Bump per-plugin versions + tags | `/bump-versions` |
-| Cut a release candidate | `/flowkit:cut` |
-| Promote RC → main, tag, close issues | `/flowkit:release` |
-| Cut + release in one shot (develop → main) | `/flowkit:ship` |
+| Tag HEAD of main + GitHub Release | `/flowkit:ship` |
 | Verify post-release pipeline state | `/flowkit:pipeline-status` |
 
-**Canonical bubble-free release sequence.** When an epic is in flight (open `worktree-agent-*` PRs targeting a `feature/<slug>-<N>` branch), the standard chain is:
+**Canonical bubble-free release sequence.** When a swarm is in flight (open `worktree-agent-*` PRs targeting `main`), the standard chain is:
 
 ```
-/swarmkit:merge-stack → verify (manual) → /flowkit:ship-epic → /flowkit:ship
+/swarmkit:merge-stack → verify (manual) → /flowkit:ship
 ```
 
-`/flowkit:ship` aborts if open `worktree-agent-*` PRs still target the resolved base, so the verify step between `merge-stack` and `ship-epic` is a hard prerequisite — operators cannot collapse the chain into a single step. For releases with no epic in flight, `/flowkit:ship` alone (cut → release) is the entire chain.
+`/flowkit:ship` aborts if open `worktree-agent-*` PRs still target `main`, so the verify step between `merge-stack` and `ship` is a hard prerequisite. For releases with no swarm in flight, `/flowkit:ship` alone is the entire chain.
 
 For each step in the chain, write a task with:
 
-- **subject** — imperative title (e.g. `Merge PR #777 to develop`).
+- **subject** — imperative title (e.g. `Merge PR #777 to main`).
 - **description** — exact skill invocation (e.g. `Run /flowkit:merge-pr.`) or, for non-skill work, the concrete outcome (e.g. `Self-review the final diff. Confirm: bug fix is correct, no flowkit dependencies remain, PR body matches plugins/_shared/pr-body.md.`). Drive parses the description, so be unambiguous.
 - **activeForm** — present-continuous form for the spinner.
 
@@ -147,7 +144,7 @@ If only one step exists, fall back to plain text — the structured prompt is ov
 
 - **Read-only during steps 1–3.** Never mutate the repo, branches, tags, or PRs while planning. The plan is a proposal until the user approves.
 - **Tasks created before approval are provisional.** If the user picks "Cancel", delete every task this invocation created.
-- **Don't invent steps the project doesn't have.** Only reference skills and commands that exist in this repo / installed plugins. If the natural step is missing (no `/flowkit:cut` because flowkit isn't installed), surface that as a gap rather than silently stepping over it.
+- **Don't invent steps the project doesn't have.** Only reference skills and commands that exist in this repo / installed plugins. If the natural step is missing (no `/flowkit:ship` because flowkit isn't installed), surface that as a gap rather than silently stepping over it.
 - **Never assume universal driving rules.** The driving contract lives in `/sessionkit:drive`'s SKILL.md and in this skill — do not assume the user has any global directive in `CLAUDE.md`. The skill must work for any installer.
 - **One chain per invocation.** If the survey turns up two unrelated work threads (e.g. an in-flight PR *and* a separate untracked feature branch), ask which one to plan rather than producing a fork. The user can run roadmap again for the other thread.
-- **Use named skills, not raw commands, where possible.** A task description that says "Run `/flowkit:cut`" is unambiguous to drive; a description that pastes the cut script is brittle.
+- **Use named skills, not raw commands, where possible.** A task description that says "Run `/flowkit:ship`" is unambiguous to drive; a description that pastes the ship script is brittle.

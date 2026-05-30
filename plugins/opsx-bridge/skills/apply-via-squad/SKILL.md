@@ -145,7 +145,7 @@ Show the operator the constructed argument string before dispatching. Example (t
   --mode none
 ```
 
-spawn-team owns the rest: epic-branch cut (via `flowkit:cut-epic`), worktree provisioning, member spawn, and the dispatch loop. The bridge does not micromanage the crew.
+spawn-team owns the rest: epic-branch cut (inline `git`/`gh` block since flowkit v4 removed `cut-epic`), worktree provisioning, member spawn, and the dispatch loop. The bridge does not micromanage the crew.
 
 ### 7. Post-completion reconciliation
 

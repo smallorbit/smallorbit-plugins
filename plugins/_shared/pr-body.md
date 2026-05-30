@@ -53,7 +53,7 @@ Standardize the PR body shape across flowkit and swarmkit so reviewers see the s
 
 - [ ] Open a PR via `flowkit:open-pr` and confirm the body has `## Summary`, `## Changes`, and `## Test plan`.
 - [ ] Include `Closes #123` in a commit message; confirm it appears in the PR footer.
-- [ ] Run `flowkit:release` and confirm ref aggregation still collects `Closes` tokens from merged PRs.
+- [ ] Run `flowkit:ship` and confirm the GitHub Release includes the expected `Closes` references from merged PRs.
 - [ ] Spawn a `swarmkit:swarm` agent and confirm its PR emits `## Summary` + `## Test plan` + `Closes #<issue>`.
 
 Closes #521
