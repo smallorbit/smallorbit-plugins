@@ -62,3 +62,5 @@ Skip for typo fixes, renames, and small edits that don't touch convention surfac
 **Skill scripts standard**: Skills that extract deterministic bash work into shell scripts must follow the convention at [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md) — folder layout, `$SKILL_DIR` resolution, bare-payload JSON, stderr errors, when to extract, and `.claude/settings.json` allowlist guidance.
 
 **README flag-matrix drift**: Any change to a SKILL.md `## Input` table needs a matching pass on the corresponding plugin README's flag matrix — these drift silently otherwise.
+
+**Spec scope — always include docs**: When speccing any code change, the task list must include explicit tasks for updating all affected documentation and specifications (plugin READMEs, `CLAUDE.md`, OpenSpec `spec.md`, site content, `marketplace.json`). Do not treat documentation updates as implied — file them as discrete tasks so they survive the catalog and are not silently dropped.
