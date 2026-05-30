@@ -1,24 +1,16 @@
 # Pickup
 
 ## Purpose
-Pickup loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent by summarizing its contents, hydrates the task list from the snapshot, checks for branch mismatches, and asks what to tackle first. It is the complement to Handoff.
+Pickup loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent by summarising its contents, hydrates the task list from the snapshot, and asks what to tackle first. It is the complement to Handoff. The entire skill runs inline — no sub-agent dispatch.
 
 ## Requirements
 
-### Requirement: Model dispatch
-Pickup SHALL run its reading, parsing, and orientation synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL read and parse `.sessionkit/HANDOFF.md`, produce the orientation summary, extract the task snapshot, and derive the readiness options, returning them as structured output. The outer tier SHALL retain only the operations that must affect this session or reach the user: the absent-file guard, `TaskCreate`/`TaskUpdate` hydration, the branch-mismatch suggestion, and the final `AskUserQuestion`. The outer tier SHALL pass all operating instructions to the sub-agent inline as a self-contained prompt and MUST NOT reference the skill by name (which would cause infinite re-dispatch).
+### Requirement: Inline execution
+Pickup SHALL read, parse, and synthesise orientation entirely in the active session without dispatching a sub-agent. Task hydration via `TaskCreate`/`TaskUpdate` SHALL also run inline so the created tasks appear in the current session's task list.
 
-#### Scenario: Invoked on any model
-- **WHEN** Pickup is invoked from a session running any model (Opus, Sonnet, or Haiku)
-- **THEN** parsing and orientation synthesis occur inside a Haiku sub-agent; the parent session only performs the absent-file guard, task hydration, branch suggestion, and readiness prompt using the sub-agent's structured return
-
-#### Scenario: Task hydration lands in the live session
-- **WHEN** the sub-agent returns a non-empty task snapshot
-- **THEN** the outer tier performs the `TaskCreate`/`TaskUpdate` calls so the hydrated tasks appear in the parent session's task list, not the sub-agent's isolated context
-
-#### Scenario: No skill self-reference in dispatch prompt
-- **WHEN** the outer tier builds the sub-agent prompt
-- **THEN** the prompt contains direct operating instructions and never names the skill, preventing recursive re-dispatch
+#### Scenario: Always inline
+- **WHEN** Pickup is invoked from any session
+- **THEN** parsing, orientation, and task hydration occur in the active session with no sub-agent dispatched
 
 ### Requirement: Graceful absent-file handling
 Pickup SHALL check for `.sessionkit/HANDOFF.md` before proceeding. If the file does not exist, Pickup MUST report the absence and stop — it MUST NOT attempt to orient, hydrate tasks, or ask what to do next.
@@ -32,18 +24,18 @@ Pickup SHALL check for `.sessionkit/HANDOFF.md` before proceeding. If the file d
 - **THEN** Pickup reads and parses it, then continues with the remaining steps
 
 ### Requirement: Open-ended section parsing
-Pickup SHALL parse all standard sections (Project, Date, Branch, Goal, Progress, Git State, Remaining Work, Context). Unknown headings SHALL be silently ignored — section parsing is open-ended. Legacy section names from prior versions SHALL not cause errors.
+Pickup SHALL parse the canonical sections (Goal, Progress, Remaining Work, Context, Task List). Unknown headings SHALL be silently ignored — section parsing is open-ended. Legacy section names or header metadata lines from prior handoff versions SHALL not cause errors.
 
 #### Scenario: Unknown heading encountered
 - **WHEN** the handoff file contains a heading not in the standard section list
 - **THEN** Pickup ignores it without error and continues parsing
 
 ### Requirement: Orientation summary
-Pickup SHALL produce a structured orientation summary from the parsed content. The summary SHALL cover: Goal (restated clearly), Progress (what was done and decided), Git State (branch, staged/unstaged, recent commits), Remaining Work (in priority order), and Context (gotchas and notes). The summary SHALL be concise — it MUST NOT reproduce the document verbatim.
+Pickup SHALL produce a structured orientation summary from the parsed content. The summary SHALL cover: Goal (restated clearly), Progress (what was done and decided), Remaining Work (in priority order), and Context (gotchas and notes). The summary SHALL be concise — it MUST NOT reproduce the document verbatim. Pickup MUST NOT include a Git State section in the orientation — the handoff document does not contain one.
 
 #### Scenario: Orientation presented
 - **WHEN** the handoff file is successfully parsed
-- **THEN** Pickup outputs a structured summary covering all five areas without reproducing the document verbatim
+- **THEN** Pickup outputs a structured summary covering Goal, Progress, Remaining Work, and Context without reproducing the document verbatim
 
 ### Requirement: Task list hydration — two-pass
 Pickup SHALL locate the fenced `json` block following `## Task List`. If the block is absent or unparseable, Pickup SHALL emit one line noting the skip and continue. For tasks with `status` `pending` or `in_progress`, Pickup SHALL create new tasks via `TaskCreate` (pass 1), record old-ID → new-ID mappings, then restore `blockedBy` edges via `TaskUpdate` using remapped IDs (pass 2). Completed tasks SHALL be skipped. Pickup MUST NOT wire the `blocks` direction — only `blockedBy`.
@@ -54,22 +46,11 @@ Pickup SHALL locate the fenced `json` block following `## Task List`. If the blo
 
 #### Scenario: Task list absent or unparseable
 - **WHEN** the JSON block is missing or cannot be parsed
-- **THEN** Pickup emits "No task list snapshot — skipping hydration" and continues to step 5
+- **THEN** Pickup emits "No task list snapshot — skipping hydration" and continues
 
 #### Scenario: Completed tasks skipped
 - **WHEN** a task in the snapshot has `status: completed`
 - **THEN** Pickup skips creating that task — it is surfaced only in the orientation summary
-
-### Requirement: Branch mismatch detection
-Pickup SHALL compare the handoff branch against the current branch. If they differ, Pickup MUST suggest the checkout command. Pickup MUST NOT switch branches automatically.
-
-#### Scenario: Branch matches
-- **WHEN** the current branch matches the handoff branch
-- **THEN** Pickup makes no branch suggestion
-
-#### Scenario: Branch mismatch
-- **WHEN** the current branch differs from the handoff branch
-- **THEN** Pickup suggests `git checkout <branch-from-handoff>` and does not switch automatically
 
 ### Requirement: Readiness confirmation via structured prompt
 Pickup SHALL end by asking the user what to tackle first via `AskUserQuestion`. The question SHALL reference the handoff Goal. Options SHALL be derived from the top items in Remaining Work (highest-priority first), up to four options. If fewer than two actionable items exist in Remaining Work, Pickup SHALL fall back to plain text.
