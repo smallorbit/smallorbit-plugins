@@ -27,7 +27,7 @@ On success the script exits 0 and emits a single JSON object on stdout:
 
 ```json
 {
-  "caller_branch": "develop",
+  "caller_branch": "main",
   "main_worktree": "/abs/path/to/repo",
   "worktrees_to_remove": [{"path": "/abs/path/to/repo/.claude/worktrees/worktree-agent-42"}],
   "branches_to_delete": ["worktree-agent-42", "worktree-agent-43"],

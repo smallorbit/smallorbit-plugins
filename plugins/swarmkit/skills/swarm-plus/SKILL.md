@@ -26,9 +26,9 @@ The harness terminates builder agents shortly after they emit their final task n
 
 Identical to `/swarmkit:swarm`:
 
-- No args → loop mode, all open issues → `develop`
-- Label text (e.g. `bug`, `priority:high`) → loop mode filtered by label → `develop`
-- Issue numbers (`12 15 18`, `#12 #15 #18`, range `12-18`) → one-shot mode → `develop`
+- No args → loop mode, all open issues → `main`
+- Label text (e.g. `bug`, `priority:high`) → loop mode filtered by label → `main`
+- Issue numbers (`12 15 18`, `#12 #15 #18`, range `12-18`) → one-shot mode → `main`
 - `--model <tier>` (`sonnet`, `opus`) — model override for swarm agents (reviewer + worker have their own defaults; see below)
 - `--base <branch>` — override default base branch
 - `--review-only` — review only; never spawn a fix-round worker (useful for triage). The reviewer's findings stay inline in the final report.
@@ -68,7 +68,7 @@ Record `(issue, pr_number, head_branch, base_branch)` for each PR as it is produ
 > 2. `"Review-only run. Terminate."` — exit cleanly without acting on anything.
 > 3. A `REVIEWER FINDINGS` payload with explicit scope — apply the in-scope items (blockers, concerns, `[recommended]` coverage gaps), skip the out-of-scope items (nits, `[optional]`), run `<verify_command>` and the relevant test scope, commit (conventional-commit format, no Claude mentions, no co-author lines), `git push origin <head_branch>`, and optionally `gh pr comment <pr_number>` summarizing what was addressed and what was deferred. Then terminate.
 >
-> All swarm constraints still apply: never branch off `develop` for the fix round (you are already on the PR's head branch in your worktree), never force-push, never close the issue manually.
+> All swarm constraints still apply: never branch off `main` for the fix round (you are already on the PR's head branch in your worktree), never force-push, never close the issue manually.
 
 Do NOT block on every swarm agent before spawning reviewers. As each swarm agent's task notification arrives:
 
@@ -128,7 +128,7 @@ The fix-round worker prompt MUST:
   - **In scope**: blockers (mandatory), concerns (address or explicitly defer with stated reason in a PR comment), reviewer-recommended coverage gaps.
   - **Out of scope**: nits (skip unless trivially co-located with a fix), `[optional]` coverage gaps, unrelated cleanups, scope creep.
 - Instruct the worker to:
-  1. Branch from the **existing PR branch**, NOT from `develop`:
+  1. Branch from the **existing PR branch**, NOT from `main`:
      ```bash
      git fetch origin <head_branch>
      git checkout -B <head_branch> origin/<head_branch>
@@ -141,7 +141,7 @@ The fix-round worker prompt MUST:
      ```bash
      gh pr comment <pr_number> --body "Addressed reviewer feedback: <summary>. Deferred: <items with reasons>."
      ```
-- Forbid: branching off `develop`, force-pushing, rewriting prior commits, closing the issue manually.
+- Forbid: branching off `main`, force-pushing, rewriting prior commits, closing the issue manually.
 - Termination: report the new commit SHAs and confirm `gh pr view <pr_number> --json commits` includes them.
 
 ### 5. Wait for all fix-round workers

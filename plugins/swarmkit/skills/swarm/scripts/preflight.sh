@@ -16,7 +16,7 @@ set -euo pipefail
 # write to the wrong worktree's config.
 cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
 
-BASE="develop"
+BASE="main"
 SCOPE_PR_BASE=0
 
 while [[ $# -gt 0 ]]; do

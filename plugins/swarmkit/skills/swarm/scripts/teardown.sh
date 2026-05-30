@@ -17,7 +17,7 @@ set -euo pipefail
 # `<base>` is already checked out in the main worktree.
 cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" || exit 1
 
-BASE="develop"
+BASE="main"
 KEEP_PR_BASE=0
 
 while [[ $# -gt 0 ]]; do
