@@ -143,16 +143,12 @@ It scans `~/.claude/teams/<repo>-*` and picks the first letter without a `config
 
 ### Epic feature-branch convention
 
-`spawn-team` integrates with the flowkit epic flow. When you pass `--epic <slug>`, the skill:
+`spawn-team` owns the epic feature-branch flow inline — it does not delegate to an external skill. When you pass `--epic <slug>`, the skill:
 
 1. Resolves `<issue>` from the `--epic` argument shape (or prompts when omitted).
-2. Invokes `flowkit:cut-epic` (idempotent against existing branches; pins `claude.flowkit.prBase`; pushes to origin).
+2. Cuts (or reuses) `feature/<slug>-<issue>` from `origin/main` directly, pins `claude.flowkit.prBase`, and pushes to origin. Idempotent against existing branches.
 
 If `--epic` is not provided, the skill prompts whether to cut one or run on the base branch directly.
-
-See the related flowkit skill:
-
-- [`flowkit:cut-epic`](../flowkit/skills/cut-epic/SKILL.md) — the primitive that `spawn-team --epic` invokes.
 
 ### Idempotency and per-builder worktrees
 
