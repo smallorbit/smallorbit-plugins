@@ -56,6 +56,19 @@ from here: step 3 is the only approval gate.
 Do not proceed to step 3 until `/speckit:interview` has produced a complete,
 unambiguous output with all five sections present.
 
+### Post-interview handoff gate
+
+`/speckit:interview` is a sub-skill. When it returns, the sub-skill's job is done; the orchestrator's job is not. **After `/speckit:interview` returns, do not pause and do not wait for user input.** Parse the five sections from the output and immediately advance to step 2.5 / step 3 in the same turn — emitting the plan and the `AskUserQuestion` approval call before ending the turn.
+
+Any turn that prints or references the interview output and ends without the plan and `AskUserQuestion` is a defect.
+
+| Legitimate end of turn at this boundary | Illegitimate end of turn at this boundary |
+|-----------------------------------------|-------------------------------------------|
+| User has explicitly halted the run. | Silent wait after the interview sections print. |
+| | Prose offer ("shall I proceed to planning?") in place of running step 3. |
+| | Status update with no tool call. |
+| | Ending the turn after parsing the interview output with no further action. |
+
 ### 2a. Classify simple vs. full path
 
 **Execution order**: this step runs BEFORE step 2. Numbered 2a to keep later
@@ -182,15 +195,11 @@ Always append the following documentation task as the final row, unless the spec
 
 Include the `## Epic label` section **only when the plan produces an epic** (2+ tasks). Omit it for single-issue plans. Render the derived label as a single, editable line, for example: `Epic label: epic:catalog-epic-labels`.
 
-**Required turn shape**: the turn that presents the plan MUST contain, in
-this exact order, (a) the plan markdown and (b) exactly one `AskUserQuestion`
-tool call. Any turn that emits the plan and ends without the tool call is a
-defect and must be corrected by immediately emitting the `AskUserQuestion`
-call. This is non-negotiable — no prose ending (silent wait, `/catalog`
-hand-off suggestion, encouragement to reply, or any other text) is acceptable
-in place of the tool call. The `AskUserQuestion` call is the only valid
-approval gate and is the sole plan-filing approval for the skill on both
-paths.
+#### Required turn shape
+
+This rule applies to both the post-interview case (full path) and the inline-draft case (simple path).
+
+The turn that presents the plan MUST contain, in this exact order, (a) the plan markdown and (b) exactly one `AskUserQuestion` tool call. Any turn that emits the plan and ends without the tool call is a defect and must be corrected by immediately emitting the `AskUserQuestion` call. This is non-negotiable — no prose ending (silent wait, `/catalog` hand-off suggestion, encouragement to reply, or any other text) is acceptable in place of the tool call. The `AskUserQuestion` call is the only valid approval gate and is the sole plan-filing approval for the skill on both paths.
 
 The options depend on whether the plan is a simple-path single issue or a
 full-path epic. `AskUserQuestion` supports max 4 options total (including
