@@ -25,18 +25,13 @@ Run it before staging and committing the release.
 
 ### Canonical bubble-free release sequence
 
-The full operator-controlled release flow is four explicit steps, with a verify gate sitting between integration and promotion:
-
 ```
-/swarmkit:merge-stack            # land all open worktree-agent-* PRs into the epic (or develop)
-# verify on the integrated branch — run typecheck/test/lint
-/flowkit:ship-epic               # rebase-merge the epic to develop, unset prBase, delete epic branch
-/flowkit:ship                    # cut → release: develop → main
+/swarmkit:merge-stack            # land all open worktree-agent-* PRs into main
+# verify on main — run typecheck/test/lint as appropriate
+/flowkit:ship                    # tag HEAD of main, push tag, create GitHub Release
 ```
 
-`/flowkit:ship` is the release closer only — it chains `cut → release`. It refuses to run while open `worktree-agent-*` PRs target the resolved base, which is what makes the verify step between `merge-stack` and `ship-epic` mandatory in practice. Operators who skip the verify step and try to ship anyway will be turned around by ship's preflight.
-
-For a release with no swarm in flight (no epic, no open `worktree-agent-*` PRs), `/flowkit:ship` runs unconditionally — it is just `cut → release`.
+`/flowkit:ship` refuses to run while open `worktree-agent-*` PRs target main — operators land those via `/swarmkit:merge-stack` first so the verify gate can run against the integrated snapshot before shipping. For releases with no swarm in flight, `/flowkit:ship` runs unconditionally.
 
 When work originates as an OpenSpec change, `opsx-bridge` can dispatch its implementation into the squad or swarm flow that produces the epic and `worktree-agent-*` PRs this sequence later integrates and ships (see the Plugins section below).
 
@@ -46,9 +41,7 @@ When work originates as an OpenSpec change, `opsx-bridge` can dispatch its imple
 
 **Crew shapes.** Crew profiles carry an optional `kind:` field — `execution` (default) for crews that ship code, `discovery` for read-only research crews that produce blueprint comments on GitHub issues instead of PRs. Discovery crews skip worktree provisioning, epic-branch cutting, and `claude.flowkit.prBase` pinning. See [`plugins/squadkit/docs/patterns/discovery-coordination.md`](./plugins/squadkit/docs/patterns/discovery-coordination.md) for the architect-led coordination pattern.
 
-**Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `develop`, owned by `spawn-team`. They never commit directly to `develop`. Discovery crews stay on `develop` since they don't produce code. The supporting flow primitive lives in flowkit:
-
-- `flowkit:cut-epic` — cut the long-lived feature branch standalone (the primitive that `spawn-team --epic` invokes).
+**Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `main`, owned by `spawn-team`. They never commit directly to `main`. Discovery crews stay on `main` since they don't produce code.
 
 `opsx-bridge` connects OpenSpec changes to those same dispatchers. It is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. Given a proposed `openspec/changes/<name>/`, `opsx-bridge:apply-via-squad <change>` derives a squad profile from the proposal's `## Capabilities` and dispatches via `/squadkit:spawn-team`, while `opsx-bridge:apply-via-swarm <change>` maps each `tasks.md` section to a GitHub issue and dispatches via `/swarmkit:swarm-plus`. These are the multi-agent alternative to stock single-agent `/opsx:apply`. See [`plugins/opsx-bridge/README.md`](./plugins/opsx-bridge/README.md).
 

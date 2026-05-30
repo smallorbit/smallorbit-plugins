@@ -38,7 +38,7 @@ Repeat until the chain is empty:
 1. **Pick the next task.** `TaskList` → take the lowest-ID task whose `status` is `pending` and whose `blockedBy` array is empty (or whose blockers are already `completed`). Ties broken by ID. If multiple `in_progress` tasks exist, finish them before picking a new one.
 2. **Mark `in_progress`.** Call `TaskUpdate` with `status: in_progress` *before* doing any work for the task. One task in_progress at a time.
 3. **Execute the task.** Read the task's `description` (use `TaskGet` if needed). Three execution shapes:
-   - **Named skill** — description references a skill (e.g. "Run `/flowkit:merge-pr`", "Use `flowkit:cut`"): invoke it via the `Skill` tool. Pass arguments mentioned in the description verbatim.
+   - **Named skill** — description references a skill (e.g. "Run `/flowkit:merge-pr`", "Use `flowkit:ship`"): invoke it via the `Skill` tool. Pass arguments mentioned in the description verbatim.
    - **Explicit command** — description gives a shell command or sequence: run via `Bash`.
    - **Open-ended work** — description describes an outcome (e.g. "Self-review the diff and confirm X"): perform the work using whatever tools fit. Read, edit, search — whatever the description implies.
 4. **Mark `completed`.** Immediately after the task's outcome is achieved, `TaskUpdate` with `status: completed`. Never batch — completing two tasks before updating either is a contract violation.

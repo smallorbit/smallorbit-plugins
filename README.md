@@ -43,7 +43,6 @@ A short walkthrough that takes you from idea to shipped change using `/spec` and
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and signed in
 - [GitHub CLI](https://cli.github.com/) authenticated (`gh auth status` should return green)
 - A GitHub repository you can push to
-- A `develop` branch on that repo (swarmkit targets it by default)
 
 ### 1. Install speckit and swarmkit
 
@@ -123,16 +122,14 @@ Once the PRs look right, merge and release them however you normally would. If y
 /plugin install flowkit@smallorbit-plugins
 ```
 
-For a multi-issue epic (the default when `/swarm` receives more than one issue), the stack lands on a feature branch. Promote it in four commands:
+Merge the stack and ship in two commands:
 
 ```
-/merge-stack     # merge swarm PRs bottom-up into the feature branch
-/ship-epic       # rebase-merge the feature branch onto develop (linear)
-/cut             # create a release candidate from develop
-/release         # promote to main, tag the release, close referenced issues
+/merge-stack     # merge swarm PRs bottom-up into main
+/ship            # tag HEAD of main and create a GitHub Release
 ```
 
-Or collapse all four into a single `/ship`. For single-issue or `--no-epic` runs, `/merge-stack` lands directly on `develop` and `/ship-epic` is skipped automatically. See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle.
+See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle.
 
 ## How the Plugins Compose
 
@@ -143,12 +140,12 @@ The development-lifecycle plugins form a complete loop from idea to release:
 /spec          → plan the feature, file issues (speckit)
 /swarm         → resolve issues with parallel agents (swarmkit)
 /appraise      → assess quality; /sweep to clean up (polishkit)
-/release       → ship merged work to production (flowkit)
+/ship          → tag HEAD of main, create a GitHub Release (flowkit)
 ```
 
 **swarmkit** runs a built-in `simplify-loop` after each agent finishes — iterative `/simplify` passes that tighten the code before opening the PR. This is a lightweight pre-PR sanity check, not a code review.
 
-**polishkit** sits between `/swarm` and `/release` as a quality gate: use `/appraise` to assess elegance and craft, `/sweep` to remove dead code and accumulated cruft (unused exports, stale files, build artifacts) in one pass, and `/polish` to polish cross-cutting code-quality issues (reuse, quality, efficiency) across a path or themed scope before shipping.
+**polishkit** sits between `/swarm` and `/ship` as a quality gate: use `/appraise` to assess elegance and craft, `/sweep` to remove dead code and accumulated cruft (unused exports, stale files, build artifacts) in one pass, and `/polish` to polish cross-cutting code-quality issues (reuse, quality, efficiency) across a path or themed scope before shipping.
 
 **sessionkit** acts as connective tissue throughout: use `/handoff` to preserve state across agent context limits, `/skillit` to capture reusable patterns after a swarm, and `/suggest-permissions` to reduce approval friction over time.
 

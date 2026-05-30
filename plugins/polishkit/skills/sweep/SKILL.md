@@ -139,7 +139,7 @@ Run these checks in parallel and compile findings:
   | OPEN | Preserve | Active PR; deleting would close the PR. |
   | NO PR | Preserve, flag for manual inspection | No record of intent; easy to lose work. |
 
-  When deleting, **always use the disambiguated refspec form** (`git push origin :refs/heads/<branch>`). The unqualified `git push origin --delete <branch>` fails with `src refspec matches more than one` whenever a same-named tag exists (the `rc/YYYY-MM-DD.N` shape from `flowkit:cut` is the canonical example). Batch into a single push:
+  When deleting, **always use the disambiguated refspec form** (`git push origin :refs/heads/<branch>`). The unqualified `git push origin --delete <branch>` fails with `src refspec matches more than one` whenever a same-named tag exists (a branch and tag sharing the same name is the canonical footgun). Batch into a single push:
 
   ```bash
   git push origin :refs/heads/branch-a :refs/heads/branch-b
