@@ -32,6 +32,8 @@ If the lead returns `revise:`, update the contract and resend before any impleme
 3. **Surface interface contracts.** See above. Wait for ack.
 4. **Implement step by step.** Work through the blueprint's sequence. After each step run the verify command the blueprint specified — typically `${verify.typecheck}` for structural changes and `${verify.test}` for behavioural changes.
 5. **Final verify.** Before opening the PR, run the full verify gate end-to-end: `${install}` (if applicable), `${verify.typecheck}`, `${verify.test}`. All must pass. Do not open a PR with red gates.
+
+   **When verify commands are unconfigured.** If `.squadkit/config.json` is absent or a given `${verify.*}` key is null, the command does not exist for this repo — do not invent one or treat the gap as a blocker. Fall back to a manual coherence check appropriate to the changed files (for a docs/markdown/SKILL.md repo this is reading the diff for self-consistency and running any grep gates the blueprint named) and note in your completion-ack that automated verify was unconfigured.
 6. **Open the PR** against `${baseBranch}` following the canonical PR body shape (Summary / Changes / Test plan + issue footer).
 7. **Notify the lead.** Deliver the PR URL. Wait for ack and reviewer verdict.
 8. **Address review.** If the reviewer returns blockers, fix them in the same branch, re-run the verify gate, push, and notify the lead again.
@@ -57,6 +59,8 @@ If the lead's ack arrives after you've started bodies but before you've pushed:
 
 - **Non-blocking suggestion** (typing refinement, scope tightening, naming): apply if cheap (≤5 LOC additional change); otherwise note it in the completion-ack and defer to a follow-up. Do NOT block the push.
 - **Blocking adjustment** (interface change, scope expansion, contract revision): halt, push a WIP commit if any work is committable, and `SendMessage` the lead with current state and the question "block-and-revise vs ship-and-iterate?".
+
+**Carrying partial work when a superseding blueprint arrives.** If a revised blueprint changes scope while you have uncommitted edits in flight, commit that in-progress state to a scratch branch — never `git stash` and switch branches. Stashing across a branch switch reapplies the diff against a different base and produces avoidable merge conflicts. Commit to a scratch branch, then cherry-pick or rebase the relevant pieces once the new blueprint is confirmed.
 
 ## Task list discipline
 
