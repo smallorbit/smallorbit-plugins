@@ -20,7 +20,7 @@ Handoff SHALL collect the task list before synthesizing the document. The sessio
 - **THEN** `TaskList` and `TaskGet` are called to collect non-deleted tasks before synthesis begins
 
 ### Requirement: Document structure
-The handoff document SHALL follow a fixed section order: Goal → Progress → Remaining Work → Context → Task List. All content in Progress, Remaining Work, and Context SHALL be bullets only — no narrative paragraphs. The document header SHALL include **Project**, **Date**, and **Branch** as informational metadata lines (not a section heading).
+The handoff document SHALL follow a fixed section order: Goal → Progress → Remaining Work → Context → Task List. All content in Progress, Remaining Work, and Context SHALL be bullets only — no narrative paragraphs. The document SHALL start with `# Handoff` followed immediately by the first section heading — no metadata lines between the title and `## Goal`.
 
 #### Scenario: Section order
 - **WHEN** a handoff document is written
@@ -29,10 +29,6 @@ The handoff document SHALL follow a fixed section order: Goal → Progress → R
 #### Scenario: Bullet-only sections
 - **WHEN** Progress, Remaining Work, or Context content is generated
 - **THEN** every entry is a bullet — no narrative paragraphs
-
-#### Scenario: Header metadata
-- **WHEN** a handoff document is written
-- **THEN** the document begins with `# Handoff` followed by **Project**, **Date**, and **Branch** metadata lines before the first section heading
 
 ### Requirement: Task list serialization
 The `## Task List` section SHALL contain exactly one fenced `json` code block. Each task object SHALL include only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, and `blocks`. Deleted tasks SHALL be excluded. The original task `id` SHALL be preserved so `/pickup` can rewire `blockedBy` relationships. The block SHALL emit `[]` when there are no tasks.

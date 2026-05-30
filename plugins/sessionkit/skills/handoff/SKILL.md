@@ -55,12 +55,6 @@ test -f .gitignore && grep -qE '^\.sessionkit/?$' .gitignore && echo "covered" |
 
 ### 5. Write the document
 
-Get the current branch:
-
-```bash
-git branch --show-current
-```
-
 Run `mkdir -p .sessionkit`, then `Write` the document to `.sessionkit/HANDOFF.md` using the template below. Report the absolute path and suggest:
 
 > Start a new session and run `/pickup` to resume.
@@ -69,10 +63,6 @@ Run `mkdir -p .sessionkit`, then `Write` the document to `.sessionkit/HANDOFF.md
 
 ```markdown
 # Handoff
-
-**Project**: <absolute path of working directory>
-**Date**: <ISO 8601 date, e.g. 2026-05-30>
-**Branch**: <current git branch>
 
 ## Goal
 - <one bullet, one sentence>
