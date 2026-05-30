@@ -37,7 +37,8 @@ gh pr list --base main --state open \
   --limit 50
 
 # Released — most recent v* tag (commits since it on main = unreleased)
-LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+# grep -v '--v' excludes per-plugin tags (e.g. vaultkit--v1.1.8) that otherwise leak into the v* glob
+LAST_TAG=$(git tag --list 'v*' | grep -v -- '--v' | sort -V | tail -1)
 if [ -n "$LAST_TAG" ]; then
   UNRELEASED=$(git log "$LAST_TAG"..origin/main --oneline | wc -l | tr -d ' ')
 else
