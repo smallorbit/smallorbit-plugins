@@ -1,7 +1,7 @@
 {
   "name": "sessionkit",
   "description": "Session continuity, planning, and meta-learning for Claude Code. Hand off context between sessions, resume seamlessly, map work-in-flight into an approved task chain and drive it to completion, discover reusable skills, and reduce permission noise.",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
