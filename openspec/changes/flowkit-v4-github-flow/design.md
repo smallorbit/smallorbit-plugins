@@ -134,7 +134,7 @@ Alternative rejected: ship `flowkit@4` alongside `flowkit@3` for one minor relea
 
 ## Migration Plan
 
-1. **Pre-merge verification**: integrate the v4 PR locally, run smoke tests of `/flowkit:ship`, `/flowkit:pr`, `/flowkit:merge-pr`, `/flowkit:sync`, `/squadkit:spawn-team`, `/swarmkit:swarm-plus` against a scratch fork to confirm coordination still works.
+1. **Pre-merge verification**: integrate the v4 PR locally, run smoke tests of `/flowkit:ship`, `/flowkit:pr`, `/flowkit:merge-pr`, `/flowkit:sync`, `/squadkit:spawn-team`, `/swarmkit:swarm` against a scratch fork to confirm coordination still works.
 2. **Merge order**: the v4 PR is the single landing artifact. Merge to `main` via existing v3 flow (last v3 release).
 3. **First v4 release**: run `/flowkit:migrate-v4` on this repo to switch the default branch from `develop` to `main` and delete `develop`. Then run `/flowkit:ship` for the v4 launch tag.
 4. **External consumers**: post v4 release notes prominently calling out the breaking change. Provide a one-line migration: "run `/flowkit:migrate-v4` once."

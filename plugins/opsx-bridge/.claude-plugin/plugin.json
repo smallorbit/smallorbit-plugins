@@ -1,6 +1,6 @@
 {
   "name": "opsx-bridge",
-  "description": "Bridge OpenSpec changes to squadkit/swarmkit dispatchers. Drive `/squadkit:spawn-team` or `/swarmkit:swarm-plus` from a single `openspec/changes/<name>/` proposal — additive only, leaves opsx/squadkit/swarmkit untouched.",
+  "description": "Bridge OpenSpec changes to squadkit/swarmkit dispatchers. Drive `/squadkit:spawn-team` or `/swarmkit:swarm` from a single `openspec/changes/<name>/` proposal — additive only, leaves opsx/squadkit/swarmkit untouched.",
   "version": "0.2.0",
   "license": "MIT",
   "author": {

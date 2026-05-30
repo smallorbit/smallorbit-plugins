@@ -5,7 +5,7 @@ This repo recently adopted OpenSpec (`@fission-ai/openspec` CLI v1.3.1) and comm
 This monorepo already ships two dispatchers tailored to multi-plugin / multi-issue work:
 
 - **`/squadkit:spawn-team`** — coordinated crew (architect + N builders + reviewer + tester), each in its own worktree, with cross-role communication via SendMessage. Best for cross-plugin design work.
-- **`/swarmkit:swarm-plus`** — parallel isolated-worktree agents, one per GitHub issue, with topological dispatch respecting blocked-by edges and an automatic review/fix pass per PR. Best for paralle issue execution.
+- **`/swarmkit:swarm`** — parallel isolated-worktree agents, one per GitHub issue, with topological dispatch respecting blocked-by edges and an automatic review/fix pass per PR. Best for paralle issue execution.
 
 Neither dispatcher knows about OpenSpec. opsx does not know about either dispatcher. They are three independent systems that today require a human to mentally translate between.
 
@@ -49,7 +49,7 @@ plugins/opsx-bridge/
       REFERENCES.md
 ```
 
-**Why two top-level skills, not one with a flag**: keeps the slash-command surface explicit (operator types `/opsx-bridge:apply-via-swarm`, no `--mode swarm` flag to forget). Matches how `/swarmkit:swarm` and `/swarmkit:swarm-plus` cohabit. Sub-skill `read-change` is internal and not user-facing — it parses the change directory and returns structured data.
+**Why two top-level skills, not one with a flag**: keeps the slash-command surface explicit (operator types `/opsx-bridge:apply-via-swarm`, no `--mode swarm` flag to forget). Matches how `/swarmkit:swarm` and `/swarmkit:swarm` cohabit. Sub-skill `read-change` is internal and not user-facing — it parses the change directory and returns structured data.
 
 **Alternative rejected**: single skill `/opsx-bridge:apply <change> --via squad|swarm`. Saves one file but obscures the two distinct workflows.
 
@@ -66,15 +66,15 @@ plugins/opsx-bridge/
    - **Inline markers** in section headers: `## Section B <!-- depends: section-a -->` (co-located, easiest to keep in sync with the section itself).
    - **Explicit `## Dependencies` block** at end of tasks.md: `Section B blocked by Section A` (useful for cross-cutting deps or when retro-wiring an existing tasks.md).
    - Conflict resolution: union of both sets. Duplicate edges deduped.
-5. Passes the issue list (in topological order) to `/swarmkit:swarm-plus`.
+5. Passes the issue list (in topological order) to `/swarmkit:swarm`.
 
 **Why sections, not per-task**: tasks.md often has 30+ tasks; one issue per task drowns the GH project. Sections (typically 4–8 per change) match swarm's natural granularity of "one PR per issue."
 
-**Why GH issues, not bypass**: `/swarmkit:swarm-plus` is built on per-issue dispatch and per-PR review. Bypassing GH would lose the review pass — the main reason to pick swarm-plus over plain swarm.
+**Why GH issues, not bypass**: `/swarmkit:swarm` is built on per-issue dispatch and per-PR review. Bypassing GH would lose the review pass — the main reason to pick swarm over plain swarm.
 
 **Alternatives rejected**:
 - 1:1 task↔issue: too many issues, drowns the board.
-- Skip GH entirely, feed sections as worker briefs: loses swarm-plus's PR review.
+- Skip GH entirely, feed sections as worker briefs: loses swarm's PR review.
 - Per-spec-file grouping: works for v4 but not for changes that don't modify specs proportionally.
 
 ### D3: Squad-path profile derivation
@@ -144,7 +144,7 @@ Bridge never auto-retries — failure is a signal for human attention.
 
 - **[Trade-off]** Two dispatch paths mean two SKILL.md files with overlapping "read change directory" logic. → **Mitigation**: shared `read-change` sub-skill returns a parsed JSON struct (proposal capabilities, tasks-by-section, applyRequires status).
 
-- **[Trade-off]** Bridge adds latency — one extra layer between operator intent and worker dispatch. → **Mitigation**: bridge logic is read-only parse + delegate; the actual work happens in spawn-team / swarm-plus. Bridge overhead is single-digit seconds.
+- **[Trade-off]** Bridge adds latency — one extra layer between operator intent and worker dispatch. → **Mitigation**: bridge logic is read-only parse + delegate; the actual work happens in spawn-team / swarm. Bridge overhead is single-digit seconds.
 
 - **[Trade-off]** Operator must know which dispatcher to pick. → **Mitigation**: bridge SKILL.md includes a "which to pick" decision table at the top; mirrors how operators already pick squad vs swarm today.
 
@@ -159,7 +159,7 @@ The bridge **does not refuse** to run on no-specs changes. OpenSpec itself only 
 
 ## Migration Plan
 
-No migration — this is purely additive. Existing `/opsx:apply` continues to work. Existing `/squadkit:spawn-team` and `/swarmkit:swarm-plus` continue to work. Bridge adds two new entry points.
+No migration — this is purely additive. Existing `/opsx:apply` continues to work. Existing `/squadkit:spawn-team` and `/swarmkit:swarm` continue to work. Bridge adds two new entry points.
 
 Rollback: revert the plugin's directory; nothing else needs touching.
 

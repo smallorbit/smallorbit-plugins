@@ -38,7 +38,7 @@ Implementation decomposition for flowkit v4. All tasks ship in a single coordina
 
 ## 2. swarmkit — update for flowkit v4
 
-- [ ] Rewrite `plugins/swarmkit/skills/swarm/SKILL.md` and `plugins/swarmkit/skills/swarm-plus/SKILL.md`:
+- [ ] Rewrite `plugins/swarmkit/skills/swarm/SKILL.md`:
   - Replace `flowkit:cut-epic` invocation with an inline `git checkout -b feature/<slug>-<N> origin/main && git push -u origin feature/<slug>-<N>` block that also sets `claude.flowkit.prBase`.
   - All PR creation continues to honor `claude.flowkit.prBase`; the bottom-up merge order survives.
 - [ ] Rewrite `plugins/swarmkit/skills/merge-stack/SKILL.md`:

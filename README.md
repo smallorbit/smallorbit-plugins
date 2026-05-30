@@ -21,7 +21,7 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | Plugin | Install | Description |
 |--------|---------|-------------|
 | **[speckit](./plugins/speckit/)** | `/plugin install speckit@smallorbit-plugins` | Define and capture work through interviews and issue filing |
-| **[swarmkit](./plugins/swarmkit/)** | `/plugin install swarmkit@smallorbit-plugins` | Resolve GitHub issues with parallel worktree agents. Optional automatic review/fix layer via `/swarm-plus`. _Recommends elevated session permissions — see the plugin's [Permissions](./plugins/swarmkit/README.md#permissions) section._ See [METHODOLOGY.md](./plugins/swarmkit/METHODOLOGY.md) for the stacked agent/PR workflow in depth. |
+| **[swarmkit](./plugins/swarmkit/)** | `/plugin install swarmkit@smallorbit-plugins` | Resolve GitHub issues with parallel worktree agents, with an always-on automatic review/fix pass on each PR. _Recommends elevated session permissions — see the plugin's [Permissions](./plugins/swarmkit/README.md#permissions) section._ See [METHODOLOGY.md](./plugins/swarmkit/METHODOLOGY.md) for the stacked agent/PR workflow in depth. |
 | **[squadkit](./plugins/squadkit/)** | `/plugin install squadkit@smallorbit-plugins` | Multi-agent team coordination with the `roles → squads → crews` vocabulary. Spawn role-aware crews (team-lead, architect, builder, reviewer, tester, explorer, designer) — `kind: execution` for code on a `feature/<slug>-<issue>` branch, or `kind: discovery` for read-only research producing issue blueprint comments. |
 | **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Appraise code quality, sweep dead code and cruft, and apply cross-cutting fixes |
 | **[flowkit](./plugins/flowkit/)** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
@@ -161,7 +161,7 @@ If you author work as [OpenSpec](https://github.com/Fission-AI/OpenSpec) changes
 
 ```
 /opsx-bridge:apply-via-squad <change>     # squadkit:spawn-team — one architect coordinating cross-capability work
-/opsx-bridge:apply-via-swarm <change>     # swarmkit:swarm-plus — parallel agents, one per tasks.md section
+/opsx-bridge:apply-via-swarm <change>     # swarmkit:swarm — parallel agents, one per tasks.md section
 ```
 
 The bridge is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. For the full "which dispatcher to pick" decision table, see the [opsx-bridge README](./plugins/opsx-bridge/README.md#which-dispatcher-to-pick).

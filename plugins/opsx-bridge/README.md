@@ -1,13 +1,13 @@
 # opsx-bridge
 
-Bridge OpenSpec changes to multi-agent dispatchers. Drive `/squadkit:spawn-team` or `/swarmkit:swarm-plus` from a single `openspec/changes/<name>/` proposal — purely additive, leaves opsx/squadkit/swarmkit untouched.
+Bridge OpenSpec changes to multi-agent dispatchers. Drive `/squadkit:spawn-team` or `/swarmkit:swarm` from a single `openspec/changes/<name>/` proposal — purely additive, leaves opsx/squadkit/swarmkit untouched.
 
 ## What it does
 
 OpenSpec's stock `/opsx:apply` is a single-agent task-loop runner: it reads `tasks.md` and walks each `- [ ]` linearly in one conversation. For changes that span multiple plugins, capabilities, or have parallelizable work, that shape is wrong. This plugin bridges the same proposal to either of two existing dispatchers:
 
 - **`/opsx-bridge:apply-via-squad <change>`** — derive a squad profile from the proposal's `## Capabilities`, dispatch via `/squadkit:spawn-team` with `proposal.md` + `design.md` as briefs. Best for cross-capability design work coordinated under one architect.
-- **`/opsx-bridge:apply-via-swarm <change>`** — group `tasks.md` by `##` section heading, map each section to a GitHub issue (reuse or file), wire dependency edges from inline `<!-- depends: -->` markers and `## Dependencies` blocks, dispatch via `/swarmkit:swarm-plus`. Best for parallel issue execution with automatic review/fix pass.
+- **`/opsx-bridge:apply-via-swarm <change>`** — group `tasks.md` by `##` section heading, map each section to a GitHub issue (reuse or file), wire dependency edges from inline `<!-- depends: -->` markers and `## Dependencies` blocks, dispatch via `/swarmkit:swarm`. Best for parallel issue execution with automatic review/fix pass.
 
 ## Which dispatcher to pick
 

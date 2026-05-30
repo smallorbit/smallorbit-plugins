@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Resolve GitHub issues with parallel, isolated-worktree agents. Each agent creates a branch, implements the issue, opens a pull request, and stops — leaving all PRs open for human review and merge. Supports one-shot runs against specific issues, loop mode to continuously clear the board, layered review/fix passes via swarm-plus, and bottom-up stack merging via merge-stack.
+Resolve GitHub issues with parallel, isolated-worktree agents. Each agent creates a branch, implements the issue, opens a pull request, and stops — leaving all PRs open for human review and merge. Each PR also passes through an always-on review/fix pass before the run completes. Supports one-shot runs against specific issues, loop mode to continuously clear the board, and bottom-up stack merging via merge-stack.
 
 ## Requirements
 
@@ -216,8 +216,8 @@ The merge-stack skill SHALL retarget every non-root PR in a multi-PR chain to `$
 - **WHEN** no open PRs with `worktree-agent-` head branches exist
 - **THEN** merge-stack reports "No open swarm PRs found" and stops
 
-### Requirement: Swarm-Plus Review/Fix Pass
-The swarm-plus skill SHALL dispatch one reviewer agent per PR as each swarm agent completes, apply a skip-on-clean rule to decide whether to spawn a fix-round worker, and produce a final summary of all verdict and worker outcomes.
+### Requirement: Automatic Review/Fix Pass
+The swarm skill SHALL, always-on with no opt-out flag, dispatch one reviewer agent per PR as each swarm agent completes, apply a skip-on-clean rule to decide whether to spawn a fix-round worker, and produce a final summary of all verdict and worker outcomes.
 
 #### Scenario: Reviewer dispatched as swarm agent completes
 - **WHEN** a swarm agent reports its PR
@@ -233,15 +233,11 @@ The swarm-plus skill SHALL dispatch one reviewer agent per PR as each swarm agen
 
 #### Scenario: Worker branches from existing PR head
 - **WHEN** a fix-round worker is spawned
-- **THEN** it fetches and branches from the existing PR's head branch, not from `develop`
+- **THEN** it fetches and branches from the existing PR's head branch, not from `main`
 
 #### Scenario: Nits and optional gaps never trigger a worker
 - **WHEN** the reviewer's only findings are nits or `[optional]` coverage gaps
 - **THEN** no fix-round worker is spawned
-
-#### Scenario: --review-only suppresses fix-round workers
-- **WHEN** `--review-only` flag is set
-- **THEN** reviewers run but no fix-round workers are ever dispatched
 
 #### Scenario: Worker must not push a failing build
 - **WHEN** a fix-round worker has applied changes

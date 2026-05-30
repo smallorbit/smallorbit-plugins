@@ -168,5 +168,5 @@ No cycle, so the payload is emitted.
 ## Notes for callers
 
 - **Apply-readiness is reported, not enforced here.** This sub-skill surfaces `applyReady` / `applyRequires`; the calling bridge skill decides whether to refuse dispatch (per the spec's apply-readiness requirement).
-- **Cycle detection is enforced here.** A cyclic dependency graph is structurally unusable for topological dispatch, so `read-change` refuses up front rather than handing a broken graph to `swarm-plus`.
+- **Cycle detection is enforced here.** A cyclic dependency graph is structurally unusable for topological dispatch, so `read-change` refuses up front rather than handing a broken graph to `swarm`.
 - **Edges are returned split (inline vs block), not pre-merged.** Callers that only need the union should merge-and-dedupe; the split is preserved so a caller can report provenance if it wants. Cycle detection above runs on the union regardless.

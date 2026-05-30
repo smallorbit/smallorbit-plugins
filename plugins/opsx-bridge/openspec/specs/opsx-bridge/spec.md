@@ -159,12 +159,12 @@ The `apply-via-swarm` skill SHALL compute blocked-by edges between section-issue
 
 ### Requirement: Swarm path topological dispatch
 
-The `apply-via-swarm` skill SHALL invoke `/swarmkit:swarm-plus` with section-issues in topological dependency order.
+The `apply-via-swarm` skill SHALL invoke `/swarmkit:swarm` with section-issues in topological dependency order.
 
 #### Scenario: Issues in dependency order
 
 - **WHEN** the bridge has resolved or filed all section-issues and computed a valid topological order
-- **THEN** the invocation of `/swarmkit:swarm-plus` passes the issue numbers in that order
+- **THEN** the invocation of `/swarmkit:swarm` passes the issue numbers in that order
 
 ### Requirement: Post-completion tasks.md reconciliation
 

@@ -50,8 +50,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). Single-issue one-shot runs target `main` directly. |
-| **swarm-plus** | `/swarm-plus` | Wraps `/swarm` with an automatic review/fix pass. After each swarm PR opens, dispatches the vendored `swarm-reviewer` agent per PR; if the reviewer flags blockers or concerns, dispatches a worker to push follow-up commits. Single pass per PR. |
+| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues, then run an automatic review/fix pass on each PR. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). Single-issue one-shot runs target `main` directly. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when any `worktree-agent-*` paths remain. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
@@ -69,11 +68,11 @@ These are called by the skills above — you don't invoke them directly.
 
 ### Agents
 
-Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a general-purpose reviewer — it is purpose-built for comparing a swarm-produced PR against its originating issue.
+Swarmkit vendors a specialized reviewer agent used by `/swarm`'s automatic review/fix pass. It is not a general-purpose reviewer — it is purpose-built for comparing a swarm-produced PR against its originating issue.
 
 | Agent | Used by | Purpose |
 |-------|---------|---------|
-| **swarm-reviewer** | swarm-plus | Reviews a swarm PR against the originating issue's acceptance criteria. Returns findings inline (never via `gh pr comment`) using a fixed five-section output structure: Verdict / Blockers / Concerns / Nits / Coverage gaps. |
+| **swarm-reviewer** | swarm | Reviews a swarm PR against the originating issue's acceptance criteria. Returns findings inline (never via `gh pr comment`) using a fixed five-section output structure: Verdict / Blockers / Concerns / Nits / Coverage gaps. |
 
 ## Typical Workflows
 
@@ -108,8 +107,9 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 3. If the run will spawn ≥2 agents, cuts a `feature/<slug>-<N>` branch from `origin/main` inline (idempotent — resumes the branch if it already exists on origin) and pins `claude.flowkit.prBase` to it — all spawned PRs target the epic branch
 4. Spawns one agent per issue (or grouped set) in isolated git worktrees
 5. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
-6. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to squash-merge child PRs into the epic branch bottom-up; then open a single PR from the epic to `main`, squash-merge it, unpin, and delete the epic branch
-7. Cleans up worktrees and orphaned branches
+6. Runs an automatic review/fix pass on each PR (see [The Review/Fix Pass](#the-reviewfix-pass) below)
+7. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to squash-merge child PRs into the epic branch bottom-up; then open a single PR from the epic to `main`, squash-merge it, unpin, and delete the epic branch
+8. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack` then a final epic→main squash to land.
 **Single issue (one-shot)**: `/swarm 12` — flat to `main`, no epic cut; use `/merge-pr` to merge.
@@ -118,31 +118,24 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm-plus`. It is not a
 
 ### Flags
 
-- `--model <sonnet|opus>` — override model selection for all agents
+- `--model <sonnet|opus>` — override model selection for all builder agents
 - `--base <branch>` — override the default base branch (`main`); also suppresses the epic cut
 - `--no-epic` — suppress feature-branch mode for this run; PRs target `$BASE` directly
 - `--epic <slug>` — explicit slug for the auto-cut epic branch
+- `--reviewer-model <sonnet|opus>` — override the review-pass reviewer model (default: `sonnet`)
+- `--worker-model <sonnet|opus>` — override the fix-round worker model (default: `sonnet`)
 
-## How Swarm Plus Works
+## The Review/Fix Pass
 
-`/swarm-plus` runs `/swarm` first, then layers a review/fix pass on each resulting PR:
+Every PR `/swarm` opens passes through an automatic review/fix pass before the run completes — always-on, with no flag to disable it:
 
-1. Invokes `/swarm` with the same args. Records `(issue, pr_number, head_branch)` for each PR produced.
-2. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR in the background — no waiting for other swarm agents.
-3. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
-4. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
-5. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
-6. After all workers finish, a final table summarizes verdict and worker action per PR.
+1. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR in the background — no waiting for other swarm agents.
+2. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
+3. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
+4. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
+5. After all workers finish, a final table summarizes verdict and worker action per PR.
 
 **Single pass** — there is no reviewer-after-worker re-review. Use `/review <pr>` manually if a second pass is desired.
-
-### Swarm Plus Flags
-
-All `/swarm` flags are inherited. Swarm-plus adds:
-
-- `--review-only` — dispatch reviewers but never spawn workers (triage mode)
-- `--reviewer-model <sonnet|opus>` — override reviewer model (default: `sonnet`)
-- `--worker-model <sonnet|opus>` — override worker model (default: `sonnet`)
 
 ## Assumptions & Conventions
 
