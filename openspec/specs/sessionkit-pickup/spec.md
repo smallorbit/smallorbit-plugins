@@ -63,6 +63,9 @@ Pickup SHALL end by asking the user what to tackle first via `AskUserQuestion`. 
 - **WHEN** Remaining Work has fewer than two actionable items
 - **THEN** Pickup asks what to do next in plain text
 
+### Note: Branch-mismatch step deliberately removed
+The branch-mismatch detection and `git checkout` suggestion that appeared in prior versions of this spec have been removed. The simplified handoff document format no longer records branch metadata, so the check had no reliable input and was dropped.
+
 ### Requirement: Read-only operation
 Pickup SHALL NOT modify `.sessionkit/HANDOFF.md` under any circumstances. Pickup MUST NOT re-execute commands referenced in the handoff.
 
