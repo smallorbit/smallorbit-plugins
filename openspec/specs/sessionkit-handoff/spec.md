@@ -1,86 +1,49 @@
 # Handoff
 
 ## Purpose
-Handoff captures the current session's goal, progress, git state, task list, remaining work, and key context into `.sessionkit/HANDOFF.md` so another agent can resume the work without losing momentum. It minimizes cost by reusing unchanged sections from a prior handoff via fingerprint-based caching.
+Handoff captures the current session's goal, progress, remaining work, context, and task list into `.sessionkit/HANDOFF.md` so another agent can resume the work without losing momentum. The entire skill runs inline — no sub-agent dispatch, no fingerprinting, no delta/full routing.
 
 ## Requirements
 
-### Requirement: Model dispatch
-Handoff SHALL run its document synthesis on a Haiku-class sub-agent regardless of the parent session's active model. The sub-agent SHALL gather git state, compute fingerprints, decide delta vs full, and write the document to disk. The outer tier SHALL retain the responsibilities a sub-agent cannot fulfill: summarizing the live conversation arc (which only the parent session can observe), gathering the task list (a sub-agent's `TaskList`/`TaskGet` resolve to a different task store than the session's), and resolving the user-facing `.gitignore` prompt. The outer tier SHALL pass the conversation summary and the serialized task list to the sub-agent as data, and SHALL pass all operating instructions inline as a self-contained prompt that MUST NOT reference the skill by name (which would cause infinite re-dispatch).
+### Requirement: Inline synthesis
+Handoff SHALL synthesize the document in the active session without dispatching a sub-agent. The session SHALL gather the task list via `TaskList`/`TaskGet`, derive all document sections from the live conversation, and write the document directly to disk.
 
-#### Scenario: Invoked on any model
-- **WHEN** Handoff is invoked from a session running any model (Opus, Sonnet, or Haiku)
-- **THEN** fingerprinting, delta/full routing, and document synthesis occur inside a Haiku sub-agent; the parent session contributes the conversation summary, the serialized task list, and the `.gitignore` decision
-
-#### Scenario: Task list reflects the session
-- **WHEN** the parent session has tracked tasks
-- **THEN** the outer tier gathers them via `TaskList`/`TaskGet` and passes the serialized JSON to the sub-agent, so the `## Task List` section reflects this session's tasks rather than the sub-agent's isolated task store
-
-#### Scenario: No skill self-reference in dispatch prompt
-- **WHEN** the outer tier builds the sub-agent prompt
-- **THEN** the prompt contains direct operating instructions and never names the skill, preventing recursive re-dispatch
+#### Scenario: Always inline
+- **WHEN** Handoff is invoked from any session
+- **THEN** the document is synthesized and written inline, with no sub-agent dispatched
 
 ### Requirement: Context collection
-Handoff SHALL gather git state (HEAD SHA, branch, staged files, unstaged files, recent commits) and the task list before synthesizing the document. The outer tier gathers the task list; the sub-agent gathers git state. Each tier MAY run its own reads in parallel.
+Handoff SHALL collect the task list before synthesizing the document. The session MUST call `TaskList`, then `TaskGet` once per task ID, before writing any section. All sections are derived from the live conversation and the collected task list.
 
-#### Scenario: Context gathered
+#### Scenario: Task list collected
 - **WHEN** Handoff is invoked
-- **THEN** the task list is collected by the outer tier and git state by the sub-agent, both before any synthesis begins
-
-### Requirement: Fingerprint-based section reuse
-Handoff SHALL compute a `gitFingerprint` (HEAD SHA + sorted staged/unstaged file hashes) and a `taskFingerprint` (SHA-1 of the canonicalized task list JSON). Each fingerprint governs its own pair of sections independently: `gitFingerprint` controls `## Git State` and `## Progress`; `taskFingerprint` controls `## Task List` and `## Remaining Work`. Sections whose fingerprint matches the prior header SHALL be reused byte-for-byte. `## Goal` and `## Context` SHALL always be regenerated.
-
-#### Scenario: Git fingerprint matches
-- **WHEN** the prior handoff's `gitFingerprint` matches the current one
-- **THEN** `## Git State` and `## Progress` are reused verbatim; only `## Goal` and `## Context` are regenerated
-
-#### Scenario: Task fingerprint matches
-- **WHEN** the prior handoff's `taskFingerprint` matches the current one
-- **THEN** `## Task List` and `## Remaining Work` are reused verbatim
-
-#### Scenario: Both fingerprints match
-- **WHEN** both fingerprints match the prior header
-- **THEN** all four reusable sections come straight from the prior file and no sub-agent is dispatched
-
-### Requirement: Routing to delta or full path
-Handoff SHALL use the delta path when all four conditions hold: a prior HANDOFF.md parsed cleanly, the prior HEAD is an ancestor of the current HEAD, at most two reusable sections need regeneration, and `--full` is not present. Otherwise Handoff SHALL use the full regenerate path.
-
-#### Scenario: Delta path selected
-- **WHEN** all four delta-mode conditions hold
-- **THEN** Handoff surgically edits the existing file in place without dispatching a sub-agent
-
-#### Scenario: Full path selected
-- **WHEN** any delta-mode condition fails or `--full` is passed
-- **THEN** Handoff dispatches a sub-agent for full synthesis
+- **THEN** `TaskList` and `TaskGet` are called to collect non-deleted tasks before synthesis begins
 
 ### Requirement: Document structure
-The handoff document SHALL follow a fixed section order: meta header → Goal → Progress → Git State → Remaining Work → Task List → Context. All content in Progress, Remaining Work, and Context SHALL be bullets only — no narrative paragraphs. The meta header SHALL be the first line and SHALL contain both fingerprints.
+The handoff document SHALL follow a fixed section order: Goal → Progress → Remaining Work → Context → Task List. All content in Progress, Remaining Work, and Context SHALL be bullets only — no narrative paragraphs. The document header SHALL include **Project**, **Date**, and **Branch** as informational metadata lines (not a section heading).
 
 #### Scenario: Section order
-- **WHEN** a handoff document is written (delta or full)
-- **THEN** sections appear in the canonical order: Goal → Progress → Git State → Remaining Work → Task List → Context
+- **WHEN** a handoff document is written
+- **THEN** sections appear in canonical order: Goal → Progress → Remaining Work → Context → Task List
 
 #### Scenario: Bullet-only sections
 - **WHEN** Progress, Remaining Work, or Context content is generated
 - **THEN** every entry is a bullet — no narrative paragraphs
 
+#### Scenario: Header metadata
+- **WHEN** a handoff document is written
+- **THEN** the document begins with `# Handoff` followed by **Project**, **Date**, and **Branch** metadata lines before the first section heading
+
 ### Requirement: Task list serialization
-The `## Task List` section SHALL contain a single fenced `json` code block. Each task object SHALL include only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, and `blocks`. Deleted tasks SHALL be excluded. The original task `id` SHALL be preserved so `/pickup` can wire `blockedBy` relationships.
+The `## Task List` section SHALL contain exactly one fenced `json` code block. Each task object SHALL include only `id`, `subject`, `description`, `activeForm`, `status`, `blockedBy`, and `blocks`. Deleted tasks SHALL be excluded. The original task `id` SHALL be preserved so `/pickup` can rewire `blockedBy` relationships. The block SHALL emit `[]` when there are no tasks.
 
 #### Scenario: Task list in JSON block
 - **WHEN** the document is written
 - **THEN** `## Task List` contains a fenced `json` block with one object per non-deleted task, using the original task IDs
 
-### Requirement: Sub-agent synthesis
-When the full path is selected, Handoff SHALL delegate document synthesis to a Haiku-class sub-agent. If the sub-agent call fails or returns output missing `## Task List`, Handoff SHALL fall back to inline synthesis and prepend a warning comment to the document.
-
-#### Scenario: Sub-agent succeeds
-- **WHEN** the full path is selected and the sub-agent returns a valid document
-- **THEN** the synthesized document is written to disk
-
-#### Scenario: Sub-agent fails
-- **WHEN** the sub-agent call fails or returns output missing `## Task List`
-- **THEN** Handoff synthesizes the document inline and prepends `<!-- handoff-warning: haiku sub-agent unavailable, synthesized in-line -->`
+#### Scenario: No tasks
+- **WHEN** the session has no non-deleted tasks
+- **THEN** `## Task List` contains a fenced `json` block containing `[]`
 
 ### Requirement: Gitignore coverage
 Before writing, Handoff SHALL check whether `.sessionkit/` is covered by `.gitignore`. If `.gitignore` is absent or does not cover `.sessionkit/`, Handoff SHALL ask the user before adding coverage. Handoff MUST NOT modify `.gitignore` without user confirmation.
@@ -105,8 +68,8 @@ Handoff SHALL write the document exclusively to `<working-dir>/.sessionkit/HANDO
 - **THEN** the document is at `.sessionkit/HANDOFF.md` in the current working directory
 
 ### Requirement: Completion report
-After writing, Handoff SHALL report the absolute file path, the chosen mode (delta or full), which sections were regenerated vs. reused, and suggest running `/pickup` to resume.
+After writing, Handoff SHALL report the absolute file path and suggest running `/pickup` to resume.
 
 #### Scenario: Handoff confirmed
 - **WHEN** the document is written
-- **THEN** Handoff reports the path, mode, section reuse outcome, and suggests `/pickup`
+- **THEN** Handoff reports the absolute path and suggests `/pickup`
