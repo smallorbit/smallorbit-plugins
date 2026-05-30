@@ -185,7 +185,7 @@ failure surfacing — verbatim so they stay consistent; those requirements cite 
 ## Requirement: Swarm path topological dispatch
 
 **Sources**
-- `plugins/opsx-bridge/skills/apply-via-swarm/SKILL.md:153-176` — step 7 "Compute topological order" + step 8 "Linearize the order, then dispatch to swarm-plus": topo-sort the union edge set, linearize, dispatch via `Skill({skill: "swarmkit:swarm-plus", args: "<n1> <n2> ... --base <BASE>"})`.
+- `plugins/opsx-bridge/skills/apply-via-swarm/SKILL.md:153-176` — step 7 "Compute topological order" + step 8 "Linearize the order, then dispatch to swarm": topo-sort the union edge set, linearize, dispatch via `Skill({skill: "swarmkit:swarm", args: "<n1> <n2> ... --base <BASE>"})`.
 
 ### Scenario: Issues in dependency order
 **Source:** `plugins/opsx-bridge/skills/apply-via-swarm/SKILL.md:163-168` — "Compose the ordered issue numbers as a space-separated list and dispatch via the Skill tool" passing the issue numbers in topological order.

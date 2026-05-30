@@ -1,6 +1,6 @@
 ---
 name: apply-via-swarm
-description: Dispatch an OpenSpec change to a swarmkit swarm. Reads openspec/changes/<name>/, groups tasks.md by ## section, files or reuses one GitHub issue per section (labelled opsx-change:<name> with an <!-- opsx-section: --> marker), topologically orders the change's merged dependency set and wires a linearized blocked-by chain (each issue blocked_by only its immediate predecessor) so swarm's single-parent stack model holds, then invokes /swarmkit:swarm-plus with the issue numbers in that order. Reconciles tasks.md after the per-issue PRs land.
+description: Dispatch an OpenSpec change to a swarmkit swarm. Reads openspec/changes/<name>/, groups tasks.md by ## section, files or reuses one GitHub issue per section (labelled opsx-change:<name> with an <!-- opsx-section: --> marker), topologically orders the change's merged dependency set and wires a linearized blocked-by chain (each issue blocked_by only its immediate predecessor) so swarm's single-parent stack model holds, then invokes /swarmkit:swarm with the issue numbers in that order. Reconciles tasks.md after the per-issue PRs land.
 triggers:
   - "/opsx-bridge:apply-via-swarm"
   - "apply via swarm"
@@ -12,9 +12,9 @@ allowed-tools: Bash, Read, Edit, Skill
 
 # Apply via Swarm
 
-Bridge a single OpenSpec change to a `/swarmkit:swarm-plus` run. The skill reads `openspec/changes/<name>/`, groups `tasks.md` into one GitHub issue per `##` section (the granularity swarm dispatches on — see D2), topologically orders the change's merged dependency set, wires a **linearized** blocked-by chain between those issues (each issue blocked_by only its immediate predecessor), and hands the ordered issue numbers to `/swarmkit:swarm-plus`. After the per-issue PRs land, it reconciles completed sections back into `tasks.md` so `/opsx:archive` works.
+Bridge a single OpenSpec change to a `/swarmkit:swarm` run. The skill reads `openspec/changes/<name>/`, groups `tasks.md` into one GitHub issue per `##` section (the granularity swarm dispatches on — see D2), topologically orders the change's merged dependency set, wires a **linearized** blocked-by chain between those issues (each issue blocked_by only its immediate predecessor), and hands the ordered issue numbers to `/swarmkit:swarm`. After the per-issue PRs land, it reconciles completed sections back into `tasks.md` so `/opsx:archive` works.
 
-The bridge is **additive** — it calls `swarm-plus` as a black box through its public flag surface and never modifies swarmkit, opsx, or the change proposal. It is the sibling of `apply-via-squad`; the two share base-branch resolution, apply-readiness preflight, and post-completion reconciliation verbatim so they stay consistent.
+The bridge is **additive** — it calls `swarm` as a black box through its public flag surface and never modifies swarmkit, opsx, or the change proposal. It is the sibling of `apply-via-squad`; the two share base-branch resolution, apply-readiness preflight, and post-completion reconciliation verbatim so they stay consistent.
 
 ## Input
 
@@ -25,7 +25,7 @@ The bridge is **additive** — it calls `swarm-plus` as a black box through its 
 | `<change-name>` | required | Directory under `openspec/changes/`. Resolved by `read-change`. |
 | `--base <branch>` | resolved | Override the base branch the section-issue PRs target. See base resolution below. |
 
-Swarm-plus knobs (`--model`, `--worker-model`, `--reviewer-model`, `--review-only`) are not re-declared here; pass-through is out of scope for the bridge — the operator runs `/swarmkit:swarm-plus` directly if they want those.
+Swarm knobs (`--model`, `--worker-model`, `--reviewer-model`) are not re-declared here; pass-through is out of scope for the bridge — the operator runs `/swarmkit:swarm` directly if they want those.
 
 ## Process
 
@@ -78,7 +78,7 @@ BASE="${BASE_FLAG:-$(git config claude.flowkit.prBase 2>/dev/null)}"
 [ -n "$BASE" ] || BASE=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
 ```
 
-The resolved `$BASE` is passed through to `swarm-plus` via `--base <BASE>` (step 8). Each independent section-issue PR targets `$BASE`; dependent ones stack onto their predecessor's branch and retarget to `$BASE` on merge (swarm's own model).
+The resolved `$BASE` is passed through to `swarm` via `--base <BASE>` (step 8). Each independent section-issue PR targets `$BASE`; dependent ones stack onto their predecessor's branch and retarget to `$BASE` on merge (swarm's own model).
 
 ### 3. Resolve the repo owner/name
 
@@ -160,24 +160,24 @@ blocking_id=$(gh api "repos/$REPO/issues/$blocking" -q .id)
 gh api "repos/$REPO/issues/$blocked/dependencies/blocked_by" -X POST -F issue_id="$blocking_id"
 ```
 
-This is the same `blockedBy` connection swarm reads in its dependency-graph step — wiring the *linearized chain* here means swarm-plus picks up a single parent per node natively, without re-parsing issue bodies and without ever seeing the diamond. A chain edge whose endpoint has no filed issue (e.g. an unresolved dangling reference read-change reported on stderr) is skipped with a warning — do not invent an issue for it.
+This is the same `blockedBy` connection swarm reads in its dependency-graph step — wiring the *linearized chain* here means swarm picks up a single parent per node natively, without re-parsing issue bodies and without ever seeing the diamond. A chain edge whose endpoint has no filed issue (e.g. an unresolved dangling reference read-change reported on stderr) is skipped with a warning — do not invent an issue for it.
 
-### 8. Dispatch to swarm-plus
+### 8. Dispatch to swarm
 
 Compose the issue numbers in the same linear topo order as a space-separated list and dispatch via the Skill tool, passing the resolved base through:
 
 ```
-Skill({skill: "swarmkit:swarm-plus",
+Skill({skill: "swarmkit:swarm",
        args: "<n1> <n2> <n3> ... --base <BASE>"})
 ```
 
 Show the operator the constructed argument string before dispatching. Example (this very change — the six-issue linearized chain `#990 → #991 → #992 → #993 → #994 → #995`, targeting the resolved base):
 
 ```
-/swarmkit:swarm-plus 990 991 992 993 994 995 --base develop
+/swarmkit:swarm 990 991 992 993 994 995 --base develop
 ```
 
-swarm-plus owns the rest: per-issue worktree provisioning, the stacked-PR chain (driven by the native chain edges from step 7), the automatic review/fix pass per PR, and leaving the PRs open for human merge. The bridge does not micromanage the workers.
+swarm owns the rest: per-issue worktree provisioning, the stacked-PR chain (driven by the native chain edges from step 7), the automatic review/fix pass per PR, and leaving the PRs open for human merge. The bridge does not micromanage the workers.
 
 ### 9. Post-completion reconciliation
 
@@ -202,7 +202,7 @@ If a per-issue worker's PR is closed without merge or stalls, surface the issue 
 ## Notes
 
 - **read-change is the parser.** This skill consumes read-change's `tasksBySection` and the union of its `inlineEdges` + `blockEdges`; it does not re-implement section parsing, operand resolution, or cycle detection. Apply-readiness is *reported* by read-change and *enforced* here.
-- **swarm-plus is a black box.** apply-via-swarm files/matches issues, topologically orders the union edge set and wires a *linearized* native blocked-by chain (single parent per node), then dispatches the issue numbers in that order + `--base`. It never inspects or modifies swarmkit internals.
+- **swarm is a black box.** apply-via-swarm files/matches issues, topologically orders the union edge set and wires a *linearized* native blocked-by chain (single parent per node), then dispatches the issue numbers in that order + `--base`. It never inspects or modifies swarmkit internals.
 - **Linearize the native edges, not the arg order.** swarm builds its stack from the native `blockedBy` edges on the issues, not from the order issue numbers arrive in. The bridge therefore wires the *chain* edges (each node blocked_by only its topo predecessor) rather than the raw union, so swarm's single-parent model never encounters a diamond.
 - **Issues are the contract, tasks.md is authoritative.** `tasks.md` decides *which* sections exist; the section-issue body is (re)generated from it. Issue reuse is keyed on the `<!-- opsx-section: -->` marker so re-invocations are idempotent against the GH board.
 
@@ -211,4 +211,4 @@ If a per-issue worker's PR is closed without merge or stalls, surface the issue 
 | Calls | Why |
 |-------|-----|
 | `opsx-bridge:read-change` | Parse the change into tasks-by-section + merged dependency edges + apply-readiness (preflight). |
-| `swarmkit:swarm-plus` | Dispatch the ordered section-issues as a reviewed stacked-PR chain. |
+| `swarmkit:swarm` | Dispatch the ordered section-issues as a reviewed stacked-PR chain. |

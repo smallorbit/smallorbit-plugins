@@ -1,13 +1,13 @@
 ## Why
 
-OpenSpec's `/opsx:apply` is a single-agent task-loop runner — it walks `tasks.md` linearly in one conversation. For changes that touch multiple plugins or have parallelizable work, this is the wrong shape: we already have `/squadkit:spawn-team` (coordinated multi-role crew) and `/swarmkit:swarm-plus` (parallel isolated-worktree workers with review pass). What's missing is a bridge that lets a single OpenSpec change proposal drive either dispatcher without modifying opsx, squadkit, or swarmkit.
+OpenSpec's `/opsx:apply` is a single-agent task-loop runner — it walks `tasks.md` linearly in one conversation. For changes that touch multiple plugins or have parallelizable work, this is the wrong shape: we already have `/squadkit:spawn-team` (coordinated multi-role crew) and `/swarmkit:swarm` (parallel isolated-worktree workers with review pass). What's missing is a bridge that lets a single OpenSpec change proposal drive either dispatcher without modifying opsx, squadkit, or swarmkit.
 
 ## What Changes
 
 - New plugin `plugins/opsx-bridge/` with two skills:
   - `/opsx-bridge:apply-via-squad <change-name>` — reads `openspec/changes/<name>/`, derives a squad profile from the proposal/specs/tasks, invokes `/squadkit:spawn-team` with an inline brief that points at the change directory.
-  - `/opsx-bridge:apply-via-swarm <change-name>` — reads `tasks.md`, files or matches GitHub issues per task (or per logical group), invokes `/swarmkit:swarm-plus` with the issue list in dependency order.
-- Both skills are **additive** — they invoke existing skills (`spawn-team`, `swarm-plus`) without modifying them. No changes to opsx command files, no changes to squadkit/swarmkit skills.
+  - `/opsx-bridge:apply-via-swarm <change-name>` — reads `tasks.md`, files or matches GitHub issues per task (or per logical group), invokes `/swarmkit:swarm` with the issue list in dependency order.
+- Both skills are **additive** — they invoke existing skills (`spawn-team`, `swarm`) without modifying them. No changes to opsx command files, no changes to squadkit/swarmkit skills.
 - A small helper sub-skill `opsx-bridge:read-change` to parse `openspec/changes/<name>/` artifacts into the dispatcher inputs (squad profile JSON, issue list).
 
 ## Capabilities

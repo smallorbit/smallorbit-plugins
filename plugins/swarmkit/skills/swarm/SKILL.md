@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Spawn parallel isolated-worktree agents for GitHub issues, open stacked PRs in dependency order, and leave them open for review. Use `swarmkit:merge-stack` to merge. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
+description: Spawn parallel isolated-worktree agents for GitHub issues, open stacked PRs in dependency order, run an automatic review/fix pass over each PR, and leave them open for review. Use `swarmkit:merge-stack` to merge. Supports one-shot mode (specific issue numbers) and loop mode (clear the board continuously).
 ---
 
 # Swarm Skill
@@ -9,6 +9,16 @@ description: Spawn parallel isolated-worktree agents for GitHub issues, open sta
 
 Spawn parallel agents for GitHub issues: $ARGUMENTS
 
+Every PR swarm opens passes through an automatic review/fix pass before the run completes: a swarmkit-vendored reviewer inspects each PR, and if the reviewer surfaces blockers, concerns, or `[recommended]` coverage gaps, a fresh worker is spawned to push follow-up commits to the same branch. This is always-on — there is no flag to disable it. The final state is unchanged: open PRs awaiting human merge.
+
+### Runtime contract: builders always exit; fix-rounds always spawn a fresh worker
+
+The harness terminates builder agents shortly after they emit their final task notification. Builder prompts still emit `STANDBY_READY` as a forward-compatibility hint in case the runtime ever supports persistent standby, but **the orchestrator MUST treat every builder as no-longer-addressable once the PR is reported**. SendMessage to a former builder consistently fails with "No agent named X is currently addressable."
+
+**Canonical fix-round path: spawn-fresh-worker.** Whenever a reviewer's verdict is non-clean (blockers, concerns, or `[recommended]` coverage gaps), the orchestrator spawns a brand-new `general-purpose` agent in an isolated worktree, branches it from the existing PR head, and lets it apply the reviewer's findings. The original builder is never re-engaged.
+
+**Why STANDBY_READY remains in builder prompts.** It is cheap, harmless under today's runtime (the builder emits the sentinel and is then terminated by the harness), and keeps the prompt forward-compatible if a future runtime version preserves agents past their last notification. The orchestrator should NOT attempt SendMessage on builders today — those calls will fail.
+
 ## Arguments
 
 Parse `$ARGUMENTS` to determine the mode:
@@ -16,10 +26,12 @@ Parse `$ARGUMENTS` to determine the mode:
 - **No arguments** → **loop mode**, all open issues → `main`
 - **Label text** (non-numeric, e.g. `bug`, `priority:high`) → **loop mode**, filtered by label → `main`
 - **Issue numbers** (`12 15 18`, `#12 #15 #18`, range `12-18`) → **one-shot mode**, specific issues → `main`
-- `--model <tier>` (`sonnet`, `opus`) → model override for all agents
+- `--model <tier>` (`sonnet`, `opus`) → model override for all builder agents
 - `--base <branch>` → override default base branch
 - `--no-epic` → suppress feature-branch mode for this run; PRs target `$BASE` directly
 - `--epic <slug>` → explicit slug for the auto-cut epic branch (the inline cut enforces the `feature/<slug>-<N>` shape)
+- `--reviewer-model <tier>` → override the review-pass reviewer model (default: `sonnet`)
+- `--worker-model <tier>` → override the fix-round worker model (default: `sonnet`)
 
 ---
 
@@ -102,6 +114,18 @@ Parse the JSON. If `gh_authenticated` is `false`, **stop immediately** and surfa
 > Created `<base>` branch from the repo's default branch. All PRs will target `<base>`.
 
 If the script exits non-zero, stdout will be empty and stderr will carry a human-readable error — surface it and stop.
+
+### Resolve the verify command (for the review/fix pass)
+
+> Resolved once at the start of the run, before any worker is dispatched.
+
+The fix-round workers need the project's verify command. Resolve it once and reuse it for every fix-round prompt. This keeps the review pass useful in any repo, not just TS repos with `tsc`. Use this lookup chain (first hit wins):
+
+1. **`.squadkit/config.json` `verifyCommand`** — repo-level explicit override. Read with `jq -r '.verifyCommand // empty' .squadkit/config.json` if the file exists.
+2. **`package.json` `scripts.verify`** — common project-local convention. If present, the verify command is determined by the package manager: `yarn.lock` present → `yarn run verify`; `pnpm-lock.yaml` present → `pnpm run verify`; otherwise → `npm run verify`.
+3. **Fallback** — `npx tsc -b --noEmit` for TS projects. "TS toolchain present" means `tsconfig.json` exists at the repo root. If neither of the above resolves AND `tsconfig.json` is absent, print a warning and instruct the worker to skip the verify step rather than running a command that will obviously fail. **Note:** projects that use `tsc` via a non-standard mechanism (e.g. a wrapper script, a monorepo tool, or a config file named differently) won't be detected by this check — those repos should set `verifyCommand` in `.squadkit/config.json` to opt in explicitly.
+
+Record the resolved command as `<verify_command>` and interpolate it into the STANDBY clause (Step 4 spawn) and the fix-round worker prompt (Review/Fix Pass step 3).
 
 ---
 
@@ -234,6 +258,7 @@ All agents (both strategies) use:
 - `mode: "bypassPermissions"`
 - `run_in_background: true`
 - Branch naming: `worktree-agent-<issue>` (required for `clean-worktrees`)
+- A deterministic, addressable `name:` parameter: `swarm-builder-<issue>`. This is kept for forward compatibility with a future runtime that supports persistent standby; today it has no functional effect since the harness terminates the builder anyway.
 
 Each agent prompt MUST include:
 1. **TASK**: the specific issue(s) to resolve
@@ -289,6 +314,15 @@ Each agent prompt MUST include these **workflow steps** (in order):
 6. Report the PR URL. This is the ONLY acceptable termination condition for this workflow. Do not stop before the PR exists and its URL has been reported.
 ```
 
+Append the following STANDBY clause to the end of every builder prompt. **In today's runtime the harness terminates the builder shortly after it emits the final notification, so this clause is effectively a no-op** — but it is left in place so the prompt remains correct if a future runtime preserves agents past their last notification.
+
+> **STANDBY (forward-compat).** After reporting the PR URL, reply `STANDBY_READY` and then enter standby, awaiting an orchestrator SendMessage. If the harness terminates you instead of delivering a message, that is expected under the current runtime. If a message does arrive, it will be one of two:
+>
+> 1. `"Approved. Terminate."` — exit cleanly.
+> 2. A `REVIEWER FINDINGS` payload with explicit scope — apply the in-scope items (blockers, concerns, `[recommended]` coverage gaps), skip the out-of-scope items (nits, `[optional]`), run `<verify_command>` and the relevant test scope, commit (conventional-commit format, no Claude mentions, no co-author lines), `git push origin <head_branch>`, and optionally `gh pr comment <pr_number>` summarizing what was addressed and what was deferred. Then terminate.
+>
+> All swarm constraints still apply: never branch off `main` for the fix round (you are already on the PR's head branch in your worktree), never force-push, never close the issue manually.
+
 ### 5. Handle completions
 
 After each agent completes, run the verify script once per agent:
@@ -322,11 +356,94 @@ If the script exits non-zero, stdout will be empty and stderr will carry a human
 
 Report the PR link once confirmed. Verify each PR's diff matches the issue scope.
 
-### 6. Clean up
+Record `(issue, pr_number, head_branch, base_branch)` for each confirmed PR — the review/fix pass consumes this list.
+
+### 6. Review/fix pass
+
+Every confirmed PR passes through this pass. Do NOT block on every PR before starting — dispatch a reviewer for each PR as soon as it is confirmed.
+
+**6a. Spawn a reviewer per PR.** Spawn the **`swarmkit:swarm-reviewer`** agent with `run_in_background: true`. Default model `sonnet`; override via `--reviewer-model`.
+
+The reviewer prompt MUST include:
+
+- The PR number, title, and `Closes #<issue>` reference
+- The original issue body (for spec / acceptance-criteria comparison)
+- An explicit instruction: **return the review inline; do NOT post it as a `gh pr comment`**
+- A required output structure:
+  - **Verdict**: Approve / Request changes / Comment
+  - **Blockers** (must fix)
+  - **Concerns** (worth raising, not blocking)
+  - **Nits** (style, optional)
+  - **Coverage gaps** (with `[recommended]` or `[optional]` tag per gap)
+
+**Verdict delivery contract.** Per the reviewer agent's contract (`plugins/swarmkit/agents/swarm-reviewer.md`), the reviewer `SendMessage`s its complete structured verdict to the parent (this orchestrator) before terminating. The idle notification alone does not carry the verdict text — wait for the `SendMessage` payload to parse the result and apply the skip-on-clean rule. If only an idle notification arrives with no accompanying `SendMessage` payload, treat the reviewer as having returned no output and note the missing review in the final summary.
+
+Track each reviewer's agent ID against the PR it covers.
+
+**6b. Decide whether to spawn a fix-round worker.** When the reviewer's `SendMessage` payload arrives, parse its result and apply the **skip-on-clean** rule:
+
+| Reviewer output | Action |
+|-----------------|--------|
+| Verdict `Approve` AND no blockers AND no concerns AND no `[recommended]` coverage gaps | No fix-round worker. PR stands as-is. Nits and `[optional]` coverage gaps are not actionable enough to warrant a fix round. |
+| Any blockers | Spawn fix-round worker. Blockers are mandatory. |
+| Any concerns | Spawn fix-round worker. Concerns get addressed or explicitly deferred in a PR comment. |
+| Coverage gaps flagged `[recommended]` | Spawn fix-round worker. Treat recommended coverage gaps as concerns. |
+
+Print one line announcing the decision per PR:
+
+```
+PR #1390: reviewer clean (no blockers/concerns) → no fix round
+PR #1391: reviewer flagged 1 blocker, 2 concerns → spawning fresh worker
+```
+
+**6c. Spawn the fix-round worker.** For every PR whose reviewer verdict was non-clean, spawn a fresh `general-purpose` agent with `isolation: worktree`, `mode: bypassPermissions`, `run_in_background: true`. Default model `sonnet`; override via `--worker-model`.
+
+The fix-round worker prompt MUST:
+
+- Include the **PR number** and **head branch** (e.g. `worktree-agent-42`).
+- Include the **full reviewer output** verbatim under a `REVIEWER FINDINGS` section.
+- State explicit scope:
+  - **In scope**: blockers (mandatory), concerns (address or explicitly defer with stated reason in a PR comment), reviewer-recommended coverage gaps.
+  - **Out of scope**: nits (skip unless trivially co-located with a fix), `[optional]` coverage gaps, unrelated cleanups, scope creep.
+- Instruct the worker to:
+  1. Branch from the **existing PR branch**, NOT from `main`:
+     ```bash
+     git fetch origin <head_branch>
+     git checkout -B <head_branch> origin/<head_branch>
+     ```
+  2. Apply the changes.
+  3. Run `<verify_command>` (resolved in Setup) and the relevant test scope. Resolve any failures before proceeding — never push a red build.
+  4. Commit with conventional-commit format (no Claude mentions, no co-author lines).
+  5. Push to the same branch (`git push origin <head_branch>`) — auto-updates the PR.
+  6. Optionally comment on the PR summarizing what was addressed and what was deferred:
+     ```bash
+     gh pr comment <pr_number> --body "Addressed reviewer feedback: <summary>. Deferred: <items with reasons>."
+     ```
+- Forbid: branching off `main`, force-pushing, rewriting prior commits, closing the issue manually.
+- Termination: report the new commit SHAs and confirm `gh pr view <pr_number> --json commits` includes them.
+
+**6d. Wait for all fix-round workers.** Continue until every spawned fix-round worker reports completion. Verify the PR's HEAD has advanced:
+
+```bash
+gh pr view <pr_number> --json commits | jq '.commits[-1].oid'
+```
+
+For PRs with no fix round (clean reviewer verdict), no further action is needed.
+
+**Review/fix-pass failure modes:**
+
+| Symptom | Handling |
+|---------|----------|
+| Swarm agent fails to produce a PR | Skip review/fix round for that issue; report in final summary |
+| Reviewer crashes or returns no output | Note the missing review in the final summary; leave PR open without a fix pass |
+| Fix-round worker push rejected (branch advanced underneath) | Worker re-fetches and rebases (`git fetch origin <head>; git rebase origin/<head>`); if conflicts arise, abort and report to user |
+| Fix-round worker introduces new test failures | Worker MUST resolve before push — never push a red build |
+
+### 7. Clean up
 
 Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This frees local `worktree-agent-*` branches so the merge step can use `--delete-branch` without conflicts.
 
-### 7. Report
+### 8. Report
 
 ```
 | Issue(s) | PR | Branch | Status |

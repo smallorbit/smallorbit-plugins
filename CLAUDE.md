@@ -43,7 +43,7 @@ When work originates as an OpenSpec change, `opsx-bridge` can dispatch its imple
 
 **Base-branch convention.** Execution crews always work on a `feature/<slug>-<issue>` branch cut from `main`, owned by `spawn-team`. They never commit directly to `main`. Discovery crews stay on `main` since they don't produce code.
 
-`opsx-bridge` connects OpenSpec changes to those same dispatchers. It is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. Given a proposed `openspec/changes/<name>/`, `opsx-bridge:apply-via-squad <change>` derives a squad profile from the proposal's `## Capabilities` and dispatches via `/squadkit:spawn-team`, while `opsx-bridge:apply-via-swarm <change>` maps each `tasks.md` section to a GitHub issue and dispatches via `/swarmkit:swarm-plus`. These are the multi-agent alternative to stock single-agent `/opsx:apply`. See [`plugins/opsx-bridge/README.md`](./plugins/opsx-bridge/README.md).
+`opsx-bridge` connects OpenSpec changes to those same dispatchers. It is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. Given a proposed `openspec/changes/<name>/`, `opsx-bridge:apply-via-squad <change>` derives a squad profile from the proposal's `## Capabilities` and dispatches via `/squadkit:spawn-team`, while `opsx-bridge:apply-via-swarm <change>` maps each `tasks.md` section to a GitHub issue and dispatches via `/swarmkit:swarm`. These are the multi-agent alternative to stock single-agent `/opsx:apply`. See [`plugins/opsx-bridge/README.md`](./plugins/opsx-bridge/README.md).
 
 ## Skill Authoring Conventions
 

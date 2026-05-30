@@ -97,9 +97,9 @@ If a PR fails review or merge mid-stack, the chain stops cleanly. Because retarg
 
 `/swarm` is for the case you already have: a backlog of small-to-medium issues that are independent enough to parallelize, but related enough that you want them in the same release. Think a sprint's worth of `good-first-issue`-shaped work, or the leaf nodes of an epic that just got dispatched.
 
-`/swarm` itself doesn't review anything — it opens the PRs and stops. From there you have two options. Review them through whatever process you already use (CodeRabbit, a human reviewer, your own eyes) and merge with `/merge-stack` when you're satisfied. Or swap `/swarm` for `/swarm-plus`: same arguments, same final state of open PRs, but each PR gets one automated reviewer pass and one fix-round before it's left for human merge.
+`/swarm` doesn't stop at opening PRs — every PR then passes through an always-on review/fix pass: each one gets one automated reviewer pass and, if the reviewer flags blockers or concerns, one fix-round, all before it's left for human merge. You still review the final result through whatever process you already use (CodeRabbit, a human reviewer, your own eyes) and merge with `/merge-stack` when you're satisfied.
 
-<Diagram caption="/swarm-plus per-PR pipeline: one reviewer; concerns trigger one fix-round; nits and approved verdicts terminate. No re-review after a fix.">
+<Diagram caption="/swarm per-PR review pass: one reviewer; concerns trigger one fix-round; nits and approved verdicts terminate. No re-review after a fix.">
   <SwarmPlusDiagram />
 </Diagram>
 

@@ -36,7 +36,7 @@
 - [ ] 4.5 Implement issue filing: when no match, create new issue with section tasks inlined, apply `opsx-change:<name>` label, embed `<!-- opsx-section: <section-id> -->` marker in body
 - [ ] 4.6 Wire blocked-by edges using GitHub issue dependencies (via `gh api` or comment-based pattern) per the dependency set returned by read-change
 - [ ] 4.7 Compute topological order of issues from dependency graph
-- [ ] 4.8 Invoke `/swarmkit:swarm-plus` with the ordered issue numbers
+- [ ] 4.8 Invoke `/swarmkit:swarm` with the ordered issue numbers
 - [ ] 4.9 Implement post-completion reconciliation: same shape as apply-via-squad's reconciliation (poll merged PRs, update tasks.md, suggest archive)
 
 ## 5. OpenSpec Capability Files
