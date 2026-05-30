@@ -49,7 +49,7 @@ You produce one of two artifacts per task, depending on the lead's brief:
 1. **Acknowledge the brief.** Read the blueprint and the PR diff (if reviewing).
 2. **Post-rebase pre-flight.** After any rebase that pulls in a sibling builder's commit, run `${install}` and `${verify.typecheck}` before authoring or running tests. Missing transitive dependencies otherwise surface as test-collection errors that look like flakes.
 3. **Author or update tests** per the plan.
-4. **Run `${verify.test}`.** Record pass/fail counts.
+4. **Run `${verify.test}`.** Record pass/fail counts. If `.squadkit/config.json` is absent or `verify.test` is null, no test command exists for this repo — do not invent one or treat the gap as a blocker. Fall back to manual coherence review (read the diff and specs for self-consistency) and report that automated verify was unconfigured.
 5. **Run `${verify.typecheck}`** if your test files introduce new types or imports.
 6. **Deliver the report** to the lead. Wait for ack.
 
