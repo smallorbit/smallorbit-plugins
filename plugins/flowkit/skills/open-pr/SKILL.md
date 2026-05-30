@@ -1,6 +1,6 @@
 ---
 name: open-pr
-description: Push the current branch and open a GitHub pull request. Use after committing changes to merge work into develop.
+description: Push the current branch and open a GitHub pull request against main (or the pinned base). Use after committing changes.
 triggers:
   - "/open-pr"
   - "open a PR"
@@ -20,17 +20,13 @@ Push the current branch to origin and open a GitHub pull request against the bas
 
 ## Process
 
-### 0. First-run default-branch nudge
-
-Before any other preflight, invoke the [`default-branch-prompt`](../default-branch-prompt/SKILL.md) sub-skill. It is fire-and-forget — open-pr does not branch on its outcome. Continue with step 1 regardless of which path the user took (or whether the prompt fired at all).
-
 ### 1. Check current branch
 
 ```bash
 git rev-parse --abbrev-ref HEAD
 ```
 
-If the current branch is `develop`, `main`, or `master`, stop immediately and report:
+If the current branch is `main` or `master`, stop immediately and report:
 
 > Cannot open a PR from a protected branch. Check out a feature branch first.
 
@@ -52,27 +48,18 @@ if [ -z "$BASE" ]; then
   BASE=$(git config claude.flowkit.prBase 2>/dev/null)
 fi
 
-# 3. develop if it exists on the remote
+# 3. Default to main
 if [ -z "$BASE" ]; then
-  if git ls-remote --heads origin develop | grep -q 'refs/heads/develop'; then
-    BASE="develop"
-  fi
+  BASE="main"
 fi
 
-# 4. Fallback — use the repo default and warn
-if [ -z "$BASE" ]; then
-  REPO_DEFAULT=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
-  echo "warning: no base branch configured and 'develop' not found on remote; falling back to repo default ($REPO_DEFAULT)" >&2
-  BASE="$REPO_DEFAULT"
-fi
-
-# 5. Guard — resolved base must not equal current HEAD
+# 4. Guard — resolved base must not equal current HEAD
 HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [ "$BASE" = "$HEAD_BRANCH" ]; then
   echo "ERROR: resolved base ($BASE) is the same as the current branch ($HEAD_BRANCH)." >&2
   echo "This usually means you're on an epic branch with claude.flowkit.prBase pinned" >&2
   echo "to itself. To open the epic's own integration PR, do one of:" >&2
-  echo "  - rerun with an explicit override: /flowkit:pr --base develop" >&2
+  echo "  - rerun with an explicit override: /flowkit:pr --base main" >&2
   echo "  - unset the pin first: git config --unset claude.flowkit.prBase" >&2
   exit 1
 fi
@@ -120,22 +107,7 @@ The body shape, footer grammar, and worked example live in [`plugins/_shared/pr-
 
 **Override rule for `open-pr`**: when tokens come from commit messages on the branch, emit them **verbatim** — do not rewrite `Fixes`/`Resolves` into `Closes`. The canonical guidance applies to newly authored bodies; `open-pr` forwards what the author committed.
 
-### 7. Warn when closing keywords target a non-default branch
-
-GitHub's auto-close keywords (`Closes/Fixes/Resolves #N`) only fire when a PR merges into the repo's default branch. If the assembled body contains any closing keyword and `$BASE` is not the GitHub default, emit a one-line note pointing the user at `/flowkit:release`, which runs an explicit `gh issue close` loop after the release→main merge:
-
-```bash
-if printf '%s\n' "$PR_BODY" | grep -qiE '(closes|fixes|resolves) #[0-9]+'; then
-  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
-  if [ -n "$DEFAULT_BRANCH" ] && [ "$BASE" != "$DEFAULT_BRANCH" ]; then
-    echo "note: 'Closes #N' won't fire auto-close on PRs into $BASE when default branch is $DEFAULT_BRANCH. /flowkit:release will close those issues at release time." >&2
-  fi
-fi
-```
-
-This is informational only — do not abort or rewrite the body. The `/release` skill explicitly closes aggregated issues after its merge, so the lifecycle still completes.
-
-### 8. Lint the assembled body for broken closing-keyword footers
+### 7. Lint the assembled body for broken closing-keyword footers
 
 GitHub only parses one closing keyword per line. A footer like `Closes #1 #2 #3` silently leaves `#2` and `#3` open. Reject the body before calling `gh pr create` if any line packs multiple issue refs onto a single closing keyword:
 
@@ -153,7 +125,7 @@ fi
 
 Fail loudly rather than auto-rewriting — the author should see and fix the footer themselves so the same mistake does not recur in the source commits.
 
-### 9. Open the PR
+### 8. Open the PR
 
 `$BASE` is always non-empty at this point (step 2 guarantees it). Pass it explicitly:
 
@@ -165,7 +137,7 @@ gh pr create \
   --body "<assembled body from step 6>"
 ```
 
-### 10. Report
+### 9. Report
 
 Output the PR URL returned by `gh pr create`.
 

@@ -12,11 +12,21 @@ allowed-tools: Bash
 
 # Commit
 
-Stage and commit all current workspace changes. Splits changes into logical commits when multiple unrelated concerns are present. Writes conventional commit messages for each group.
+Stage and commit all current workspace changes. The conventional-commit type, scope, and subject are **derived from the staged diff** in the current turn — there is no operator interview for type/scope/subject inputs. Splits changes into logical commits when multiple unrelated concerns are present. The operator may edit the proposed message before commit, but is not prompted to supply the type, scope, or subject.
 
 ## Input
 
-`$ARGUMENTS` — optional freeform context or description to inform the commit message (e.g. "this fixes the login timeout issue"). If omitted, infer everything from the diff.
+`$ARGUMENTS` — optional freeform context or description to inform the commit message (e.g. "this fixes the login timeout issue"). If omitted, infer everything from the diff. Even when `$ARGUMENTS` is provided, the conventional-commit type/scope/subject are still derived from the diff; `$ARGUMENTS` only adds context to the body and the subject phrasing.
+
+## Message Derivation
+
+Read the staged diff and derive the message components:
+
+- **Type** — inferred from the change shape. New files / new behavior → `feat`. Bug-fix patterns → `fix`. Doc-only edits → `docs`. Code reorganization without behavior change → `refactor`. Test additions → `test`. Formatting only → `style`. Dependency/maintenance changes → `chore`.
+- **Scope** — inferred from the changed paths. If the diff touches files under a single conventional scope (e.g. `plugins/flowkit/skills/x/...`), the scope is set accordingly (e.g. `flowkit:x` or `flowkit`). If the diff spans multiple plausible scopes, the dominant scope (most lines changed, or the most semantically central) is selected; cross-cutting concerns are noted in the body rather than the subject.
+- **Subject** — a short imperative description of *what changed*, under 72 characters total including the `type(scope): ` prefix.
+
+If the workspace diff contains multiple unrelated concerns, split into one commit per logical concern, each with its own derived conventional-format message.
 
 ## Conventional Commit Format
 

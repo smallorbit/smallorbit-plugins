@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# merge_pr.sh — rebase-merge a GitHub PR, retarget stacked children, clean blocking worktrees.
+# merge_pr.sh — squash-merge a GitHub PR, clean blocking worktrees.
 #
 # Usage:
 #   merge_pr.sh [<pr_number>]
 #
 # If <pr_number> is omitted, resolves the open PR for the current branch.
+#
+# Merge mode: --squash always. The script never accepts or invokes --rebase or --merge.
+# Squash-merge is the canonical v4 mode — GitHub computes the squash server-side, so there
+# is no fast-forward requirement and no stacked-PR rebase-retargeting dance.
 #
 # Success: exit 0, one bare JSON object on stdout (jq parseable).
 # Failure: non-zero exit, human-readable stderr, empty stdout.
@@ -119,21 +123,11 @@ if [[ -n "$BLOCKING_WORKTREE" ]]; then
   fi
 fi
 
-gh pr list --base "$HEAD_BRANCH" --state open --json number --jq '.[].number' \
-  | while read -r CHILD; do
-    [[ -z "$CHILD" ]] && continue
-    if gh pr edit "$CHILD" --base "$BASE_BRANCH" >/dev/null; then
-      echo "Retargeted PR #$CHILD: base $HEAD_BRANCH → $BASE_BRANCH" >&2
-    else
-      echo "WARNING: Failed to retarget PR #$CHILD from $HEAD_BRANCH to $BASE_BRANCH. It will be auto-closed when $HEAD_BRANCH is deleted." >&2
-    fi
-  done
-
 set +e
 MERGE_STATUS=$(
   bash "$WITH_CLEAN_SH" -- bash -c '
     PR_NUM="$1"
-    if gh pr merge "$PR_NUM" --rebase --delete-branch; then
+    if gh pr merge "$PR_NUM" --squash --delete-branch; then
       printf "%s\n" "ok"
       exit 0
     fi
