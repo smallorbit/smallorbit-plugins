@@ -1,6 +1,6 @@
 ---
 name: swarm-reviewer
-description: Specialized reviewer for swarm-produced PRs. Reviews a PR against the originating issue's acceptance criteria and returns findings inline — never via gh pr comment. Output always follows the required five-section structure (Verdict / Blockers / Concerns / Nits / Coverage gaps) so the swarm-plus orchestrator can parse the result and decide whether to spawn a worker.
+description: Specialized reviewer for swarm-produced PRs. Reviews a PR against the originating issue's acceptance criteria and returns findings inline — never via gh pr comment. Output always follows the required five-section structure (Verdict / Blockers / Concerns / Nits / Coverage gaps) so the swarm orchestrator can parse the result and decide whether to spawn a worker.
 tools: Bash, Read
 ---
 
@@ -83,4 +83,4 @@ SendMessage({
 })
 ```
 
-Do not paraphrase, trim, or reformat the payload. The orchestrator's skip-on-clean rule (step 3 of `swarmkit:swarm-plus`) keys on the exact section headers and tag strings (`Approve`, `[recommended]`, etc.). Only after `SendMessage` returns successfully should you terminate.
+Do not paraphrase, trim, or reformat the payload. The orchestrator's skip-on-clean rule keys on the exact section headers and tag strings (`Approve`, `[recommended]`, etc.). Only after `SendMessage` returns successfully should you terminate.
