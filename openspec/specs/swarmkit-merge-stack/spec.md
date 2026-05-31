@@ -6,25 +6,19 @@ Merge a stack of open swarm pull requests (`worktree-agent-*` head branches) int
 
 ## Requirements
 
-### Requirement: Inputs and Defaults
+### Requirement: Base Branch Derivation
 
-The skill SHALL accept an optional base-branch override and an optional dry-run flag, defaulting to the repository's default branch and to mutating execution respectively.
+The skill SHALL derive the target base branch from the base ref of the root PRs in the discovered stack, retargeting and merging the stack into that branch.
 
-#### Scenario: Default base branch
+#### Scenario: Base derived from root PRs
 
-- **WHEN** the user runs merge-stack without a base override
-- **THEN** the skill SHALL target the repository's default branch as the base to retarget and merge into
+- **WHEN** the stack's root PRs target a branch (typically the repository default branch, or a `feature/<slug>-<N>` epic branch)
+- **THEN** the skill SHALL use that branch as the base to retarget non-root PRs onto and to merge the stack into
 
-#### Scenario: Explicit base override
+#### Scenario: Plan preview before mutation
 
-- **WHEN** the user supplies a base-branch argument
-- **THEN** the skill SHALL retarget and merge the stack into that branch instead of the default
-
-#### Scenario: Dry-run preview
-
-- **WHEN** the user requests a dry run
-- **THEN** the skill SHALL print the merge plan
-- **AND** SHALL NOT retarget, merge, delete, or otherwise mutate any branch or PR
+- **WHEN** merge-stack has discovered the stack and built the merge plan
+- **THEN** the skill SHALL present the merge plan before proceeding to mutate any branch or PR
 
 ### Requirement: Preconditions
 
