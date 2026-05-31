@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Tag HEAD of main, push the tag, and create a GitHub Release. Single-command release for GitHub Flow — no release branch, no release PR. Derives the next semver from conventional commits since the last v* tag.
+description: Tag HEAD of main, push the tag, and create a GitHub Release. Single-command release for GitHub Flow — no release branch, no release PR. Derives a date-based calver tag (vYYYY.M.D[.N]) for calver repos, falling back to semver derived from conventional commits since the last v* tag.
 triggers:
   - "/ship"
   - "ship the release"
@@ -118,14 +118,19 @@ else
 fi
 ```
 
+**Derive `NEXT_TAG`** with a single `if/elif/else` over `$SCHEME` so an unexpected value fails loudly instead of leaving `NEXT_TAG` unset (which would otherwise create an empty-named tag at `git tag -a`).
+
 **Calver path** — the next tag is today's date, with a `.N` suffix when one or more releases already shipped today. The conventional-commit BUMP signal does not move a calver date, so it is ignored here.
 
 ```bash
 if [ "$SCHEME" = "calver" ]; then
   TODAY="v$(date +%Y).$(date +%-m).$(date +%-d)"
+  # Escape the dots in $TODAY — they are regex metacharacters in the grep below, so a tag
+  # like v2026X5Y30 must not false-match the literal date v2026.5.30
+  TODAY_ESC=$(printf '%s' "$TODAY" | sed 's/\./\\./g')
   # Highest existing tag for today, matching $TODAY or $TODAY.N (per-plugin --v tags excluded)
   HIGHEST_TODAY=$(git tag --list 'v*' | grep -v -- '--v' \
-    | grep -E "^${TODAY}(\.[0-9]+)?$" | sort -V | tail -1)
+    | grep -E "^${TODAY_ESC}(\.[0-9]+)?$" | sort -V | tail -1)
 
   if [ -z "$HIGHEST_TODAY" ]; then
     NEXT_TAG="$TODAY"
@@ -135,14 +140,13 @@ if [ "$SCHEME" = "calver" ]; then
     SUFFIX="${HIGHEST_TODAY##*.}"
     NEXT_TAG="${TODAY}.$((SUFFIX + 1))"
   fi
-  RATIONALE="calver release for $(date +%Y-%m-%d)$([ "$NEXT_TAG" != "$TODAY" ] && echo "; same-day .${NEXT_TAG##*.} increment")"
-fi
-```
+  # The [ ... ] test exits 1 in the first-of-day case ($NEXT_TAG == $TODAY); || true keeps the
+  # command substitution from aborting the run under set -e
+  RATIONALE="calver release for $(date +%Y-%m-%d)$([ "$NEXT_TAG" != "$TODAY" ] && echo "; same-day .${NEXT_TAG##*.} increment" || true)"
 
-**Semver path** — first-ever release defaults to `v0.1.0` (ignore the derived bump — there is no previous version to bump from). Otherwise increment the bumped component of `$LAST_TAG`.
-
-```bash
-if [ "$SCHEME" = "semver" ]; then
+# Semver path — first-ever release defaults to v0.1.0 (ignore the derived bump — there is
+# no previous version to bump from). Otherwise increment the bumped component of $LAST_TAG.
+elif [ "$SCHEME" = "semver" ]; then
   if [ -z "$LAST_TAG" ]; then
     NEXT_TAG="v0.1.0"
     RATIONALE="first release"
@@ -162,6 +166,9 @@ if [ "$SCHEME" = "semver" ]; then
     NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
     RATIONALE="$BUMP bump from $LAST_TAG (derived from conventional commits in $RANGE)"
   fi
+else
+  echo "ship: unknown tag scheme '$SCHEME' (expected 'calver' or 'semver')" >&2
+  exit 1
 fi
 ```
 
