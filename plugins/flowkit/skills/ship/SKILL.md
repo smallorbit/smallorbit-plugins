@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Tag HEAD of main, push the tag, and create a GitHub Release. Single-command release for GitHub Flow — no release branch, no release PR. Derives the next semver from conventional commits since the last v* tag.
+description: Tag HEAD of main, push the tag, and create a GitHub Release. Single-command release for GitHub Flow — no release branch, no release PR. Derives a date-based calver tag (vYYYY.M.D[.N]) for calver repos, falling back to semver derived from conventional commits since the last v* tag.
 triggers:
   - "/ship"
   - "ship the release"
@@ -73,9 +73,11 @@ if [ -n "$LAST_TAG" ]; then
 fi
 ```
 
-### 2. Derive the next semver
+### 2. Derive the next release tag
 
-Scan conventional-commit messages since `$LAST_TAG` (or all of `main` if there is no prior tag). Pick the highest signal:
+This repo's release tags are date-based calver (`vYYYY.M.D`, with a `.N` suffix for same-day re-releases, e.g. `v2026.5.29.2`), but the skill also supports plain semver (`vX.Y.Z`) repos. Detect the tag scheme from `$LAST_TAG` and branch — the calver path increments the date (and its same-day `.N` suffix), while the semver path keeps the conventional-commit bump arithmetic.
+
+First scan conventional-commit messages since `$LAST_TAG` (or all of `main` if there is no prior tag). Pick the highest signal:
 
 - Any `BREAKING CHANGE:` token in a commit body, or any `!:` after the type (e.g. `feat!:`, `fix!:`) → **major** bump
 - Otherwise any `feat` type → **minor** bump
@@ -98,29 +100,75 @@ elif printf '%s\n' "$COMMITS" | grep -qE '^feat(\([^)]+\))?:'; then
 fi
 ```
 
-If there is no prior `v*` tag, the first-ever release defaults to `v0.1.0` (ignore the derived bump — there is no previous version to bump from).
-
-Otherwise compute the next tag by incrementing the bumped component of `$LAST_TAG`:
+Decide the scheme. A repo is calver if `$LAST_TAG` is a calver tag, or — when there is no `$LAST_TAG` — if the repo's existing `v*` tags (excluding per-plugin `--v` tags) are calver. Otherwise it is semver.
 
 ```bash
-if [ -z "$LAST_TAG" ]; then
-  NEXT_TAG="v0.1.0"
-  RATIONALE="first release"
-else
-  # Strip leading 'v' and split into MAJOR.MINOR.PATCH
-  VERSION="${LAST_TAG#v}"
-  MAJOR="${VERSION%%.*}"
-  REST="${VERSION#*.}"
-  MINOR="${REST%%.*}"
-  PATCH="${REST#*.}"
+CALVER_RE='^v[0-9]{4}\.[0-9]+\.[0-9]+(\.[0-9]+)?$'
 
-  case "$BUMP" in
-    major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-    minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-    patch) PATCH=$((PATCH + 1)) ;;
-  esac
-  NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-  RATIONALE="$BUMP bump from $LAST_TAG (derived from conventional commits in $RANGE)"
+if [ -n "$LAST_TAG" ]; then
+  [[ "$LAST_TAG" =~ $CALVER_RE ]] && SCHEME="calver" || SCHEME="semver"
+else
+  # No prior tag: infer scheme from the newest existing release tag, if any
+  PROBE_TAG=$(git tag --list 'v*' | grep -v -- '--v' | sort -V | tail -1)
+  if [ -n "$PROBE_TAG" ] && [[ "$PROBE_TAG" =~ $CALVER_RE ]]; then
+    SCHEME="calver"
+  else
+    SCHEME="semver"
+  fi
+fi
+```
+
+**Derive `NEXT_TAG`** with a single `if/elif/else` over `$SCHEME` so an unexpected value fails loudly instead of leaving `NEXT_TAG` unset (which would otherwise create an empty-named tag at `git tag -a`).
+
+**Calver path** — the next tag is today's date, with a `.N` suffix when one or more releases already shipped today. The conventional-commit BUMP signal does not move a calver date, so it is ignored here.
+
+```bash
+if [ "$SCHEME" = "calver" ]; then
+  TODAY="v$(date +%Y).$(date +%-m).$(date +%-d)"
+  # Escape the dots in $TODAY — they are regex metacharacters in the grep below, so a tag
+  # like v2026X5Y30 must not false-match the literal date v2026.5.30
+  TODAY_ESC=$(printf '%s' "$TODAY" | sed 's/\./\\./g')
+  # Highest existing tag for today, matching $TODAY or $TODAY.N (per-plugin --v tags excluded)
+  HIGHEST_TODAY=$(git tag --list 'v*' | grep -v -- '--v' \
+    | grep -E "^${TODAY_ESC}(\.[0-9]+)?$" | sort -V | tail -1)
+
+  if [ -z "$HIGHEST_TODAY" ]; then
+    NEXT_TAG="$TODAY"
+  elif [ "$HIGHEST_TODAY" = "$TODAY" ]; then
+    NEXT_TAG="${TODAY}.1"
+  else
+    SUFFIX="${HIGHEST_TODAY##*.}"
+    NEXT_TAG="${TODAY}.$((SUFFIX + 1))"
+  fi
+  # The [ ... ] test exits 1 in the first-of-day case ($NEXT_TAG == $TODAY); || true keeps the
+  # command substitution from aborting the run under set -e
+  RATIONALE="calver release for $(date +%Y-%m-%d)$([ "$NEXT_TAG" != "$TODAY" ] && echo "; same-day .${NEXT_TAG##*.} increment" || true)"
+
+# Semver path — first-ever release defaults to v0.1.0 (ignore the derived bump — there is
+# no previous version to bump from). Otherwise increment the bumped component of $LAST_TAG.
+elif [ "$SCHEME" = "semver" ]; then
+  if [ -z "$LAST_TAG" ]; then
+    NEXT_TAG="v0.1.0"
+    RATIONALE="first release"
+  else
+    # Strip leading 'v' and split into MAJOR.MINOR.PATCH
+    VERSION="${LAST_TAG#v}"
+    MAJOR="${VERSION%%.*}"
+    REST="${VERSION#*.}"
+    MINOR="${REST%%.*}"
+    PATCH="${REST#*.}"
+
+    case "$BUMP" in
+      major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+      minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+      patch) PATCH=$((PATCH + 1)) ;;
+    esac
+    NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+    RATIONALE="$BUMP bump from $LAST_TAG (derived from conventional commits in $RANGE)"
+  fi
+else
+  echo "ship: unknown tag scheme '$SCHEME' (expected 'calver' or 'semver')" >&2
+  exit 1
 fi
 ```
 
@@ -129,17 +177,17 @@ fi
 Show the proposed tag and rationale, then ask the operator to confirm or override:
 
 ```
-Proposed release tag: v1.4.0
-Rationale: minor bump from v1.3.2 (derived from conventional commits in v1.3.2..HEAD)
-Commits since v1.3.2:
+Proposed release tag: v2026.5.29.2
+Rationale: calver release for 2026-05-29; same-day .2 increment
+Commits since v2026.5.29.1:
   feat(swarmkit): add idle notification (#988)
   fix(flowkit): handle empty diff in commit skill (#989)
   chore(deps): bump gh CLI version (#990)
 
-Proceed with v1.4.0? (yes / override <vX.Y.Z> / no)
+Proceed with v2026.5.29.2? (yes / override <tag> / no)
 ```
 
-If the operator overrides, validate the override matches `^v[0-9]+\.[0-9]+\.[0-9]+$` (no pre-release suffixes — keep it simple) and use it instead. If they say "no" or abort, stop without mutating anything.
+If the operator overrides, validate the override matches either the semver shape `^v[0-9]+\.[0-9]+\.[0-9]+$` or the calver shape `^v[0-9]{4}\.[0-9]+\.[0-9]+(\.[0-9]+)?$` (no pre-release suffixes — keep it simple) and use it instead. If they say "no" or abort, stop without mutating anything.
 
 ### 4. Create and push the annotated tag
 
