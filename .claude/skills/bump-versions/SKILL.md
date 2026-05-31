@@ -125,7 +125,7 @@ RESULT=$(bash plugins/flowkit/skills/push-or-pr/scripts/push_or_pr.sh \
   --prefix "chore/bump-plugins" \
   --title "chore(plugins): bump $BUMPED_LIST" \
   --body "$PR_BODY" \
-  --base "develop")
+  --base "main")
 
 PUSH_RESULT=$(printf '%s' "$RESULT" | jq -r '.push_result')
 NEW_BRANCH=$(printf '%s' "$RESULT" | jq -r '.new_branch // empty')
@@ -134,18 +134,19 @@ PR_URL=$(printf '%s' "$RESULT" | jq -r '.pr_url // empty')
 
 Branch on `$PUSH_RESULT`:
 
-- `pr` — push-or-pr opened `$PR_URL`. Self-review the PR, then merge it (`/flowkit:merge-pr` from `$NEW_BRANCH`). Once merged, switch to the protected branch and pull (`git checkout <branch> && git pull origin <branch>`), then continue to Step 5 — tags now point at the squash-merged commit, not the original feature-branch commit.
+- `pr` — push-or-pr opened `$PR_URL`. Self-review the PR, then merge it (`/flowkit:merge-pr` from `$NEW_BRANCH`). Once merged, switch back to `main` and pull (`git checkout main && git pull origin main`), then continue to Step 5 — tags now point at the squash-merged commit, not the original feature-branch commit.
 - `noop` — nothing changed. Stop and report.
 
 ### Step 5 — Create git tags
 
-After the bump commit is on origin's protected branch (via merged PR), create a tag for each bumped plugin pointing at the current branch tip:
+After the bump commit is on `main` (via merged PR), create a tag for each bumped plugin pointing at the merged commit, then push each tag to origin:
 
 ```bash
 git tag {plugin-name}--v{new-version}
+git push origin {plugin-name}--v{new-version}
 ```
 
-Do NOT push tags — release publishes them as part of its tag-push step (step 8), so bump-versions intentionally creates the tags locally only.
+Push every per-plugin tag here — `flowkit:ship` only pushes the single calver release tag, so bump-versions owns publishing the per-plugin tags it creates.
 
 ### Step 6 — Detect new marketplace entries
 
@@ -177,7 +178,7 @@ Bumped:
   swarmkit  1.0.0 → 2.0.0  (tag: swarmkit--v2.0.0)
   flowkit   1.0.0 → 1.1.0  (tag: flowkit--v1.1.0)
 
-Tags created locally. Release publishes them via step 8 — no manual push needed.
+Per-plugin tags pushed to origin. `flowkit:ship` will publish the calver release tag separately.
 ```
 
 If Step 6 detected new plugin entries, append a reminder block:
