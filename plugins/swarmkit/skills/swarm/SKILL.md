@@ -57,7 +57,7 @@ else:                                              EPIC_MODE=on
 
 **Empty-board edge case (loop mode only)**: defer the inline cut until the first cycle that selects ≥1 issue. If the board is clear at loop entry, announce "Board is clear" and exit without cutting any branch.
 
-**Cross-pin defensive guard**: before cutting, read `claude.flowkit.prBase`. If it is set AND starts with `feature/` AND the value differs from the branch about to be cut, exit with:
+**Cross-pin defensive guard**: the durable enforcement lives in `preflight.sh` — when invoked with `--scope-pr-base`, it reads `claude.flowkit.prBase` and, if the pin is set AND starts with `feature/` AND differs from the branch about to be pinned, exits non-zero with the guidance message below. This protects any direct caller of `preflight --scope-pr-base`, not just this prose path. The expected message is:
 
 > `swarm: an epic is already pinned (\`<existing>\`); pass \`--no-epic\` to swarm against main, or \`--epic <existing-slug>\` to reuse the pinned branch.`
 
@@ -74,6 +74,8 @@ else
   git checkout -B "$EPIC_BRANCH" origin/main
   git push -u origin "$EPIC_BRANCH"
 fi
+# Setup's `preflight.sh --scope-pr-base` re-asserts this pin under the
+# cross-pin guard; this inline write keeps the resume path consistent.
 git config claude.flowkit.prBase "$EPIC_BRANCH"
 ```
 
@@ -443,6 +445,18 @@ For PRs with no fix round (clean reviewer verdict), no further action is needed.
 
 Run `/clean-worktrees` to remove agent worktrees and orphaned branches. This frees local `worktree-agent-*` branches so the merge step can use `--delete-branch` without conflicts.
 
+Then run `scripts/teardown.sh` to clear the `claude.flowkit.prBase` pin set during Setup. Leaving it set would cause subsequent PR creation (even in unrelated workflows) to target the wrong base, so this clearance is critical. Mirror the Loop-Mode teardown invocation pattern — in epic mode pass `--keep-pr-base` so the epic branch and pin survive for the final epic-to-`main` ship step; off epic mode, unset unconditionally:
+
+```bash
+if [ "$EPIC_MODE" = "on" ]; then
+  "$SKILL_DIR/scripts/teardown.sh" --base "$BASE" --keep-pr-base
+else
+  "$SKILL_DIR/scripts/teardown.sh" --base "$BASE"
+fi
+```
+
+Parse the returned JSON and confirm `base_restored: true`. If `config_unset: false` and `config_kept_for_epic` is absent, the pin was already clear — this is not a failure. When `config_kept_for_epic: true` appears, the pin is intentionally preserved for the ship-epic step; announce the same epic-handoff guidance as Loop Mode's Teardown.
+
 ### 8. Report
 
 ```
@@ -481,7 +495,7 @@ Follow `gh-fetch-issues` to fetch open issues (apply label filter if given), the
 - No unresolved dependencies within the batch
 - Present the batch in the standard next-issue table format; note any deferred issues and why
 
-If no open issues remain, announce "Board is clear" and exit.
+If no open issues remain, announce "Board is clear" and fall through to the Teardown section (do not `exit` here — the pin must be cleared first).
 
 **Step 2 — Swarm**
 
@@ -498,7 +512,7 @@ Run the one-shot swarm flow above on the batch. Independent issues target `$BASE
 ──────────────────────────────────────────────
 ```
 
-Proceed immediately to the next cycle after printing the checkpoint summary. The loop halts only on unrecoverable failures: an agent crash with no PR produced.
+Proceed immediately to the next cycle after printing the checkpoint summary. The loop halts only on unrecoverable failures: an agent crash with no PR produced. When the loop halts for any reason — board clear, user stop, or unrecoverable failure — it MUST fall through to the Teardown section below before terminating. Never `exit` directly from inside the loop; the Teardown is the single exit funnel that clears the pin.
 
 ### Teardown
 
@@ -542,6 +556,8 @@ When an issue fails at any point:
 2. Mark those as blocked; continue with all unblocked issues
 3. Report blocked issues at each checkpoint
 
-**Unrecoverable failures** (exit loop immediately):
+**Unrecoverable failures** (halt the loop, then run Teardown before terminating):
 - Agent produced no PR (crash, timeout, no push)
 - `$BASE` branch deleted or corrupted externally
+
+Even on an unrecoverable failure, the loop does not exit in place — it breaks out of the cycle and proceeds to the Teardown section so `scripts/teardown.sh` always runs and the `claude.flowkit.prBase` pin is cleared (or preserved via `--keep-pr-base` in epic mode). This is the trap/finally equivalent: there is no early-exit path that bypasses teardown.
