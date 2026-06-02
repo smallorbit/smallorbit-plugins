@@ -141,7 +141,7 @@ The canonical release sequence from this point is three steps, run by the operat
 
 The epic→main promotion is a single squash-merge:
 
-1. Open the `feature/<slug>-<N> → main` PR with aggregated `Closes #N` (already carried by each child PR's squash commit message).
+1. Open the `feature/<slug>-<N> → main` PR with aggregated `Closes #N` (already carried by each child PR's squash commit message). Emit one `Closes #N` token per line — GitHub only parses the first closing reference on a line, so `Closes #A #B #C` leaves `#B` and `#C` open (see `plugins/_shared/pr-body.md` for the full footer spec).
 2. Squash-merge (one final commit on `main` summarizing the epic).
 3. Unset `claude.flowkit.prBase`.
 4. Delete the feature branch on origin.
