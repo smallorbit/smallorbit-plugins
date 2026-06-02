@@ -90,7 +90,7 @@ For the swarm path, each `##` heading in `tasks.md` becomes one GitHub issue. Th
 
 ## Spec
 
-The behavioral spec for this plugin lives at `openspec/specs/opsx-bridge/spec.md` (within the plugin) and is mirrored in the repo-level baseline at the root `openspec/specs/opsx-bridge/spec.md`.
+The behavioral spec for this plugin lives at `plugins/opsx-bridge/openspec/specs/opsx-bridge/spec.md`.
 
 ## See also
 
