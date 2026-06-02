@@ -636,3 +636,15 @@ ps aux \
 ```
 
 Replace `<team-name>` with the team name passed to `TeamDelete`. Run this sweep immediately after `TeamDelete` returns — the zombie processes consume no dispatch but do hold open file descriptors and tmux panes.
+
+## Epic teardown — clear the prBase pin
+
+Step 6 sets the session-scoped pin `git config claude.flowkit.prBase "$EPIC"` unconditionally when an epic is cut, so every member's `flowkit:open-pr` retargets to the epic branch. That pin is local git config — it survives the session and silently redirects the base branch of every later PR unless it is cleared. Tearing the team down via `TeamDelete` MUST also clear the pin; do not rely on the operator running the documented `git config --unset` by hand.
+
+Run this immediately alongside the zombie-subprocess sweep above, whenever the epic-mode crew is torn down (mirrors swarmkit's `teardown.sh`, which conditionally unsets the same key on loop-mode teardown):
+
+```bash
+git config --unset claude.flowkit.prBase 2>/dev/null || true
+```
+
+The `--unset` is a no-op (and the `|| true` swallows the non-zero exit) when no pin is set — safe to run even for non-epic or discovery crews. After clearing, the next `flowkit:open-pr` falls back to the repo's default base branch.
