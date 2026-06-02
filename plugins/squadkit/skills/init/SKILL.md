@@ -48,7 +48,7 @@ If the user picks `Cancel`, exit with a one-line message naming the existing fil
 
 ### 3. Interview
 
-Ask each question via `AskUserQuestion`. **No stack presets, no auto-detection** — the user types the exact command. An empty answer is valid for `verify.typecheck`, `verify.test`, `verify.lint`, and `install` (treated as "this repo has no such step"). For `baseBranch`, default to `develop` if the user accepts the default.
+Ask each question via `AskUserQuestion`. **No stack presets, no auto-detection** — the user types the exact command. An empty answer is valid for `verify.typecheck`, `verify.test`, `verify.lint`, and `install` (treated as "this repo has no such step"). For `baseBranch`, default to `main` if the user accepts the default.
 
 Ask the five questions sequentially, surfacing the running config back to the user after each answer so they see what's accumulated.
 
@@ -58,9 +58,9 @@ Ask the five questions sequentially, surfacing the running config back to the us
 | 2 | `verify.test` | `Command to run the test suite? (e.g. \`npm test\`, \`pytest\`, \`cargo test\`. Empty = no test step.)` | none |
 | 3 | `verify.lint` | `Command to run the linter? (e.g. \`npm run lint\`, \`ruff check\`, \`cargo clippy\`. Optional — empty = no lint step. The reviewer uses this to scope errors to PR-touched files.)` | none |
 | 4 | `install` | `Command to install dependencies in a fresh worktree? (e.g. \`npm install\`, \`pip install -e .\`. Empty = no install step.)` | none |
-| 5 | `baseBranch` | `Default base branch for PRs opened by squad members?` | `develop` |
+| 5 | `baseBranch` | `Default base branch for PRs opened by squad members?` | `main` |
 
-Trim whitespace from every answer. Treat the literal string `develop` as the accepted default if the user confirms question 5 without typing; for any other value of `baseBranch`, accept what the operator provides verbatim — do not validate it against the remote. Omit `verify.lint` from the written JSON entirely if the user leaves it blank — the field is optional and downstream roles check for its presence before using it.
+Trim whitespace from every answer. Treat the literal string `main` as the accepted default if the user confirms question 5 without typing; for any other value of `baseBranch`, accept what the operator provides verbatim — do not validate it against the remote. Omit `verify.lint` from the written JSON entirely if the user leaves it blank — the field is optional and downstream roles check for its presence before using it.
 
 ### 4. Write the config
 

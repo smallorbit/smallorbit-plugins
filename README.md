@@ -101,7 +101,7 @@ swarmkit spawns one isolated-worktree agent per ready issue, each on its own `wo
 ```
 Cycle 1 — #102 spawned (no unmet deps).
 
-  #210 feat(notes): extend Note schema with tags field        → develop
+  #210 feat(notes): extend Note schema with tags field        → main
 
 Cycle 2 — #103, #104, #105 spawned (deps on #102 satisfied).
 
