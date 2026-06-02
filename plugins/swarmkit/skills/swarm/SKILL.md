@@ -296,7 +296,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
    git add <files> && git commit -m "<type>(<scope>): <description>"
 4. Push the branch:
    git push -u origin worktree-agent-<issue>
-5. Create PR targeting the appropriate base — `main` (or the pinned `feature/<slug>-<N>` branch via `claude.flowkit.prBase`) for independent issues, `worktree-agent-<dependency-issue>` for dependent ones. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` bullets from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
+5. Create PR targeting the appropriate base — `main` (or the pinned `feature/<slug>-<N>` branch via `claude.flowkit.prBase`) for independent issues, `worktree-agent-<dependency-issue>` for dependent ones. The body MUST be a richer summary, not just `Closes #<issue>` — synthesize the `## Summary` sentences from the issue's acceptance criteria and your diff, and describe the `## Test plan` in terms of those acceptance criteria. Fill in the angle-bracket placeholders; do not copy them literally.
 
    <!-- include: plugins/_shared/pr-body.md -->
    <!-- Summary-content rules derive from the canonical doc; `## Changes` is intentionally omitted for single-issue swarm PRs — Summary is sufficient when the scope is one issue. -->
@@ -305,7 +305,7 @@ Each agent prompt MUST include these **workflow steps** (in order):
      --title "<type>(<scope>): <description>" \
      --body "$(cat <<'EOF'
    ## Summary
-   <1–3 bullets synthesizing what was changed, derived from the issue acceptance criteria and the diff>
+   <1–3 sentences (no bullets) synthesizing what was changed, derived from the issue acceptance criteria and the diff>
 
    ## Test plan
    <how to verify the changes satisfy the acceptance criteria>
