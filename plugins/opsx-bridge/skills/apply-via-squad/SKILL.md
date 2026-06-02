@@ -152,7 +152,7 @@ spawn-team owns the rest: epic-branch cut (inline `git`/`gh` block since flowkit
 After the crew's PRs land, reconcile `tasks.md`. Detect completion by matching merged PRs for issues labeled `opsx-change:<name>`:
 
 ```bash
-gh pr list --search "label:opsx-change:<name> is:merged" --state merged \
+gh pr list --search "label:opsx-change:<name> is:merged" --state merged --limit 200 \
   --json number,title,body
 ```
 
