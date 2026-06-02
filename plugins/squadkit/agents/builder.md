@@ -34,7 +34,9 @@ If the lead returns `revise:`, update the contract and resend before any impleme
 5. **Final verify.** Before opening the PR, run the full verify gate end-to-end: `${install}` (if applicable), `${verify.typecheck}`, `${verify.test}`. All must pass. Do not open a PR with red gates.
 
    **When verify commands are unconfigured.** If `.squadkit/config.json` is absent or a given `${verify.*}` key is null, the command does not exist for this repo — do not invent one or treat the gap as a blocker. Fall back to a manual coherence check appropriate to the changed files (for a docs/markdown/SKILL.md repo this is reading the diff for self-consistency and running any grep gates the blueprint named) and note in your completion-ack that automated verify was unconfigured.
-6. **Open the PR** against `${baseBranch}` following the canonical PR body shape (Summary / Changes / Test plan + issue footer).
+6. **Open the PR** against `${baseBranch}`. The body shape, footer grammar (including the one-token-per-line `Closes` rule), and worked example are defined in [`plugins/_shared/pr-body.md`](../../_shared/pr-body.md) — that is the single source of truth.
+
+   <!-- include: plugins/_shared/pr-body.md -->
 7. **Notify the lead.** Deliver the PR URL. Wait for ack and reviewer verdict.
 8. **Address review.** If the reviewer returns blockers, fix them in the same branch, re-run the verify gate, push, and notify the lead again.
 
