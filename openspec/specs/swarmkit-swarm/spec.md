@@ -51,8 +51,8 @@ The skill SHALL compute whether to run in epic mode before any setup work, and w
 
 #### Scenario: Conflicting pinned epic guard
 
-- **WHEN** a pinned base is already set to a different epic branch than the one about to be cut
-- **THEN** the skill SHALL refuse to run and instruct the operator to pass `--no-epic` or reuse the pinned slug
+- **WHEN** the preflight is invoked to scope the pinned base and a pinned base is already set to a different epic branch (one starting with `feature/`) than the one about to be pinned
+- **THEN** the preflight SHALL refuse to run, exit non-zero, and instruct the operator to pass `--no-epic` or reuse the pinned slug — the guard is enforced in the preflight script so any direct caller is protected
 
 #### Scenario: Empty board at loop entry
 
@@ -244,7 +244,7 @@ In loop mode the skill SHALL repeatedly select a safely-parallelizable batch and
 #### Scenario: Unrecoverable failure halts the loop
 
 - **WHEN** an agent crashes producing no PR, or the base branch is deleted or corrupted externally
-- **THEN** the skill SHALL exit the loop immediately
+- **THEN** the skill SHALL halt the loop and route through teardown before terminating so the pinned base is cleared, never exiting in place
 
 ### Requirement: Cleanup and teardown
 
@@ -259,6 +259,11 @@ The skill SHALL clean up agent worktrees and orphaned branches after a run and r
 
 - **WHEN** teardown runs and epic mode was off
 - **THEN** the skill SHALL restore the base branch and unset the pinned base configuration
+
+#### Scenario: Teardown runs on every exit path
+
+- **WHEN** a run ends in one-shot mode, or a loop ends by board-clear, user stop, or unrecoverable failure
+- **THEN** the skill SHALL run teardown before terminating so the pinned base configuration is always cleared (or preserved via the epic-keep flag in epic mode) — no exit path bypasses teardown
 
 #### Scenario: Epic branch preserved
 

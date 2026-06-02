@@ -77,6 +77,15 @@ if gh auth status >/dev/null 2>&1; then
 fi
 
 if [[ "$SCOPE_PR_BASE" -eq 1 ]]; then
+  # Cross-pin defensive guard — runs alongside the durable write so any direct
+  # caller of `preflight --scope-pr-base` is protected, not just the SKILL prose.
+  # Refuse to overwrite an existing epic pin that differs from the branch about
+  # to be pinned.
+  existing_pin="$(git config --local --get claude.flowkit.prBase 2>/dev/null || true)"
+  if [[ -n "$existing_pin" && "$existing_pin" == feature/* && "$existing_pin" != "$BASE" ]]; then
+    echo "swarm: an epic is already pinned (\`$existing_pin\`); pass \`--no-epic\` to swarm against main, or \`--epic <existing-slug>\` to reuse the pinned branch." >&2
+    exit 1
+  fi
   if ! git config --local claude.flowkit.prBase "$BASE" >/dev/null 2>&1; then
     echo "preflight: failed to set claude.flowkit.prBase via 'git config --local'" >&2
     exit 1
