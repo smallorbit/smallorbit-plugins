@@ -46,7 +46,6 @@ plugins/opsx-bridge/
   openspec/
     specs/opsx-bridge/
       spec.md
-      REFERENCES.md
 ```
 
 **Why two top-level skills, not one with a flag**: keeps the slash-command surface explicit (operator types `/opsx-bridge:apply-via-swarm`, no `--mode swarm` flag to forget). Matches how `/swarmkit:swarm` and `/swarmkit:swarm` cohabit. Sub-skill `read-change` is internal and not user-facing — it parses the change directory and returns structured data.
@@ -147,6 +146,18 @@ Bridge never auto-retries — failure is a signal for human attention.
 - **[Trade-off]** Bridge adds latency — one extra layer between operator intent and worker dispatch. → **Mitigation**: bridge logic is read-only parse + delegate; the actual work happens in spawn-team / swarm. Bridge overhead is single-digit seconds.
 
 - **[Trade-off]** Operator must know which dispatcher to pick. → **Mitigation**: bridge SKILL.md includes a "which to pick" decision table at the top; mirrors how operators already pick squad vs swarm today.
+
+### D9: Swarm single-parent linearization
+
+swarm's stacked-PR model is **single-parent**: each dependent agent branches from exactly one parent's branch tip (`git checkout -b worktree-agent-<this> origin/worktree-agent-<dependency>`) and its PR targets that one parent. swarm builds the stack from the native `blockedBy` edges it reads off the issues — not from the order issue numbers arrive in — and has no multi-parent/diamond handling.
+
+An OpenSpec change's true dependency graph can be a **diamond** (a section depending on two others — a fan-in), which cannot be wired natively as-is: swarm would read two `blockedBy` edges on the fan-in node and hit the undocumented diamond case.
+
+**Decision: linearize the edges that get wired, not just the dispatch order.** Take the union edge set, topologically sort the section-issues, and derive a **linear chain** where each issue is blocked_by *only its immediate predecessor* in that order. Wire those chain edges as the native `blockedBy` connection. swarm then reads exactly one parent per node and produces a clean single-parent stack.
+
+This is correctness-preserving when sections touch disjoint files (the common case — sections map to distinct capabilities/areas): in a linear stack each branch transitively contains all its true ancestors' work, so every original dependency is satisfied through the chain. It only ever over-constrains ordering, never under-constrains it.
+
+Discovered dogfooding this plugin: the opsx-bridge change graph had #993 (section 5, capability files) depending on **both** #991 (apply-via-squad) and #992 (apply-via-swarm) — a diamond fan-in. Linearizing to `#990 → #991 → #992 → #993 → #994 → #995` and wiring each node blocked_by only its predecessor lets swarm chain each as a single-parent stack while still respecting every original blocked-by edge transitively.
 
 ### D8: No-specs fallback
 

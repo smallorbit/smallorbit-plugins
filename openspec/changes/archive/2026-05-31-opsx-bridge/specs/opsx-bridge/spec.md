@@ -1,10 +1,4 @@
-# opsx-bridge
-
-## Purpose
-
-Bridge a single apply-ready OpenSpec change to one of two execution surfaces — a coordinated squadkit crew or a swarmkit swarm — without modifying squadkit, swarmkit, opsx, or the change proposal. The bridge resolves a change by name, validates apply-readiness, resolves the target base branch through a documented precedence chain, dispatches through each dispatcher's public flag surface, and reconciles `tasks.md` against merged PRs afterward. An internal `read-change` sub-skill parses the change directory into the single structured representation both dispatch paths consume.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Change discovery by name
 
@@ -156,6 +150,20 @@ The `apply-via-swarm` skill SHALL compute blocked-by edges between section-issue
 
 - **WHEN** the computed edge set contains a cycle
 - **THEN** the bridge SHALL refuse to dispatch and report the cycle
+
+### Requirement: Swarm path single-parent linearization
+
+Because `/swarmkit:swarm`'s stacked-PR model is single-parent (each dependent agent branches from exactly one parent and has no diamond/fan-in handling), the `apply-via-swarm` skill SHALL wire a linearized blocked-by chain rather than the raw union edge set: each section-issue is wired blocked-by only its immediate predecessor in the topological order.
+
+#### Scenario: Diamond fan-in in the dependency graph
+
+- **WHEN** the union edge set contains a fan-in (one section blocked by two or more others)
+- **THEN** the bridge derives a linear chain over the topological order and wires each section-issue blocked-by only its immediate predecessor, so `/swarmkit:swarm` reads exactly one parent per node
+
+#### Scenario: Linearization preserves original dependencies
+
+- **WHEN** the bridge replaces the union edges with the linear chain
+- **THEN** every original blocked-by edge remains satisfied transitively (a node's predecessor chain contains all its true ancestors), and the chain only over-constrains ordering, never under-constrains it
 
 ### Requirement: Swarm path topological dispatch
 

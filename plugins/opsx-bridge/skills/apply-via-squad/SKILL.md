@@ -116,7 +116,7 @@ EPIC=(--epic "<change-name>")
 [ -n "$NO_EPIC" ] && EPIC=()
 ```
 
-**Known limitation — `--no-epic` cannot fully suppress spawn-team's epic prompt.** squadkit exposes no `--no-epic` flag. When `--epic` is omitted, spawn-team's documented behavior is to *prompt* for epic confirmation (an `AskUserQuestion`) rather than silently skip the epic. `--mode none` sets the member permission mode only — it does NOT suppress that confirmation prompt. So under `--no-epic` the operator will still see spawn-team's epic-confirmation prompt; the intended contract is that they answer it "use base branch" to keep the crew on the resolved base. A future squadkit `--no-epic` flag would let the bridge pass through and close this loop; until then this is a known, documented interaction the bridge cannot eliminate from its side.
+**Known limitation.** squadkit exposes no `--no-epic` flag, so when the bridge omits `--epic`, spawn-team still *prompts* for epic confirmation (`--mode none` sets only the member permission mode, not this prompt). Under `--no-epic` the operator answers that prompt "use base branch" to keep the crew on the resolved base. A future squadkit `--no-epic` flag would let the bridge pass through and close this loop.
 
 ### 6. Dispatch to spawn-team
 

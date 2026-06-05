@@ -22,7 +22,7 @@ None. The bridge is purely additive — `squadkit-spawn-team` and `swarmkit` spe
 
 ## Impact
 
-- **New plugin**: `plugins/opsx-bridge/` with `plugin.json`, two top-level skills, one sub-skill, OpenSpec spec, REFERENCES.md.
+- **New plugin**: `plugins/opsx-bridge/` with `plugin.json`, two top-level skills, one sub-skill, OpenSpec spec.
 - **Marketplace metadata**: needs to be added to `marketplaces/smallorbit-plugins.json` (or equivalent) so the plugin can be installed.
 - **No modifications** to opsx, squadkit, or swarmkit skills/specs.
 - **GitHub issue mapping**: the swarm path needs a convention for linking `tasks.md` items to GH issues — design.md picks the approach.
