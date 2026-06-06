@@ -26,7 +26,6 @@ Claude Code plugins for plan, execute, and ship — each keeping you at the hand
 | **[polishkit](./plugins/polishkit/)** | `/plugin install polishkit@smallorbit-plugins` | Appraise code quality, sweep dead code and cruft, and apply cross-cutting fixes |
 | **[flowkit](./plugins/flowkit/)** | `/plugin install flowkit@smallorbit-plugins` | Manage the full git lifecycle from branch to release |
 | **[sessionkit](./plugins/sessionkit/)** | `/plugin install sessionkit@smallorbit-plugins` | Session continuity, context handoffs, planning, and meta-learning. Map work-in-flight into an approved task chain with `/roadmap` and drive it to completion with `/drive`. |
-| **[opsx-bridge](./plugins/opsx-bridge/)** | `/plugin install opsx-bridge@smallorbit-plugins` | Dispatch an OpenSpec change's implementation to a coordinated squad (`/apply-via-squad`) or a parallel swarm (`/apply-via-swarm`) — the multi-agent alternative to stock single-agent `/opsx:apply`. See the plugin's [which-dispatcher-to-pick table](./plugins/opsx-bridge/README.md#which-dispatcher-to-pick). |
 
 ### Utilities & Productivity
 
@@ -154,17 +153,6 @@ The development-lifecycle plugins form a complete loop from idea to release:
 Each plugin's README describes how it pairs with the others.
 
 See each plugin's README for detailed usage.
-
-## Spec-driven workflow with opsx-bridge
-
-If you author work as [OpenSpec](https://github.com/Fission-AI/OpenSpec) changes rather than GitHub epics, **opsx-bridge** connects that workflow to the same multi-agent dispatchers. Once a change is proposed with `/opsx:propose` and ready to implement, the bridge drives it through a coordinated crew or a parallel swarm instead of the stock single-agent `/opsx:apply` loop:
-
-```
-/opsx-bridge:apply-via-squad <change>     # squadkit:spawn-team — one architect coordinating cross-capability work
-/opsx-bridge:apply-via-swarm <change>     # swarmkit:swarm — parallel agents, one per tasks.md section
-```
-
-The bridge is purely additive — it leaves opsx, squadkit, and swarmkit untouched, calling them through their existing skill surface. For the full "which dispatcher to pick" decision table, see the [opsx-bridge README](./plugins/opsx-bridge/README.md#which-dispatcher-to-pick).
 
 ## Conventions
 

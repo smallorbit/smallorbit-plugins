@@ -38,11 +38,6 @@
       "name": "vaultkit",
       "source": "./plugins/vaultkit",
       "description": "Obsidian vault skills for Claude Code. Read, search, and edit notes, manage projects, capture decisions, and archive conversations — all via the Obsidian CLI."
-    },
-    {
-      "name": "opsx-bridge",
-      "source": "./plugins/opsx-bridge",
-      "description": "Bridge OpenSpec changes to squadkit/swarmkit dispatchers. Drive /squadkit:spawn-team or /swarmkit:swarm from a single openspec/changes/<name>/ proposal — additive only, leaves opsx/squadkit/swarmkit untouched."
     }
   ]
 }
