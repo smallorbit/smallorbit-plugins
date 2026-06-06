@@ -1,6 +1,6 @@
 ---
 name: spec-baseline
-description: Derive an OpenSpec spec.md from an existing codebase (not a proposed change), produce a companion REFERENCES.md that cites every requirement and scenario back to specific file:line, and optionally spawn a read-only audit agent to verify those citations are accurate. Use when baselining legacy or existing code as a specification, or when you want human-reviewable evidence that a spec reflects real behavior.
+description: Derive an OpenSpec spec.md from an existing codebase (not a proposed change), and optionally produce a companion REFERENCES.md that cites every requirement and scenario back to specific file:line (with an optional read-only audit agent to verify those citations). Use when baselining legacy or existing code as a specification; add REFERENCES.md when you want human-reviewable evidence that a spec reflects real behavior.
 triggers:
   - "baseline spec for"
   - "spec from legacy code"
@@ -46,6 +46,25 @@ If the target is a **legacy codebase** being compared to a new one, write the sp
 stack-agnostically: no framework names, no component class names, no library-specific
 APIs. Behaviors are expressed in domain terms (what the system does, not how).
 
+Also decide **whether to produce `REFERENCES.md`** (Step 4) — it is opt-in, not automatic.
+
+### Choosing whether to produce REFERENCES.md
+
+`REFERENCES.md` is human-reviewable evidence: it cites every requirement and scenario
+back to `file:line` so a reviewer can verify the spec reflects real behavior. It is
+valuable when that evidence is worth the upkeep, and pure overhead when it is not.
+
+| Produce REFERENCES.md | Skip it |
+|---|---|
+| Baselining legacy/unfamiliar code you don't fully trust | Code you wrote or know well |
+| Comparing a legacy implementation to a new one | A quick internal baseline nobody will audit |
+| High-stakes spec where a reviewer needs auditable proof | Spec that will be reviewed against the code directly |
+| Source has a real test surface to cite | Instruction-style prose (e.g. `SKILL.md`) with no executable code to cite |
+
+Default to **asking the user** when the situation is ambiguous. When skipping, jump
+straight from Step 3 to the end — Steps 4 and 5 do not run, and the spec is the sole
+deliverable.
+
 ### Step 2 — Read the source
 
 For the target module, read:
@@ -85,7 +104,11 @@ Rules:
 
 After writing, validate: `bash scripts/openspec validate <capability> --type spec --strict`
 
-### Step 4 — Write `openspec/specs/<capability>/REFERENCES.md`
+### Step 4 — Write `openspec/specs/<capability>/REFERENCES.md` *(optional)*
+
+**Run this step only when references were requested** (see "Choosing whether to produce
+REFERENCES.md" under Step 1). If they were not, stop after Step 3 — the spec is the
+deliverable, and Step 5 does not run either.
 
 This file is NOT part of the spec (it will not be validated). It is a human-readable
 annotation of every requirement and scenario, pointing to the source code.
@@ -124,9 +147,10 @@ asserts it). Number them. These are the human reviewer's primary checklist.
 - When a test verifies the claim, include the test citation on the same scenario line
 - When no test exists, end with `**Interpolated; no direct test.**` or `**Interpolated from absence.**`
 
-### Step 5 — Spawn the citation audit agent (optional, recommended)
+### Step 5 — Spawn the citation audit agent (optional, recommended when Step 4 ran)
 
-After the references file is written, offer to audit it. If the user agrees, spawn
+Only applies when Step 4 produced a `REFERENCES.md`. After the references file is
+written, offer to audit it. If the user agrees, spawn
 a **read-only Sonnet agent** with this prompt (fill in the repo path and capability):
 
 > You are auditing a references file to verify source-code citations are accurate.
@@ -161,7 +185,7 @@ Apply the corrections the agent returns before declaring the references file don
 
 ## Constraints
 
-- Never skip Step 4 (REFERENCES.md) — the spec alone is not reviewable without citations
+- REFERENCES.md (Step 4) is opt-in — decide per "Choosing whether to produce REFERENCES.md". When references *are* requested, write one entry per requirement and scenario; do not half-produce them
 - Never mark a scenario "Verified by test" unless you have read the test and confirmed the assertion
 - Always label interpolated claims explicitly — do not present them as verified
 - Run `bash scripts/openspec validate --strict` before reporting the spec as complete
@@ -172,6 +196,10 @@ Apply the corrections the agent returns before declaring the references file don
 ## Output checklist
 
 - [ ] `openspec/specs/<capability>/spec.md` — validates with `bash scripts/openspec validate --strict`
+- [ ] References decision made (produced, or skipped with reason)
+
+*If references were produced:*
+
 - [ ] `openspec/specs/<capability>/REFERENCES.md` — one entry per requirement and scenario
 - [ ] Cross-cutting interpretive notes section present with numbered items
 - [ ] Citation audit run (or explicitly deferred with reason)

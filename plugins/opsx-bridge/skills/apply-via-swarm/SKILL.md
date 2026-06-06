@@ -1,6 +1,6 @@
 ---
 name: apply-via-swarm
-description: Dispatch an OpenSpec change to a swarmkit swarm. Reads openspec/changes/<name>/, groups tasks.md by ## section, files or reuses one GitHub issue per section (labelled opsx-change:<name> with an <!-- opsx-section: --> marker), topologically orders the change's merged dependency set and wires a linearized blocked-by chain (each issue blocked_by only its immediate predecessor) so swarm's single-parent stack model holds, then invokes /swarmkit:swarm with the issue numbers in that order. Reconciles tasks.md after the per-issue PRs land.
+description: Dispatch an OpenSpec change to a swarmkit swarm. Reads openspec/changes/<name>/, files or reuses one GitHub issue per tasks.md section, wires their dependency order, and invokes /swarmkit:swarm. Reconciles tasks.md after the per-issue PRs land.
 triggers:
   - "/opsx-bridge:apply-via-swarm"
   - "apply via swarm"
@@ -140,11 +140,7 @@ EOF
 
 ### 6. Topologically order the sections, then derive the linearized edge chain
 
-> **Design note — linearize the native edges, not just the arg order.** swarm's stacked-PR model is **single-parent**: each dependent agent branches from exactly *one* parent's branch tip (`git checkout -b worktree-agent-<this> origin/worktree-agent-<dependency>`) and its PR targets that one parent. swarm builds this stack from the **native `blockedBy` edges it reads off the issues** (`plugins/swarmkit/skills/swarm/SKILL.md:176-180`), not from the order issue numbers arrive in. It has no multi-parent/diamond handling — its dependent chain spawns from exactly one parent. So an OpenSpec change's true dependency graph, which can be a **diamond** (a section depending on two others — a fan-in), cannot be wired natively as-is: swarm would read two `blockedBy` edges on the fan-in node and hit the undocumented diamond case. Reordering the arg list alone does **not** fix this, because swarm ignores arg order when computing the DAG.
->
-> The fix is to linearize **the edges that get wired**, not just the dispatch order. Take the union edge set, topologically sort the section-issues, and derive a **linear chain** where each issue is blocked_by *only its immediate predecessor* in that order. Wire **those** chain edges as the native `blockedBy` connection (step 7). swarm then reads exactly one parent per node and produces a clean single-parent stack. This is correctness-preserving when sections touch disjoint files (the common case — sections map to distinct capabilities/areas): in a linear stack each branch transitively contains all its true ancestors' work (a node branched off its predecessor inherits everything below it), so every original dependency is satisfied through the chain. It only over-constrains ordering, never under-constrains it.
->
-> This was discovered dogfooding this very plugin: the opsx-bridge change graph had #993 (section 5, the capability files) depending on **both** #991 (apply-via-squad) and #992 (apply-via-swarm) — a diamond fan-in. Wiring that union natively would give swarm two parents for #993. Linearizing to the chain `#990 → #991 → #992 → #993 → #994 → #995` and wiring each node blocked_by only its predecessor (#991←#990, #992←#991, #993←#992, …) lets swarm chain each as a single-parent stack while still respecting every original blocked-by edge transitively.
+> **Why linearize.** swarm's stacked-PR model is **single-parent** — each dependent agent branches from exactly one parent and swarm builds the stack from the native `blockedBy` edges on the issues (not from arg order), with no diamond/fan-in handling. An OpenSpec change's true graph can be a diamond, so the bridge wires a **linear chain** (each node blocked_by only its topo predecessor) rather than the raw union. This is correctness-preserving when sections touch disjoint files: each branch transitively contains its ancestors' work, so every original edge still holds. See design D9 and the spec requirement "Swarm path single-parent linearization" for the full rationale and the dogfooded diamond example.
 
 Build the DAG from the union of `inlineEdges` and `blockEdges` (deduplicated — spec "Inline and block both present"; each edge `{from: dependent, to: blocking}` keyed on section-ids, already resolved and cycle-checked by read-change). Topologically sort it over the section-issue nodes so every blocking section precedes the sections it blocks; read-change has guaranteed acyclicity, so a valid order always exists (spec "Issues in dependency order").
 
@@ -160,7 +156,7 @@ blocking_id=$(gh api "repos/$REPO/issues/$blocking" -q .id)
 gh api "repos/$REPO/issues/$blocked/dependencies/blocked_by" -X POST -F issue_id="$blocking_id"
 ```
 
-This is the same `blockedBy` connection swarm reads in its dependency-graph step — wiring the *linearized chain* here means swarm picks up a single parent per node natively, without re-parsing issue bodies and without ever seeing the diamond. A chain edge whose endpoint has no filed issue (e.g. an unresolved dangling reference read-change reported on stderr) is skipped with a warning — do not invent an issue for it.
+This wires the same `blockedBy` connection swarm reads natively, so it picks up a single parent per node (see step 6 for why the chain, not the union). A chain edge whose endpoint has no filed issue (e.g. an unresolved dangling reference read-change reported on stderr) is skipped with a warning — do not invent an issue for it.
 
 ### 8. Dispatch to swarm
 
@@ -203,7 +199,7 @@ If a per-issue worker's PR is closed without merge or stalls, surface the issue 
 
 - **read-change is the parser.** This skill consumes read-change's `tasksBySection` and the union of its `inlineEdges` + `blockEdges`; it does not re-implement section parsing, operand resolution, or cycle detection. Apply-readiness is *reported* by read-change and *enforced* here.
 - **swarm is a black box.** apply-via-swarm files/matches issues, topologically orders the union edge set and wires a *linearized* native blocked-by chain (single parent per node), then dispatches the issue numbers in that order + `--base`. It never inspects or modifies swarmkit internals.
-- **Linearize the native edges, not the arg order.** swarm builds its stack from the native `blockedBy` edges on the issues, not from the order issue numbers arrive in. The bridge therefore wires the *chain* edges (each node blocked_by only its topo predecessor) rather than the raw union, so swarm's single-parent model never encounters a diamond.
+- **Linearize the native edges, not the arg order.** The bridge wires a single-parent chain rather than the raw union (steps 6–7) — see design D9 for why.
 - **Issues are the contract, tasks.md is authoritative.** `tasks.md` decides *which* sections exist; the section-issue body is (re)generated from it. Issue reuse is keyed on the `<!-- opsx-section: -->` marker so re-invocations are idempotent against the GH board.
 
 ## Composition
