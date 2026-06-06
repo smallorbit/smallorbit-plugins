@@ -1,7 +1,7 @@
 {
   "name": "opsx-bridge",
   "description": "Bridge OpenSpec changes to squadkit/swarmkit dispatchers. Drive `/squadkit:spawn-team` or `/swarmkit:swarm` from a single `openspec/changes/<name>/` proposal — additive only, leaves opsx/squadkit/swarmkit untouched.",
-  "version": "0.2.2",
+  "version": "0.2.1",
   "license": "MIT",
   "author": {
     "name": "Román M. Pacheco"
