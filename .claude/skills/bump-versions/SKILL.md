@@ -13,17 +13,18 @@ Bumps `plugin.json` version fields for plugins that have changed since their las
 
 ## Plugin locations
 
-Every kit under `plugins/*` that ships a manifest at `.claude-plugin/plugin.json` participates in version bumps. The root [README `#available-plugins`](../../../README.md#available-plugins) is the canonical plugin catalog — keep this table in sync when adding or removing kits.
+Every kit under `plugins/*` that ships a manifest at `.claude-plugin/plugin.json` participates in version bumps — including unlisted kits not advertised in the catalog. The root [README `#available-plugins`](../../../README.md#available-plugins) is the canonical catalog of *listed* plugins; keep this table in sync when adding or removing kits, but note it is a superset of the catalog (unlisted kits appear here only).
 
-| Plugin | plugin.json |
-|--------|-------------|
-| flowkit | `plugins/flowkit/.claude-plugin/plugin.json` |
-| polishkit | `plugins/polishkit/.claude-plugin/plugin.json` |
-| sessionkit | `plugins/sessionkit/.claude-plugin/plugin.json` |
-| speckit | `plugins/speckit/.claude-plugin/plugin.json` |
-| squadkit | `plugins/squadkit/.claude-plugin/plugin.json` |
-| swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` |
-| vaultkit | `plugins/vaultkit/.claude-plugin/plugin.json` |
+| Plugin | plugin.json | Listed |
+|--------|-------------|--------|
+| flowkit | `plugins/flowkit/.claude-plugin/plugin.json` | yes |
+| opsx-bridge | `plugins/opsx-bridge/.claude-plugin/plugin.json` | no (unlisted) |
+| polishkit | `plugins/polishkit/.claude-plugin/plugin.json` | yes |
+| sessionkit | `plugins/sessionkit/.claude-plugin/plugin.json` | yes |
+| speckit | `plugins/speckit/.claude-plugin/plugin.json` | yes |
+| squadkit | `plugins/squadkit/.claude-plugin/plugin.json` | yes |
+| swarmkit | `plugins/swarmkit/.claude-plugin/plugin.json` | yes |
+| vaultkit | `plugins/vaultkit/.claude-plugin/plugin.json` | yes |
 
 ## Git tag format
 
