@@ -3,9 +3,7 @@
 ## Purpose
 
 Resolve GitHub issues in parallel by spawning isolated-worktree agents, opening stacked PRs in dependency order, running an always-on automatic review/fix pass over every PR, and leaving the PRs open for human merge. Supports one-shot mode (specific issue numbers) and loop mode (continuously clear the board), and can optionally cut an epic feature branch that all PRs target.
-
 ## Requirements
-
 ### Requirement: Argument parsing and mode selection
 
 The skill SHALL parse its arguments to select between one-shot and loop mode and to apply per-run overrides.
@@ -32,12 +30,22 @@ The skill SHALL parse its arguments to select between one-shot and loop mode and
 
 ### Requirement: Epic mode resolution
 
-The skill SHALL compute whether to run in epic mode before any setup work, and when epic mode is on it MUST cut or resume a single epic feature branch that all PRs target.
+The skill SHALL compute whether to run in epic mode before any setup work, and when epic mode is on it MUST cut or resume a single epic feature branch that all PRs target. For the one-shot single-argument case, the skill SHALL consult epic membership (the epic/sub-issue expansion already performed by issue gathering) before finalizing the mode, so that a single argument which is an epic expanding to multiple children enables epic mode rather than being treated as a standalone issue.
 
 #### Scenario: Epic mode is disabled
 
-- **WHEN** `--base` is set, OR `--no-epic` is set, OR the run is one-shot with exactly one issue
+- **WHEN** `--base` is set, OR `--no-epic` is set, OR the run is one-shot with exactly one issue that is a standalone (non-epic) issue
 - **THEN** epic mode SHALL be off, no epic branch is cut, and PRs target the base branch directly
+
+#### Scenario: Single epic argument enables epic mode
+
+- **WHEN** the run is one-shot with exactly one argument and that argument is an epic that expands to two or more wired child issues, and neither `--base` nor `--no-epic` is set
+- **THEN** epic mode SHALL be on, the skill SHALL resolve an epic branch name of the form `feature/<slug>-<N>` (slug derived from the epic or its lowest-numbered child) and cut it, and the expanded children SHALL be stacked/targeted under that branch
+
+#### Scenario: Single epic argument with too few or unwired children stays flat
+
+- **WHEN** the run is one-shot with a single epic argument that has fewer than two wired child issues, or whose children are not wired via the sub-issue API
+- **THEN** epic mode SHALL be off (there is no stack to isolate), and the existing unwired-epic announcement applies when children are unwired
 
 #### Scenario: Epic mode is enabled
 
@@ -283,3 +291,4 @@ The skill SHALL report the outcome of the run and point the operator to the corr
 
 - **WHEN** the summary is presented
 - **THEN** the skill SHALL direct the operator to merge a single open PR with the single-PR merge skill, or to merge two or more stacked PRs bottom-up with the merge-stack skill
+
