@@ -37,21 +37,25 @@ Parse `$ARGUMENTS` to determine the mode:
 
 ## Epic Mode Resolution
 
-Compute `EPIC_MODE` before any setup work:
+Compute `EPIC_MODE` before any setup work. The one-shot single-argument case is the only one that needs a pre-check, because a single argument may be a standalone issue or an epic that expands to children — see **Single epic argument** below:
 
 ```
-if --base is set:                                  EPIC_MODE=off
-elif --no-epic is set:                             EPIC_MODE=off
-elif arg-mode == one-shot AND issue_count == 1:    EPIC_MODE=off
-else:                                              EPIC_MODE=on
+if --base is set:                                            EPIC_MODE=off
+elif --no-epic is set:                                       EPIC_MODE=off
+elif one-shot AND a single argument that is an epic
+     expanding to >=2 wired children:                        EPIC_MODE=on
+elif one-shot AND issue_count == 1 (standalone non-epic):    EPIC_MODE=off
+else:                                                        EPIC_MODE=on
 ```
+
+**Single epic argument**: when exactly one argument is given, probe its membership before finalizing `EPIC_MODE` — run `"$SKILL_DIR/scripts/gather_issues.sh" <arg>` and read `epics_expanded` / `is_epic`. If the argument is an epic that expands to **two or more wired children**, set `EPIC_MODE=on` and **reuse that gather output** for the One-Shot flow below (do not gather twice). If it expands to fewer than two children, or its children are unwired (`epics_unwired`), keep `EPIC_MODE=off` and apply the existing unwired-epic announcement where relevant. A genuine standalone (non-epic) single issue stays `EPIC_MODE=off` — a standalone issue cannot form a stack. `--base` and `--no-epic` still force `EPIC_MODE=off` regardless. Every other case keeps the "compute before any setup work" ordering with no pre-check.
 
 ### When EPIC_MODE=on
 
 **Resolve the branch name** `EPIC_BRANCH` (in order):
 
 1. `--epic <slug>` arg → if it already starts with `feature/`, use verbatim; otherwise prepend `feature/`.
-2. One-shot multi-issue → derive slug from the lowest issue number's title (`gh issue view <N> --json title --jq '.title'`), kebab-case it (lowercase; non-alphanumerics → `-`; collapse runs; trim leading/trailing `-`), and form `feature/<slug>-<lowest-issue>`.
+2. One-shot multi-issue, or a single epic argument → derive slug from the lowest issue number's title (for a single epic argument, the lowest-numbered expanded child; `gh issue view <N> --json title --jq '.title'`), kebab-case it (lowercase; non-alphanumerics → `-`; collapse runs; trim leading/trailing `-`), and form `feature/<slug>-<lowest-issue>`.
 3. Loop mode (no label) → `feature/swarm-$(date +%Y-%m-%d)`.
 4. Loop mode + label → `feature/<label>-$(date +%Y-%m-%d)`.
 
@@ -142,6 +146,8 @@ Run the gather script once with all requested issue numbers. It batches title, b
 ```bash
 "$SKILL_DIR/scripts/gather_issues.sh" <number> [<number> ...]
 ```
+
+If the single-epic-argument probe in **Epic Mode Resolution** already ran `gather_issues.sh` for this run, reuse that output here instead of gathering again — the expanded children in `epics_expanded` / `work_items` are the issues to act on.
 
 On success the script exits 0 and emits one JSON object on stdout:
 
