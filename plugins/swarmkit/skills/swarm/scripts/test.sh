@@ -147,6 +147,56 @@ STUB
 )
 
 echo
+echo "swarm: gather_issues epic-expansion contract (stubbed gh)"
+echo
+
+# These back the single-epic-argument EPIC_MODE resolution: gather must expose
+# epics_expanded/work_items so the skill can tell an expandable epic from a
+# standalone issue. Network-free — gh is stubbed with canned GraphQL responses.
+gstub="$(mktemp -d)"
+cat >"$gstub/canned-epic.json" <<'JSON'
+{"data":{"repository":{"i42":{"number":42,"title":"epic: thing","body":"","state":"OPEN","labels":{"nodes":[{"name":"epic"}]},"subIssues":{"totalCount":2,"nodes":[{"number":101,"title":"a","body":"","state":"OPEN","labels":{"nodes":[]},"blockedBy":{"nodes":[]}},{"number":102,"title":"b","body":"","state":"OPEN","labels":{"nodes":[]},"blockedBy":{"nodes":[{"number":101}]}}]},"blockedBy":{"nodes":[]}}}}}
+JSON
+cat >"$gstub/canned-standalone.json" <<'JSON'
+{"data":{"repository":{"i12":{"number":12,"title":"standalone","body":"","state":"OPEN","labels":{"nodes":[]},"subIssues":{"totalCount":0,"nodes":[]},"blockedBy":{"nodes":[]}}}}}
+JSON
+cat >"$gstub/gh" <<'STUB'
+#!/usr/bin/env bash
+if [[ "$1" == "repo" && "$2" == "view" ]]; then printf 'octo/repo\n'; exit 0; fi
+if [[ "$1" == "api" && "$2" == "graphql" ]]; then cat "$GATHER_STUB_CANNED"; exit 0; fi
+exit 1
+STUB
+chmod +x "$gstub/gh"
+
+# Single epic argument #42 → expands to two wired children (EPIC_MODE=on path).
+out="$(GATHER_STUB_CANNED="$gstub/canned-epic.json" PATH="$gstub:$PATH" "$SCRIPT_DIR/gather_issues.sh" 42 2>/dev/null)"; rc=$?
+children="$(printf '%s' "$out" | jq -c '.epics_expanded[0].children' 2>/dev/null)"
+n_items="$(printf '%s' "$out" | jq '.work_items | length' 2>/dev/null)"
+src="$(printf '%s' "$out" | jq -c '[.work_items[].source_epic] | unique' 2>/dev/null)"
+if [[ $rc -eq 0 && "$children" == "[101,102]" && "$n_items" == "2" && "$src" == "[42]" ]]; then
+  green "  PASS [gather_issues single-epic-arg]: #42 expands → children [101,102], 2 work_items, source_epic 42"
+  PASS=$((PASS + 1))
+else
+  red   "  FAIL [gather_issues single-epic-arg]: rc=$rc children=$children items=$n_items src=$src"
+  FAIL=$((FAIL + 1))
+fi
+
+# Standalone issue #12 → not an epic, no expansion (EPIC_MODE=off path).
+out="$(GATHER_STUB_CANNED="$gstub/canned-standalone.json" PATH="$gstub:$PATH" "$SCRIPT_DIR/gather_issues.sh" 12 2>/dev/null)"; rc=$?
+n_exp="$(printf '%s' "$out" | jq '.epics_expanded | length' 2>/dev/null)"
+n_items="$(printf '%s' "$out" | jq '.work_items | length' 2>/dev/null)"
+num="$(printf '%s' "$out" | jq '.work_items[0].number' 2>/dev/null)"
+src="$(printf '%s' "$out" | jq '.work_items[0].source_epic' 2>/dev/null)"
+if [[ $rc -eq 0 && "$n_exp" == "0" && "$n_items" == "1" && "$num" == "12" && "$src" == "null" ]]; then
+  green "  PASS [gather_issues standalone-issue]: #12 flat, no epic expansion"
+  PASS=$((PASS + 1))
+else
+  red   "  FAIL [gather_issues standalone-issue]: rc=$rc epics=$n_exp items=$n_items num=$num src=$src"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$gstub"
+
+echo
 echo "swarm: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]] || exit 1
 exit 0
