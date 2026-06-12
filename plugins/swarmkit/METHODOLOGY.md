@@ -91,13 +91,14 @@ Loop mode sets `claude.flowkit.prBase` as a local git config at the start and un
 
 ### Trigger Rule
 
-Swarm automatically cuts a feature branch whenever a run will spawn two or more agents. A run that spawns only one agent (a single-issue one-shot) stays flat — it targets `$BASE` directly, the same as before this feature landed. The trigger fires for:
+Swarm automatically cuts a feature branch whenever a run will spawn two or more agents. A run that spawns only one agent (a standalone single-issue one-shot) stays flat — it targets `$BASE` directly, the same as before this feature landed. The trigger fires for:
 
 - **One-shot multi-issue**: `/swarm 12 15 18` — three issues → epic cut.
+- **Single epic argument**: `/swarm 42` where #42 is an epic that expands to ≥2 wired children → epic cut. The single argument expands to multiple agents, so it forms a stack just like a multi-issue run; the slug derives from the epic's lowest-numbered child.
 - **Loop mode (all issues)**: `/swarm` — any board with ≥1 issue → epic cut at first non-empty cycle.
 - **Loop mode (label filter)**: `/swarm bug` — same trigger as loop mode.
 
-Single-issue one-shot (`/swarm 12`) always stays flat. The logic is: a standalone issue, by definition, cannot form a stack that needs isolation from `main`.
+Single-issue one-shot for a **standalone** (non-epic) issue (`/swarm 12`) always stays flat. The logic is: a standalone issue, by definition, cannot form a stack that needs isolation from `main`. A single *epic* argument is the exception above — it is not standalone, it expands into a child stack, so it cuts a feature branch. (An epic argument with fewer than two wired children, or with unwired children, stays flat.)
 
 ### What Happens at Epic Cut
 

@@ -50,7 +50,7 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues, then run an automatic review/fix pass on each PR. Multi-issue/loop/label runs auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). Single-issue one-shot runs target `main` directly. |
+| **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues, then run an automatic review/fix pass on each PR. Multi-issue/loop/label runs — and a single epic argument that expands to ≥2 children — auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). A standalone single-issue one-shot targets `main` directly. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
 | **merge-stack** | `/merge-stack` | Merges all open swarm PRs bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when any `worktree-agent-*` paths remain. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
@@ -89,8 +89,15 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm`'s automatic revie
 ### Single issue (flat to main)
 
 ```
-/swarm 12                            # No epic cut — PR targets main directly
+/swarm 12                            # Standalone issue — no epic cut, PR targets main directly
 /merge-pr                            # Squash-merge the one PR (flowkit skill)
+```
+
+### Single epic argument (auto epic cut)
+
+```
+/swarm 42                            # #42 is an epic → expands to its children, cuts feature/<slug>-<N>
+/merge-stack                         # Squash-merge the child stack, then epic→main
 ```
 
 ### Loop mode (clear the board)
@@ -112,7 +119,8 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm`'s automatic revie
 8. Cleans up worktrees and orphaned branches
 
 **One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack` then a final epic→main squash to land.
-**Single issue (one-shot)**: `/swarm 12` — flat to `main`, no epic cut; use `/merge-pr` to merge.
+**Single issue (one-shot)**: `/swarm 12` — standalone issue, flat to `main`, no epic cut; use `/merge-pr` to merge.
+**Single epic argument**: `/swarm 42` where #42 is an epic expanding to ≥2 wired children — auto-cuts the epic branch and opens PRs against it (use `/merge-stack` then epic→main); an epic with <2 wired or unwired children stays flat.
 **Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear; epic branch is cut once and reused across cycles.
 **Label filter**: `/swarm bug` — loop mode, but only `bug`-labeled issues.
 
