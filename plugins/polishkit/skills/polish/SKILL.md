@@ -27,7 +27,7 @@ Optional flags:
 - `--model <tier>` — `sonnet` (default) or `opus` for harder cross-cutting passes
 - `--agent <type>` — subagent type override (default: `general-purpose`). The skill prompt embeds the review heuristics inline, so a dedicated `code-simplifier` agent is not required.
 - `--max-files <N>` — soft cap on files the subagent should touch in one PR (default: 15). Lightweight stays lightweight.
-- `--base <branch>` — override the resolved PR base branch (see Process step 3). When set, short-circuits config / `develop` / repo-default resolution.
+- `--base <branch>` — override the resolved PR base branch (see Process step 3). When set, short-circuits the scoped-config-pin and `main` fallback resolution.
 - `--dry-run` — review and report findings without applying fixes; useful as a pre-flight before committing to a PR
 
 If `<scope>` is empty:
