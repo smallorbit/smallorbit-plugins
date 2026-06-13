@@ -16,6 +16,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PASS=0
 FAIL=0
 
+# Make scratch-repo commits hermetic: fresh CI runners have no global git
+# identity, so `git commit` would fail with "Author identity unknown". These
+# env vars are honored by every commit below without per-repo config.
+export GIT_AUTHOR_NAME="skill-evals" GIT_AUTHOR_EMAIL="skill-evals@example.com"
+export GIT_COMMITTER_NAME="skill-evals" GIT_COMMITTER_EMAIL="skill-evals@example.com"
+
 red()   { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
 
