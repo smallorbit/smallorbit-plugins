@@ -18,7 +18,7 @@ import os
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, REPO_ROOT)
 
-from evals.graders import decision_probe, EvalResult, assert_before, run_assertions
+from evals.graders import decision_probe, EvalResult, run_assertions
 
 _SKILL_MD = os.path.join(REPO_ROOT, "plugins/swarmkit/skills/swarm/SKILL.md")
 _FX_DIR = os.path.join(REPO_ROOT, "evals/fixtures")

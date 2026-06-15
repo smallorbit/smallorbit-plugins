@@ -25,29 +25,6 @@ from evals.graders import decision_probe, EvalResult, run_assertions
 _SKILL_MD = os.path.join(REPO_ROOT, "plugins/swarmkit/skills/swarm/SKILL.md")
 
 
-def _load_teardown_section(max_lines: int = 100) -> str:
-    with open(_SKILL_MD) as f:
-        lines = f.readlines()
-    result = []
-    in_teardown = False
-    for line in lines:
-        if "Teardown" in line and line.startswith("#"):
-            in_teardown = True
-        elif in_teardown and line.startswith("## "):
-            break
-        if in_teardown:
-            result.append(line)
-            if len(result) >= max_lines:
-                break
-    # Also grab the closing prBase unset lines for context
-    if not result:
-        # Fall back to searching for prBase mentions
-        for i, line in enumerate(lines):
-            if "prBase" in line and "teardown" in lines[max(0, i-5):i+5]:
-                result.extend(lines[max(0, i-3):min(len(lines), i+5)])
-    return "".join(result) if result else "(teardown section not found — scan SKILL.md for prBase handling)"
-
-
 def _load_skill_snippet() -> str:
     with open(_SKILL_MD) as f:
         content = f.read()

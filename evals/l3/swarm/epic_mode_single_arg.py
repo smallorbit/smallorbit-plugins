@@ -84,9 +84,6 @@ def test_epic_arg() -> tuple[bool, str]:
 
 
 def test_standalone_arg() -> tuple[bool, str]:
-    with open(os.path.join(REPO_ROOT, "evals/fixtures/single-epic-arg.json")) as f:
-        standalone = json.load(f)
-    # Override to simulate a standalone issue
     standalone_fixture = {
         "work_items": [{"number": 12, "title": "fix login redirect", "source_epic": None, "blockedBy": []}],
         "epics_expanded": [],
