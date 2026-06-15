@@ -4,27 +4,27 @@ Implementation decomposition for the skill-evals strategy. Phased so the cheap, 
 
 ## 1. L1 — Script unit tests (gate the tests that already exist)
 
-- [ ] Add `scripts/run-skill-tests.sh`: discover every `plugins/*/skills/*/scripts/test.sh` (`find ... | while read`, never `for N in $(...)`), run each, fail on any non-zero exit, summarize pass/fail per skill.
-- [ ] Add `.github/workflows/skills-ci.yml` with an L1 job that runs `scripts/run-skill-tests.sh` on PRs touching `plugins/**`. Mark it a required check.
-- [ ] Backfill `test.sh` for script-backed skills that lack one (audit `plugins/*/skills/*/scripts/` for scripts without a sibling `test.sh`).
-- [ ] Update `plugins/_shared/script-authoring.md`: `test.sh` is mandatory for any script-backed skill; reference the runner + CI gate.
-- [ ] Update `CLAUDE.md` (Skill Authoring Conventions) to point at the L1 gate.
+- [x] Reuse the existing `scripts/test-all-skill-scripts.sh` runner (discovers every `plugins/*/skills/*/scripts/test.sh`, runs each, fails on any non-zero exit, summarizes pass/fail per skill) instead of adding a duplicate `run-skill-tests.sh`.
+- [x] Add `.github/workflows/skills-ci.yml` with an L1 job that runs `scripts/test-all-skill-scripts.sh` on PRs touching `plugins/**`. (Mark it a required check in branch protection.)
+- [x] Backfill `test.sh` for script-backed skills that lack one — none needed; all 6 script-backed skills already ship one.
+- [x] Update `plugins/_shared/script-authoring.md`: `test.sh` is mandatory for any script-backed skill; reference the runner + CI gate.
+- [x] Update `CLAUDE.md` (Skill Authoring Conventions) to point at the L1 gate.
 
 ## 2. L2 — Skill-doc lint (freeze the audit findings)
 
-- [ ] Add `scripts/lint-skills.sh` (or `.ts`) with one discrete, file:line-reporting rule per check:
-  - [ ] Frontmatter present (`name`, `description`) on every SKILL.md.
-  - [ ] `## Input` table present where a skill documents arguments.
-  - [ ] Every `<!-- include: <path> -->` directive resolves.
-  - [ ] Every `plugins/_shared/*.md` citation path resolves.
-  - [ ] Every relative markdown link in `plugins/**` and root `README.md` resolves.
-  - [ ] README flag-matrix rows agree with the corresponding SKILL.md `## Input` table.
-  - [ ] No `develop` branch reference outside designated migration docs (seed allowlist: `flowkit/MIGRATION-v4.md`, openspec archive). **Include `.github/workflows/**`** — `deploy-site.yml` currently trips this.
-  - [ ] Every `.claude/settings.json` allowlist script path points at an existing script.
-  - [ ] Heuristic: shared specs are cited, not paraphrased inline (flag inlined copies of `pr-body.md` / `base-resolution.md` shape).
-- [ ] Wire L2 into `skills-ci.yml` as a required per-PR job.
-- [ ] Fix the findings the new linter surfaces on first run (at minimum: `deploy-site.yml` develop triggers; any residual drift).
-- [ ] Document each rule and how to add a new one in `evals/README.md`.
+- [x] Add `scripts/lint-skills.py` (Python stdlib — table parsing is impractical in pure bash; CI has `python3`) with one discrete, file:line-reporting rule per check. Each rule carries an ERROR/WARN severity; only ERROR fails the gate (keeps a noisy rule from blocking merges until it is calibrated):
+  - [x] Frontmatter present (`name`, `description`) on every SKILL.md. (ERROR)
+  - [x] `## Input`/Arguments section present where a skill documents arguments. (WARN — args are documented under varied headings)
+  - [x] Every `<!-- include: <path> -->` directive resolves. (ERROR)
+  - [x] Every `plugins/_shared/*.md` citation path resolves. (ERROR)
+  - [x] Every relative markdown link in `plugins/**` and root `README.md` resolves. (ERROR — fenced code blocks skipped)
+  - [x] README flag-matrix agreement with SKILL.md documented flags. (WARN — coarse heuristic; README tables are skill-catalogs, not strict per-flag matrices)
+  - [x] No `develop` branch reference outside the migration/legacy allowlist (incl. `.github/workflows/**`). (ERROR — branch-ref gate + negative-context + file allowlist + `lint-allow-develop` marker)
+  - [x] Every `.claude/settings.json` allowlist script path points at an existing script. (ERROR)
+  - [x] Heuristic: shared specs are cited, not paraphrased inline (flag inlined `pr-body.md` shape). (WARN)
+- [x] Wire L2 into `skills-ci.yml` as a per-PR job. (Mark it a required check in branch protection.)
+- [x] Fix the findings the new linter surfaced on first run: `deploy-site.yml` develop trigger; `polish/SKILL.md:30` stale develop/repo-default step (closes #1068); `sweep/SKILL.md:171` stale develop auto-detect.
+- [x] Document each rule and how to add a new one in `evals/README.md`.
 
 ## 3. L3 — Behavioral eval harness (highest-blast-radius skill first)
 

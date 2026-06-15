@@ -127,6 +127,8 @@ bash scripts/test-all-skill-scripts.sh
 
 It walks `plugins/*/skills/*/scripts/test.sh`, runs each with the test directory as CWD, and exits non-zero if any test fails. This is the single entry point intended for CI.
 
+This runner is the **L1 gate** in `.github/workflows/skills-ci.yml` — it runs as a required check on every PR touching `plugins/**`. A script-backed skill with no `test.sh`, or whose `test.sh` fails, blocks merge. See [`evals/README.md`](../../evals/README.md) for the full eval-layer overview (L1 script tests, L2 skill-doc lint).
+
 ## `.claude/settings.json` allowlist
 
 The harness requires explicit permission before executing each script path. Add an entry to the project `.claude/settings.json` allowlist when introducing a new script:

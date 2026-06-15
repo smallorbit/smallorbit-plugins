@@ -61,6 +61,8 @@ Skip for typo fixes, renames, and small edits that don't touch convention surfac
 
 **Skill scripts standard**: Skills that extract deterministic bash work into shell scripts must follow the convention at [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md) — folder layout, `$SKILL_DIR` resolution, bare-payload JSON, stderr errors, when to extract, and `.claude/settings.json` allowlist guidance.
 
-**README flag-matrix drift**: Any change to a SKILL.md `## Input` table needs a matching pass on the corresponding plugin README's flag matrix — these drift silently otherwise.
+**CI gates (skill evals)**: Two required checks run on every PR via `.github/workflows/skills-ci.yml` and enforce the conventions above — see [`evals/README.md`](./evals/README.md). **L1** (`scripts/test-all-skill-scripts.sh`) runs every `plugins/*/skills/*/scripts/test.sh`; a script-backed skill with a missing or failing `test.sh` blocks merge. **L2** (`scripts/lint-skills.py`) lints skill-doc structure — frontmatter, include/`_shared` citation/relative-link resolution, no stale `develop` references, and `.claude/settings.json` allowlist paths. Run `python3 scripts/lint-skills.py` locally before pushing.
+
+**README flag-matrix drift**: Any change to a SKILL.md `## Input` table needs a matching pass on the corresponding plugin README's flag matrix — these drift silently otherwise. The L2 linter surfaces undocumented flags as warnings.
 
 **Spec scope — always include docs**: When speccing any code change, the task list must include explicit tasks for updating all affected documentation and specifications (plugin READMEs, `CLAUDE.md`, OpenSpec `spec.md`, site content, `marketplace.json`). Do not treat documentation updates as implied — file them as discrete tasks so they survive the catalog and are not silently dropped.

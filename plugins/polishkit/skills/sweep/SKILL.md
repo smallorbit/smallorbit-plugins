@@ -168,4 +168,4 @@ After approval:
 1. Apply all confirmed removals and edits.
 2. For dead-code removals, verify the file still parses — run `tsc --noEmit` or the language equivalent if available.
 3. After all changes, re-run the project's verify command (typecheck/test) if one is exposed.
-4. Commit with `chore: sweep codebase` and open a PR targeting the project's base branch (auto-detect `develop` then fall back to `main`).
+4. Commit with `chore: sweep codebase` and open a PR targeting the project's base branch (the `claude.polishkit.prBase` pin if set, otherwise `main`).
