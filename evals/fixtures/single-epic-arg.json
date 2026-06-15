@@ -1,0 +1,12 @@
+{
+  "_comment": "gather_issues.sh output for /swarm 42 where #42 is an epic with 2 wired children. Used by epic-mode-single-arg eval.",
+  "work_items": [
+    {"number": 101, "title": "feat: implement data model", "source_epic": 42, "blockedBy": []},
+    {"number": 102, "title": "feat: add API layer", "source_epic": 42, "blockedBy": [101]}
+  ],
+  "epics_expanded": [
+    {"epic": 42, "children": [101, 102]}
+  ],
+  "is_epic": true,
+  "epics_unwired": []
+}

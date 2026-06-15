@@ -1,0 +1,9 @@
+{
+  "_comment": "gather_issues.sh output for issue #7 which has 'epic' label but zero sub-issues (epics_unwired). EPIC_MODE must be off.",
+  "work_items": [
+    {"number": 7, "title": "epic: add dark mode (label only)", "source_epic": null, "blockedBy": []}
+  ],
+  "epics_expanded": [],
+  "is_epic": false,
+  "epics_unwired": [7]
+}

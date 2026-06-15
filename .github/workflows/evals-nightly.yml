@@ -1,0 +1,68 @@
+name: Evals (nightly)
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # 04:00 UTC daily
+  workflow_dispatch:       # manual trigger for on-demand runs
+
+# Only one run at a time; a new trigger cancels the in-flight run.
+concurrency:
+  group: evals-nightly
+  cancel-in-progress: true
+
+jobs:
+  l3-swarm:
+    name: "L3 — swarm behavioral evals"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install grader dependencies
+        run: pip install anthropic==0.40.0
+      - name: epic-mode-single-arg
+        run: python3 evals/l3/swarm/epic_mode_single_arg.py
+      - name: prbase-pin-lifecycle
+        run: python3 evals/l3/swarm/prbase_pin_lifecycle.py
+      - name: dag-topo-order
+        run: python3 evals/l3/swarm/dag_topo_order.py
+      - name: pr-body-conformance (judge-graded — calibrate before trusting)
+        run: python3 evals/l3/swarm/pr_body_conformance.py
+
+  l3-catalog:
+    name: "L3 — catalog behavioral evals"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install grader dependencies
+        run: pip install anthropic==0.40.0
+      - name: closes-multiref
+        run: python3 evals/l3/catalog/closes_multiref.py
+      - name: split-decision
+        run: python3 evals/l3/catalog/split_decision.py
+
+  # L4 (end-to-end smoke against a dedicated test-org repo) is a placeholder.
+  # Uncomment and configure once the test org and SMALLORBIT_TEST_ORG_TOKEN
+  # secret are provisioned. See evals/README.md § L4.
+  #
+  # l4-smoke:
+  #   name: "L4 — end-to-end smoke"
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #   env:
+  #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  #     GH_TOKEN:          ${{ secrets.SMALLORBIT_TEST_ORG_TOKEN }}
+  #     TEST_ORG_REPO:     ${{ vars.SMALLORBIT_TEST_ORG_REPO }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: python3 evals/l4/smoke.py

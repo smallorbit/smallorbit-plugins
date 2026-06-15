@@ -28,31 +28,31 @@ Implementation decomposition for the skill-evals strategy. Phased so the cheap, 
 
 ## 3. L3 — Behavioral eval harness (highest-blast-radius skill first)
 
-Substrate: **Agent SDK (Python)** — `query()` + `PreToolUse`/`PostToolUse` hooks for tool-call capture.
+Substrate: **decision-probe pattern** — Anthropic Python SDK (`pip install anthropic`), one decision per eval, structured JSON output, `evals/graders/` helpers.
 
-- [ ] **Depends on the `swarm-epic-arg-mode` change** (separate OpenSpec change): the EPIC_MODE single-epic-arg eval below asserts the behavior that change introduces. Land `swarm-epic-arg-mode` first, then this eval.
-- [ ] Add `evals/graders/` (Python): shared programmatic assertion helpers + a calibrated LLM-as-judge wrapper pinned to `claude-sonnet-4-6`, `--max-budget-usd ~0.50` per run (rubric loader, pass/fail parser).
-- [ ] Calibrate the judge: assemble 20–50 cases seeded from real failures + audit findings, label by hand, verify `claude-sonnet-4-6` agrees before use.
-- [ ] Build fixtures under `evals/fixtures/`: `single-epic-arg`, `epic-8-children-one-blockedby`, `epic-labeled-no-subissues`, `pin-already-set-foreign-feature`, `closes-multiref-one-line`.
-- [ ] Author `swarm` evals (one decision each) under `evals/l3/swarm/`:
-  - [ ] EPIC_MODE resolution for a single epic arg → asserts `EPIC_MODE=on` + feature-branch cut (encodes the resolved decision).
-  - [ ] prBase pin is unset on every exit path (normal, one-shot epic, loop early-exit).
-  - [ ] DAG topo-order places a blocked-by child after its parent.
-  - [ ] PR body conforms to `pr-body.md` (one `Closes` per line; no bullets in Summary) — judge-graded.
-- [ ] Add `evals/l3/catalog/` for the multi-ref `Closes` and consolidation/`--split` decisions.
-- [ ] Add `.github/workflows/evals-nightly.yml` running the L3 curated set (scheduled + `workflow_dispatch`), with `--max-turns` / `--max-budget-usd ~0.50` guardrails and **exact** pinned model IDs (`claude-sonnet-4-6`).
+- [x] ~~Depends on `swarm-epic-arg-mode`~~ — archived (#1070), dependency cleared.
+- [x] Add `evals/graders/` (Python): `assertions.py` (EvalResult helpers), `run.py` (decision_probe via Anthropic SDK), `judge.py` (LLM-as-judge pinned to `claude-sonnet-4-6`, $0.10 budget cap).
+- [x] Calibrate the judge: 25 PR-body samples in `evals/calibration/samples.jsonl` (seeded from audit findings); `check_agreement.py` runner; `evals/calibration/README.md` protocol. **Human labels required before CI use — see calibration/README.md.**
+- [x] Build fixtures under `evals/fixtures/`: `single-epic-arg.json`, `epic-8-children-one-blockedby.json`, `epic-labeled-no-subissues.json`, `pin-already-set-foreign-feature.json`, `closes-multiref-one-line.md`.
+- [x] Author `swarm` evals under `evals/l3/swarm/`:
+  - [x] `epic_mode_single_arg.py` — EPIC_MODE resolution for single epic / standalone / unwired-epic.
+  - [x] `prbase_pin_lifecycle.py` — prBase unset on normal completion, one-shot epic, empty-board early-exit.
+  - [x] `dag_topo_order.py` — blocked issue dispatched after its parent (8-item fixture + simple chain).
+  - [x] `pr_body_conformance.py` — judge-graded: conforming body PASS, three violation bodies FAIL.
+- [x] Add `evals/l3/catalog/`: `closes_multiref.py` (one Closes per line, Refs for epics, Closes keyword) + `split_decision.py` (shared-scope consolidation, interdep split, --split flag).
+- [x] Add `.github/workflows/evals-nightly.yml`: `l3-swarm` + `l3-catalog` jobs (scheduled 04:00 UTC + `workflow_dispatch`), `pip install anthropic==0.40.0`, pinned model IDs. L4 job stubbed/commented.
 
 ## 4. L4 — End-to-end smoke (nightly)
 
 Target: **dedicated test-org GitHub repo**, reset between runs; CI token scoped to that repo only.
 
-- [ ] Stand up the dedicated test-org repo and a reset/seed step (clear issues, branches, labels to a known baseline before each run).
-- [ ] Author one full-flow smoke: catalog → swarm → merge-stack on a tiny fixture against the test-org repo; assert issues closed, branches deleted, pin clean, epic closed (exercises the real `gh` issue/PR/sub-issue/dependency APIs).
-- [ ] Add it to `evals-nightly.yml` (scheduled + `workflow_dispatch`, never per-PR).
+- [ ] Stand up the dedicated test-org repo and a reset/seed step (clear issues, branches, labels to a known baseline before each run). **Requires user action: create test GitHub org and add `SMALLORBIT_TEST_ORG_TOKEN` secret.**
+- [ ] Author `evals/l4/smoke.py`: full-flow smoke (catalog → swarm → merge-stack); assert issues closed, branches deleted, pin clean, epic closed.
+- [ ] Uncomment `l4-smoke` job in `evals-nightly.yml` and add `SMALLORBIT_TEST_ORG_REPO` variable.
 
 ## 5. Convention + docs
 
-- [ ] Author `plugins/_shared/eval-authoring.md`: when a skill needs L1/L2/L3 coverage, fixture/grader conventions, determinism rules (pin exact model IDs, low temperature), cost guardrails.
-- [ ] Cross-link it from `CLAUDE.md` Skill Authoring Conventions alongside `script-authoring.md` and `pr-body.md`.
-- [ ] `evals/README.md`: how to run each layer locally and in CI.
-- [ ] Spec deltas: add the eval-authoring convention and the per-skill eval requirement to the relevant baseline specs at implementation time.
+- [x] Author `plugins/_shared/eval-authoring.md`: when a skill needs L1/L2/L3 coverage, fixture/grader conventions, determinism rules (pin exact model IDs), cost guardrails, judge calibration protocol.
+- [x] Cross-link `eval-authoring.md` from `CLAUDE.md` Skill Authoring Conventions alongside `script-authoring.md` and `pr-body.md`.
+- [x] `evals/README.md`: L3 run instructions, eval catalog, judge calibration, L4 setup protocol.
+- [x] Spec deltas: `openspec/specs/` updated at archive time (see archive step).

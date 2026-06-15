@@ -3,3 +3,5 @@
 .squadkit/
 .claude/settings.local.json
 .ideas.md
+__pycache__/
+*.pyc
