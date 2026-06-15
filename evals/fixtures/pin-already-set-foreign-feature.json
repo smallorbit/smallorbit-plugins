@@ -1,0 +1,8 @@
+{
+  "_comment": "Scenario: claude.flowkit.prBase is already set to 'feature/auth-45' and operator calls /swarm without --no-epic or --epic. The cross-pin guard in preflight.sh must fire.",
+  "git_config": {
+    "claude.flowkit.prBase": "feature/auth-45"
+  },
+  "swarm_args": [],
+  "expected_error_fragment": "an epic is already pinned"
+}

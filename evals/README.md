@@ -11,9 +11,12 @@ path. Full strategy: `openspec/changes/skill-evals/` (proposal, design, tasks).
      ▲▲▲▲  L1  Script unit tests   every PR · deterministic     (the test.sh you already wrote)
 ```
 
-**L1 and L2 are live** and run as required checks in
-[`.github/workflows/skills-ci.yml`](../.github/workflows/skills-ci.yml). L3 and
-L4 are forthcoming (see the change's `tasks.md`).
+**L1 and L2** run as required checks in
+[`.github/workflows/skills-ci.yml`](../.github/workflows/skills-ci.yml).
+**L3** runs nightly in
+[`.github/workflows/evals-nightly.yml`](../.github/workflows/evals-nightly.yml).
+**L4** (end-to-end smoke) is stubbed in the nightly workflow — requires the
+`SMALLORBIT_TEST_ORG_TOKEN` secret and test-org provisioning (see § L4 below).
 
 ## L1 — Script unit tests
 
@@ -96,3 +99,80 @@ it is WARN, not ERROR.
 
 Every new statically-checkable audit finding should become a rule here — that is
 how the one-time audit becomes a permanent ratchet.
+
+## L3 — Behavioral evals
+
+Decision-probe evals for high-blast-radius runbook decisions. Each file targets
+one decision; the model reads a SKILL.md excerpt and answers structured JSON.
+
+```bash
+ANTHROPIC_API_KEY=... python3 evals/l3/swarm/epic_mode_single_arg.py
+ANTHROPIC_API_KEY=... python3 evals/l3/swarm/prbase_pin_lifecycle.py
+ANTHROPIC_API_KEY=... python3 evals/l3/swarm/dag_topo_order.py
+ANTHROPIC_API_KEY=... python3 evals/l3/swarm/pr_body_conformance.py
+
+ANTHROPIC_API_KEY=... python3 evals/l3/catalog/closes_multiref.py
+ANTHROPIC_API_KEY=... python3 evals/l3/catalog/split_decision.py
+```
+
+Or run them all via the nightly workflow locally:
+
+```bash
+ANTHROPIC_API_KEY=... act -j l3-swarm -j l3-catalog
+```
+
+### Prerequisites
+
+```bash
+pip install anthropic==0.40.0
+export ANTHROPIC_API_KEY=<key>
+```
+
+### Eval catalog
+
+| File | Skill | Decision asserted |
+|------|-------|-------------------|
+| `l3/swarm/epic_mode_single_arg.py` | swarm | Single epic arg → EPIC_MODE=on; standalone → off |
+| `l3/swarm/prbase_pin_lifecycle.py` | swarm | prBase unset on all exit paths |
+| `l3/swarm/dag_topo_order.py` | swarm | Blocked issue processed after its parent |
+| `l3/swarm/pr_body_conformance.py` | swarm (judge) | PR body conforms to pr-body.md |
+| `l3/catalog/closes_multiref.py` | catalog | One Closes per line; Refs for parent epics |
+| `l3/catalog/split_decision.py` | catalog | Consolidation vs --split decision |
+
+### Judge calibration
+
+`pr_body_conformance.py` uses the LLM-as-judge. Before trusting its verdicts in CI,
+calibrate the judge against the 25 labeled samples in `evals/calibration/`:
+
+```bash
+# 1. Fill in human_label in evals/calibration/samples.jsonl
+# 2. Run agreement check (target ≥90%)
+ANTHROPIC_API_KEY=... python3 evals/calibration/check_agreement.py
+```
+
+See `evals/calibration/README.md` for the full protocol.
+
+### Adding a new L3 eval
+
+1. Identify ONE decision in a high-blast skill.
+2. Create a fixture JSON in `evals/fixtures/` if mock gh data is needed.
+3. Write `evals/l3/<skill>/<decision>.py` using the `decision_probe()` helper.
+4. Add the script to the matching job in `.github/workflows/evals-nightly.yml`.
+5. Document it in the eval catalog above.
+6. If judge-graded: add calibration samples and verify ≥90% agreement.
+
+Convention: `plugins/_shared/eval-authoring.md`.
+
+## L4 — End-to-end smoke
+
+Planned — requires a dedicated test-org GitHub repo. The nightly workflow has a
+commented-out `l4-smoke` job. To enable:
+
+1. Create a test GitHub org and repo (separate from production).
+2. Add a `SMALLORBIT_TEST_ORG_TOKEN` secret with `repo` scope to that repo only.
+3. Add a `SMALLORBIT_TEST_ORG_REPO` variable (e.g. `my-test-org/swarm-smoke`).
+4. Write `evals/l4/smoke.py` with a reset/seed step + full-flow assertion.
+5. Uncomment the `l4-smoke` job in `evals-nightly.yml`.
+
+The smoke runs: catalog → swarm → merge-stack on a tiny fixture, asserting issues
+are closed, branches deleted, pin clean, and epic closed after the run.

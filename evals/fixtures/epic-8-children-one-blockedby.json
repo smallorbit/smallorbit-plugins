@@ -1,0 +1,18 @@
+{
+  "_comment": "gather_issues.sh output for an epic with 8 children, one blockedBy dependency. Used by dag-topo-order eval.",
+  "work_items": [
+    {"number": 10, "title": "setup: init repo structure", "source_epic": 5, "blockedBy": []},
+    {"number": 11, "title": "feat: auth module",           "source_epic": 5, "blockedBy": []},
+    {"number": 12, "title": "feat: user profile",          "source_epic": 5, "blockedBy": [10]},
+    {"number": 13, "title": "feat: settings page",         "source_epic": 5, "blockedBy": []},
+    {"number": 14, "title": "feat: notifications",         "source_epic": 5, "blockedBy": [11]},
+    {"number": 15, "title": "test: auth integration",      "source_epic": 5, "blockedBy": [11]},
+    {"number": 16, "title": "docs: API reference",         "source_epic": 5, "blockedBy": []},
+    {"number": 17, "title": "chore: release prep",         "source_epic": 5, "blockedBy": [12, 14, 15]}
+  ],
+  "epics_expanded": [
+    {"epic": 5, "children": [10, 11, 12, 13, 14, 15, 16, 17]}
+  ],
+  "is_epic": true,
+  "epics_unwired": []
+}

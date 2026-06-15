@@ -52,6 +52,7 @@ When work originates as an OpenSpec change, `opsx-bridge` can dispatch its imple
 - New script under `plugins/<plugin>/skills/<skill>/scripts/` → [`plugins/_shared/script-authoring.md`](./plugins/_shared/script-authoring.md)
 - Skill or script that opens a PR → [`plugins/_shared/pr-body.md`](./plugins/_shared/pr-body.md)
 - New skill or cross-plugin pattern → both of the above
+- Skill with blast-radius decisions (git state, PRs, labels) → [`plugins/_shared/eval-authoring.md`](./plugins/_shared/eval-authoring.md)
 
 Skip for typo fixes, renames, and small edits that don't touch convention surfaces.
 
