@@ -214,9 +214,13 @@ full-path epic. `AskUserQuestion` supports max 4 options total (including
   short-circuit in step 2a). Question: "Approve this plan and file the issue?"
   Options: `Approve and file`, `Run full interview instead`, `Adjust`,
   `Cancel`.
-  - On `Run full interview instead`: discard the single-issue draft and fall
-    through to step 2 (invoke `/speckit:interview`). Do not re-ask the step 2a
-    routing prompt.
+  - On `Run full interview instead`: discard the single-issue draft, call
+    `TaskCreate` to register the five post-approval phases as `pending` todos —
+    `file-children`, `create-epic-tracking-issue`, `wire-sub-issues`,
+    `wire-blocked-by-edges`, `final-report` — then fall through to step 2
+    (invoke `/speckit:interview`). Do not re-ask the step 2a routing prompt.
+    (Step 2a is not re-entered on this re-route, so `TaskCreate` must fire
+    here to keep the Pre-end self-check armed.)
   - On `Adjust`: let the user revise the plan, then re-show the plan with the
     same options in a new turn.
 - **Full-path plan** (epic). Question: "Approve this plan and file the
@@ -224,7 +228,11 @@ full-path epic. `AskUserQuestion` supports max 4 options total (including
   `Adjust plan`, `Cancel`. Epic-label edits happen through `Adjust plan` — the
   user asks for a label change and the skill revises the `Epic label:` line
   before re-asking.
-  - On `Condense to single issue`: discard the epic plan and re-run the
+  - On `Condense to single issue`: call `TaskUpdate` to mark each of the five
+    registered phase tasks (`file-children`, `create-epic-tracking-issue`,
+    `wire-sub-issues`, `wire-blocked-by-edges`, `final-report`) as `cancelled`
+    — they were registered in step 2a but are now stale since the run is
+    switching to the simple path. Then discard the epic plan and re-run the
     simple-path drafting inline — one lightweight `AskUserQuestion` interview
     round (if needed to tighten scope), draft a single-issue plan with exactly
     one task, then re-show using the simple-path option set above.
