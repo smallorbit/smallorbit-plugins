@@ -138,9 +138,14 @@ ambiguous prompt) — short-circuit the rest of this skill:
    team-readiness assessment is full-path only.
 
 **On Full interview** (clearly-full narration, or `Full interview` picked in
-the ambiguous prompt): fall through to step 2 (invoke `/speckit:interview`)
-unchanged. **On `Cancel`** (only reachable from the ambiguous prompt): abort
-the skill.
+the ambiguous prompt): immediately call `TaskCreate` to register the five
+post-approval phases as `pending` todos — `file-children`,
+`create-epic-tracking-issue`, `wire-sub-issues`, `wire-blocked-by-edges`,
+`final-report` — then fall through to step 2 (invoke `/speckit:interview`).
+Registering the phases here (before any possible diversion) ensures the
+Pre-end self-check has tasks to detect even if the agent diverts from the
+prescribed flow before step 3 fires. **On `Cancel`** (only reachable from the
+ambiguous prompt): abort the skill.
 
 ### 2.5. Derive the epic slug
 
@@ -230,7 +235,7 @@ Do not proceed to step 4 until the user has answered via `AskUserQuestion`. If t
 
 The slug the user approves in this step is the single source of truth for the epic label and must be used verbatim in step 4 (catalog handoff for children) and step 5 (epic tracking issue).
 
-**On approval (full path only)**: immediately after the user approves the plan, and before invoking `/catalog`, call `TaskCreate` to register the five remaining post-approval phases as todos: file-children, create-epic-tracking-issue, wire-sub-issues, wire-blocked-by-edges, final-report. Subsequent steps open with `TaskUpdate` to `in_progress` and close with `TaskUpdate` to `completed`. Skip this on the simple path — single-issue plans do not need phase tracking.
+**On approval (full path only)**: the five post-approval phase tasks were already registered as `pending` in step 2a. Immediately after the user approves, open step 4 with `TaskUpdate(file-children, status: "in_progress")` and proceed. Subsequent steps open with `TaskUpdate` to `in_progress` and close with `TaskUpdate` to `completed`. Skip this on the simple path — single-issue plans do not need phase tracking.
 
 ### 4. File child issues
 
