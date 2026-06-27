@@ -69,6 +69,7 @@ If you author a project-local overlay at `.claude/agents/<role>.md`, preserve bo
 | **init** | `/squadkit:init` | Interview-driven generator that writes `.squadkit/config.json` to the repo root. No per-stack presets — the wizard asks you for the commands directly. |
 | **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member (the harness's readiness signal) before the orchestrator (which IS the lead) enters its dispatch loop. |
 | **agent-team-retro** | `/squadkit:agent-team-retro` | Run a retrospective on the currently-spawned squad. Polls each active member with three fixed questions, aggregates findings into severity-grouped action items, applies approved edits to role contracts, and optionally hands findings off to `speckit:catalog` as GitHub issues. |
+| **clean-stale-teams** | `/squadkit:clean-stale-teams` | Prune orphaned team registries under `~/.claude/teams/`. Classifies each session dir by member type, current-session, and live-worktree refs, shows the verdict, then removes the safe ones (`TeamDelete`, falling back to `rm` for dead-session dirs). Complements `swarmkit:clean-worktrees`, which handles git state. |
 
 ## Crews
 
