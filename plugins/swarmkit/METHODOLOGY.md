@@ -147,7 +147,7 @@ The epic→main promotion is a single squash-merge:
 3. Unset `claude.flowkit.prBase`.
 4. Delete the feature branch on origin.
 
-`/flowkit:ship` then handles the release: preflight on `main`, derive next semver from conventional commits, tag, push, and create a GitHub Release. It is the release closer only — it does not invoke `merge-stack`, and aborts up front if any open `worktree-agent-*` PRs still target the resolved base.
+`/flowkit:ship` then handles the release: preflight on `main`, derive next semver from conventional commits, tag, push, and create a GitHub Release. It is the release closer only — it does not invoke `merge-stack`, and aborts up front if any open `worktree-agent-*` PRs still target `main` (the epic branch itself does not count — those PRs are expected mid-swarm and don't block).
 
 Swarm never invokes `/flowkit:ship`. The operator must explicitly trigger promotion and release.
 
