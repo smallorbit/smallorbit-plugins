@@ -74,7 +74,7 @@ fi
 
 # No open worktree-agent-* PRs may still target main — those are unmerged swarm output;
 # shipping now would tag a snapshot that never ran the verify gate against the integrated result
-BLOCKING_PRS=$(gh pr list --state open --base main --json number,headRefName \
+BLOCKING_PRS=$(gh pr list --state open --base main --limit 200 --json number,headRefName \
   --jq '.[] | select(.headRefName | startswith("worktree-agent-")) | "\(.number)\t\(.headRefName)"')
 if [ -n "$BLOCKING_PRS" ]; then
   echo "ship: open worktree-agent-* PRs still target main. Run /swarmkit:merge-stack first." >&2
