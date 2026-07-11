@@ -404,6 +404,8 @@ PR #1390: reviewer clean (no blockers/concerns) → no fix round
 PR #1391: reviewer flagged 1 blocker, 2 concerns → spawning fresh worker
 ```
 
+**Terminate the reviewer.** Unlike swarm builders, reviewers are never spawned with `isolation: worktree` and hold no git state — but they are addressable teammates and the harness does not auto-terminate them the way it does builders. Once a reviewer's `SendMessage` verdict has been parsed (regardless of the fix-round decision above), immediately call `TaskStop` on its tracked agent ID/name. Leaving a reviewer idle after its verdict is delivered is a resource leak, not a no-op — always stop it before moving to 6c.
+
 **6c. Spawn the fix-round worker.** For every PR whose reviewer verdict was non-clean, spawn a fresh `general-purpose` agent with `isolation: worktree`, `mode: bypassPermissions`, `run_in_background: true`. Default model `sonnet`; override via `--worker-model`.
 
 The fix-round worker prompt MUST:
