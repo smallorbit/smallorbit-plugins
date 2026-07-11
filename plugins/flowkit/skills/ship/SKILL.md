@@ -34,9 +34,9 @@ if [ "$DEFAULT_BRANCH" = "develop" ] || { [ "$DEVELOP_EXISTS" -gt 0 ] && [ "$MAI
 fi
 ```
 
-### 1. Preflight: main, in sync, clean, progress
+### 1. Preflight: main, in sync, clean, progress, no open swarm PRs
 
-Refuse to run unless all four hold:
+Refuse to run unless all five hold:
 
 ```bash
 # Current branch must be main
@@ -70,6 +70,18 @@ if [ -n "$LAST_TAG" ]; then
     echo "ship: no commits on main since $LAST_TAG. Nothing to release." >&2
     exit 1
   fi
+fi
+
+# No open worktree-agent-* PRs may still target main — those are unmerged swarm output;
+# shipping now would tag a snapshot that never ran the verify gate against the integrated result
+BLOCKING_PRS=$(gh pr list --state open --base main --limit 200 --json number,headRefName \
+  --jq '.[] | select(.headRefName | startswith("worktree-agent-")) | "\(.number)\t\(.headRefName)"')
+if [ -n "$BLOCKING_PRS" ]; then
+  echo "ship: open worktree-agent-* PRs still target main. Run /swarmkit:merge-stack first." >&2
+  printf '%s\n' "$BLOCKING_PRS" | while IFS=$'\t' read -r PR_NUMBER PR_BRANCH; do
+    echo "  #${PR_NUMBER}  ${PR_BRANCH}" >&2
+  done
+  exit 1
 fi
 ```
 
@@ -216,7 +228,7 @@ Print:
 
 ## Constraints
 
-- The preflight is a hard gate — do not bypass any of the four conditions (on main, in sync, clean tree, commits since last tag) except for the first-ever-release exemption on the progress check
+- The preflight is a hard gate — do not bypass any of the five conditions (on main, in sync, clean tree, commits since last tag, no open `worktree-agent-*` PRs targeting main) except for the first-ever-release exemption on the progress check. The open-swarm-PR check has no override — it always exits 1 when blocking PRs are found
 - The tag MUST be annotated (`git tag -a`); lightweight tags lose author metadata and break `git describe` heuristics
 - Operator confirmation is non-negotiable — never push a tag without explicit operator approval
 - This skill replaces the v3 `cut → release → ship` chain. There is no RC branch, no release PR, no `gh issue close` loop — squash-merged PRs already carried `Closes #N` footers which GitHub honored at merge time
