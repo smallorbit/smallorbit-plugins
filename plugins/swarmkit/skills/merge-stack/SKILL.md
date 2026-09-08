@@ -1,41 +1,65 @@
 ---
 name: merge-stack
-description: Merge all open swarm PRs bottom-up after retargeting every non-root PR to the base branch, using a uniform squash-and-delete-branch strategy.
+description: Merge any PR stack bottom-up — defaulting to the swarm-produced worktree-agent-* PRs — after retargeting every non-root PR to the base branch, using a uniform squash-and-delete-branch strategy.
 ---
 
 # merge-stack
 
-Merges all open swarm PRs bottom-up — root PRs first, then their former children, up to the leaves. Before any merge happens, every non-root PR in a multi-PR chain is retargeted to `$BASE` so GitHub never fires its auto-close cascade. Every PR then merges uniformly with `gh pr merge <N> --squash --delete-branch`, and each PR closes its own `Closes/Fixes/Resolves/Refs` references on merge.
+Merges a stack of open PRs bottom-up — root PRs first, then their former children, up to the leaves. The default merge set is the swarm-produced `worktree-agent-*` PRs, but the selection layers below scope the run to any set of open PRs. Before any merge happens, every non-root PR in a multi-PR chain is retargeted to `$BASE` so GitHub never fires its auto-close cascade. Every PR then merges uniformly with `gh pr merge <N> --squash --delete-branch`, and each PR closes its own `Closes/Fixes/Resolves/Refs` references on merge.
+
+Selection is the only step that ever looked at head-branch naming. Everything downstream — graph build, retarget, ordering, conflict handling, base sync — treats each PR as an ordinary topology node, so ad-hoc PRs (`fix/…`, `chore/…`) participate on identical terms once selected.
 
 Because the underlying merge mode is squash, GitHub's tree-based diff handles already-applied predecessor commits automatically — no per-merge downstream rebase is required. If a downstream PR genuinely conflicts with the freshly-merged predecessor's content, the existing conflict-stops-chain rule (5d) marks it blocked and the operator resolves it manually.
 
 ## When to use
 
-Run after `/swarm` finishes. All swarm agents have pushed branches and opened PRs; none have merged yet. You've reviewed the PRs and are ready to merge them.
+Merging two or more open PRs that sit in a base-relationship stack. The common case is right after `/swarm` finishes — agents have pushed branches and opened PRs, none have merged, and you've reviewed them. The same command also lands a hand-built stack, or a swarm plus the ad-hoc fix PRs you opened on top of it.
+
+## Input
+
+| Form | Effect |
+|------|--------|
+| *(no arguments)* | Swarm default — every open PR whose head branch starts with `worktree-agent-`. Auto-proceeds; `$BASE` is derived from the root PRs' `baseRefName`. |
+| `<pr>...` | Exact set — merge precisely these PR numbers, replacing the swarm default. Each must exist and be open. |
+| `--include <pr>...` | Extends whichever base set is in effect (swarm default or `--base` scope) with these PR numbers. PR numbers only — no branch names. Deduped against the set. |
+| `--base <branch>` | Scopes selection to the stack rooted at `<branch>`, derived from base-relationship topology rather than head-branch naming. Replaces the swarm default and pins `<branch>` as the retarget target `$BASE`. Mutually exclusive with an exact positional set. |
+
+There is no unscoped "all open PRs" mode. The set is always the swarm default, an exact positional set, or a `--base` scope — each optionally extended by `--include`.
+
+Any set containing a non-`worktree-agent-*` PR requires explicit confirmation before merging (Step 4). A pure-swarm set proceeds immediately, exactly as a bare invocation always has.
 
 ## Process
 
-### 1. Find open swarm PRs
+### 1. Resolve the merge set
 
-List all open PRs whose head branch starts with `worktree-agent-`:
-
-```bash
-gh pr list --state open --json number,title,headRefName,baseRefName,body \
-  --jq '.[] | select(.headRefName | startswith("worktree-agent-"))'
-```
-
-If no open swarm PRs are found, report "No open swarm PRs found" and stop.
-
-Capture the set of head-branch names — Step 4's worktree pre-scan needs it:
+`select_prs.sh` owns the whole selection algebra: flag parsing, layer resolution, existence/open validation, dedupe, `$BASE` derivation, and pure-swarm-vs-mixed classification. Invalid flag combinations exit non-zero before anything is merged.
 
 ```bash
-MERGE_SET_BRANCHES=$(gh pr list --state open --json headRefName \
-  --jq '.[] | select(.headRefName | startswith("worktree-agent-")) | .headRefName')
+export SKILL_DIR="<absolute path from the 'Base directory for this skill:' header line>"
+SELECTION=$("$SKILL_DIR/scripts/select_prs.sh" <user arguments verbatim>)
 ```
+
+On non-zero exit, surface stderr to the user and stop. On success, read the fields:
+
+| Field | Use |
+|-------|-----|
+| `prs` | `[{number, title, headRefName, baseRefName, is_swarm}]` — the merge set, sorted by number. |
+| `pr_numbers` | The selected PR numbers. |
+| `base` | Retarget target `$BASE`; `null` when the set has more than one distinct root base. |
+| `base_pinned` | `true` when `$BASE` came from `--base` rather than derivation. |
+| `base_candidates` | Distinct root bases in the set — use these per chain when `base` is `null`. |
+| `merge_set_branches` | Every selected head-branch name. |
+| `swarm_branches` | The `worktree-agent-*` subset — gates Step 4's pre-scan and Step 7's follow-up. |
+| `non_swarm_prs` | Selected PRs outside the swarm convention. |
+| `requires_confirmation` | `true` when the set is mixed — Step 4 must stop and ask. |
+
+If `count` is `0`, report "No open PRs matched the selection" (for a bare invocation, "No open swarm PRs found") and stop.
 
 ### 2. Build the stack graph
 
-Model the PRs as a directed graph where an edge A → B means "A's head branch is B's base branch" (A sits on top of B). Build this from the `headRefName` / `baseRefName` fields — no issue-body parsing needed for ordering.
+Model the selected PRs as a directed graph where an edge A → B means "A's head branch is B's base branch" (A sits on top of B). Build this from the `headRefName` / `baseRefName` fields in `prs` — no issue-body parsing needed for ordering, and no head-branch naming assumptions. Ad-hoc PRs are ordinary nodes here.
+
+`$BASE` is the `base` field from Step 1 — pinned by `--base` when `base_pinned` is `true`, otherwise derived from the root PRs' `baseRefName`. When `base` is `null` the set spans more than one root base; treat each entry in `base_candidates` as that chain's own `$BASE`.
 
 Identify:
 - **Root PRs**: PRs whose `baseRefName` is `$BASE` (e.g. `main`, or a `feature/<slug>-<N>` epic branch) and that have at least one other PR stacked on top — these merge first in their chain.
@@ -56,7 +80,9 @@ Apply this to every PR in a multi-PR chain except the chain root. Independent PR
 
 ### 4. Present merge plan
 
-Before showing the plan, pre-scan local worktrees for any branch in the merge set. `gh pr merge --delete-branch` prints a benign-but-confusing `failed to delete local branch ... used by worktree at ...` warning when a branch is held by an active worktree; the merge itself still succeeds and the remote branch is deleted. Forewarning the user keeps that warning from reading like a failure.
+Before showing the plan, pre-scan local worktrees for any branch in the merge set. Skip this pre-scan entirely when `swarm_branches` is empty — only `worktree-agent-*` branches are ever held by agent worktrees, so a set without them has nothing to warn about.
+
+`gh pr merge --delete-branch` prints a benign-but-confusing `failed to delete local branch ... used by worktree at ...` warning when a branch is held by an active worktree; the merge itself still succeeds and the remote branch is deleted. Forewarning the user keeps that warning from reading like a failure.
 
 The pre-scan is read-only — never remove worktrees here. Worktree reaping is `swarmkit:clean-worktrees`'s job.
 
@@ -71,7 +97,7 @@ HELD_BY_WORKTREE=$(git worktree list --porcelain \
     done)
 ```
 
-Where `$MERGE_SET_BRANCHES` is the newline-delimited list of `headRefName`s collected in step 1. If `git worktree list` fails for any reason, treat `HELD_BY_WORKTREE` as empty and proceed without the note.
+Where `$MERGE_SET_BRANCHES` is the newline-delimited `merge_set_branches` list from Step 1. If `git worktree list` fails for any reason, treat `HELD_BY_WORKTREE` as empty and proceed without the note.
 
 Render the count + comma-joined list for the note:
 
@@ -98,7 +124,19 @@ Merge order (bottom-up per chain):
   Run `/swarmkit:clean-worktrees` after to reap them.
 ```
 
-Proceed immediately.
+When `requires_confirmation` is `false` — a pure-swarm set, which is what a bare invocation always resolves to — proceed immediately.
+
+When `requires_confirmation` is `true`, the set contains PRs outside the swarm convention, so it was assembled by hand and merging it is not a routine post-swarm sweep. List the `non_swarm_prs` entries under the plan and stop for an explicit go-ahead:
+
+```
+  Selection includes 2 PRs outside the worktree-agent-* convention:
+    #120  fix/typo     Fix broken anchor in README
+    #134  fix/other    Correct base URL in docs
+
+  These will be squash-merged and their branches deleted. Merge this set? (y/N)
+```
+
+Do not merge anything until the user confirms. Anything other than an explicit yes aborts the run with no changes made.
 
 ### 5. Merge bottom-up
 
@@ -163,12 +201,13 @@ git checkout $BASE
 git pull origin $BASE
 ```
 
-Where `$BASE` is the base branch of the root PRs (typically `main`, or the `feature/<slug>-<N>` branch when swarmkit pinned one).
+Where `$BASE` is the `base` field from Step 1 (typically `main`, the `feature/<slug>-<N>` branch when swarmkit pinned one, or the branch passed to `--base`). When the set spanned multiple root bases, sync each one.
 
 ### 7. Report
 
+Skip the `swarmkit:clean-worktrees` follow-up entirely when `swarm_branches` from Step 1 is empty — a set with no `worktree-agent-*` branches left no agent worktrees behind.
 
-Append a follow-up suggestion that points the user at `swarmkit:clean-worktrees`. If any `worktree-agent-*` worktrees still exist, recommend running it; otherwise note that the worktrees are already gone:
+Otherwise append a follow-up suggestion that points the user at `swarmkit:clean-worktrees`. If any `worktree-agent-*` worktrees still exist, recommend running it; otherwise note that the worktrees are already gone:
 
 ```bash
 if git worktree list --porcelain | awk '/^branch refs\/heads\/worktree-agent-/' | grep -q .; then
