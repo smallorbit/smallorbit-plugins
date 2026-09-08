@@ -370,7 +370,7 @@ Record `(issue, pr_number, head_branch, base_branch)` for each confirmed PR — 
 
 Every confirmed PR passes through this pass. Do NOT block on every PR before starting — dispatch a reviewer for each PR as soon as it is confirmed.
 
-**6a. Spawn a reviewer per PR.** Spawn the **`swarmkit:swarm-reviewer`** agent with `run_in_background: true`. Default model `sonnet`; override via `--reviewer-model`.
+**6a. Spawn a reviewer per PR.** Spawn the **`swarmkit:swarm-reviewer`** agent synchronously — do not set `run_in_background`. The `Agent()` call blocks until the reviewer finishes and returns its structured verdict as the result. Default model `sonnet`; override via `--reviewer-model`.
 
 The reviewer prompt MUST include:
 
@@ -384,11 +384,11 @@ The reviewer prompt MUST include:
   - **Nits** (style, optional)
   - **Coverage gaps** (with `[recommended]` or `[optional]` tag per gap)
 
-**Verdict delivery contract.** Per the reviewer agent's contract (`plugins/swarmkit/agents/swarm-reviewer.md`), the reviewer `SendMessage`s its complete structured verdict to the parent (this orchestrator) before terminating. The idle notification alone does not carry the verdict text — wait for the `SendMessage` payload to parse the result and apply the skip-on-clean rule. If only an idle notification arrives with no accompanying `SendMessage` payload, treat the reviewer as having returned no output and note the missing review in the final summary.
+**Verdict delivery contract.** Because the reviewer is spawned synchronously (6a), the `Agent()` call's return value IS the complete structured verdict — no bridging message is needed. Parse the returned text directly to apply the skip-on-clean rule. If the call returns without the required five-section structure, treat the reviewer as having returned no output and note the missing review in the final summary.
 
-Track each reviewer's agent ID against the PR it covers.
+Track each reviewer's result against the PR it covers.
 
-**6b. Decide whether to spawn a fix-round worker.** When the reviewer's `SendMessage` payload arrives, parse its result and apply the **skip-on-clean** rule:
+**6b. Decide whether to spawn a fix-round worker.** Once the reviewer's `Agent()` call returns, parse its result and apply the **skip-on-clean** rule:
 
 | Reviewer output | Action |
 |-----------------|--------|
@@ -404,7 +404,7 @@ PR #1390: reviewer clean (no blockers/concerns) → no fix round
 PR #1391: reviewer flagged 1 blocker, 2 concerns → spawning fresh worker
 ```
 
-**Terminate the reviewer.** Unlike swarm builders, reviewers are never spawned with `isolation: worktree` and hold no git state — but they are addressable teammates and the harness does not auto-terminate them the way it does builders. Once a reviewer's `SendMessage` verdict has been parsed (regardless of the fix-round decision above), immediately call `TaskStop` on its tracked agent ID/name. Leaving a reviewer idle after its verdict is delivered is a resource leak, not a no-op — always stop it before moving to 6c.
+A synchronous `Agent()` call already terminates the reviewer once it returns — no separate cleanup step is needed before moving to 6c.
 
 **6c. Spawn the fix-round worker.** For every PR whose reviewer verdict was non-clean, spawn a fresh `general-purpose` agent with `isolation: worktree`, `mode: bypassPermissions`, `run_in_background: true`. Default model `sonnet`; override via `--worker-model`.
 
