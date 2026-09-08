@@ -78,6 +78,8 @@ gh pr edit <N> --base $BASE
 
 Apply this to every PR in a multi-PR chain except the chain root. Independent PRs already target `$BASE` and need no retargeting. Track the retarget count for the plan preview and final report.
 
+When `base` is `null` there is no single global `$BASE`. Resolve `$BASE` per chain: a chain's `$BASE` is its own root PR's `baseRefName` — the matching entry in `base_candidates` — and every non-root PR in that chain retargets to that value. Never retarget a chain onto another chain's root base.
+
 ### 4. Present merge plan
 
 Before showing the plan, pre-scan local worktrees for any branch in the merge set. Skip this pre-scan entirely when `swarm_branches` is empty — only `worktree-agent-*` branches are ever held by agent worktrees, so a set without them has nothing to warn about.
@@ -140,7 +142,9 @@ Do not merge anything until the user confirms. Anything other than an explicit y
 
 ### 5. Merge bottom-up
 
-For each chain, work from the root up to the leaf. For each PR in order:
+For each chain, work from the root up to the leaf. Every `$BASE` reference below is that chain's own `$BASE`: when `base` is `null`, substitute the chain's entry from `base_candidates` rather than one global value — a PR merges into the base its own chain is rooted at.
+
+For each PR in order:
 
 #### 5a. Check mergeability
 
@@ -201,7 +205,7 @@ git checkout $BASE
 git pull origin $BASE
 ```
 
-Where `$BASE` is the `base` field from Step 1 (typically `main`, the `feature/<slug>-<N>` branch when swarmkit pinned one, or the branch passed to `--base`). When the set spanned multiple root bases, sync each one.
+Where `$BASE` is the `base` field from Step 1 (typically `main`, the `feature/<slug>-<N>` branch when swarmkit pinned one, or the branch passed to `--base`). When `base` is `null` the set spanned multiple root bases — there is no single `$BASE` to sync, so repeat the checkout-and-pull once for every entry in `base_candidates`.
 
 ### 7. Report
 

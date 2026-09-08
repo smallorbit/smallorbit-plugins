@@ -132,7 +132,7 @@ explicit_json="$(jq -n --argjson p "$positionals_json" --argjson i "$includes_js
 missing="$(printf '%s' "$all_prs" \
   | jq -r --argjson explicit "$explicit_json" '($explicit - [.[].number]) | map(tostring) | join(", ")')"
 if [[ -n "$missing" ]]; then
-  runtime_error "PR(s) not found among open PRs: $missing"
+  runtime_error "PR(s) not found among the open PRs fetched: $missing (the fetch is capped at the first 500 open PRs — check each number is correct, still open, and within that cap)"
 fi
 
 if [[ "$base_given" == true ]]; then

@@ -164,6 +164,15 @@ assert_selection "positionals-replace" '
   and .base_pinned == false
 ' -- 120 134 --pr-json "$PRS"
 
+assert_selection "positionals-multi-root-base-yields-null-base" '
+  .selection_mode == "exact"
+  and .pr_numbers == [103, 150]
+  and .count == 2
+  and .base == null
+  and .base_pinned == false
+  and .base_candidates == ["feature/epic-9", "main"]
+' -- 103 150 --pr-json "$PRS"
+
 assert_selection "positionals-hash-prefix-accepted" '
   .pr_numbers == [120]
 ' -- "#120" --pr-json "$PRS"
