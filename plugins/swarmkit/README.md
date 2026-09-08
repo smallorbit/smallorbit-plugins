@@ -137,7 +137,7 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm`'s automatic revie
 
 Every PR `/swarm` opens passes through an automatic review/fix pass before the run completes — always-on, with no flag to disable it:
 
-1. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR in the background — no waiting for other swarm agents.
+1. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR — no waiting for other swarm agents to finish first.
 2. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
 3. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
 4. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
