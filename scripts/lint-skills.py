@@ -86,13 +86,61 @@ def strip_fences(text: str) -> str:
     return "\n".join(out)
 
 
+ARG_HEADING_RE = re.compile(r"^#{2,3}\s+.*\b(Input|Arguments?|Flags?|Usage|Options?)\b", re.IGNORECASE)
 BACKTICK_FLAG_RE = re.compile(r"`(--[a-z][a-z0-9-]+)`")
+INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+FLAG_TOKEN_RE = re.compile(r"(?<![\w-])(--[a-z][a-z0-9-]+)")
+
+
+def flags_in(text: str) -> set[str]:
+    """Flags named inside inline-code spans, skipping spans that open with a
+    bare word — those are a command line (`git worktree remove --force`,
+    `ruff check --select F401`), which documents that tool, not the skill.
+    A span opening with the flag itself or with the skill's own `/command` is
+    interface, and its flags count."""
+    found: set[str] = set()
+    for span in INLINE_CODE_RE.findall(text):
+        head = span.strip().split(" ", 1)[0]
+        if head and not head.startswith(("-", "/", "$")):
+            continue
+        found.update(FLAG_TOKEN_RE.findall(span))
+    return found
+
+
+def arg_section(text: str) -> str | None:
+    """The body of a skill's Input/Arguments/Flags section(s), or None when the
+    skill has no such heading. Flags outside it belong to something else — the
+    harness, a sub-script, or a shell command the skill runs."""
+    sections: list[str] = []
+    depth = 0
+    for line in text.splitlines():
+        heading = re.match(r"^(#{1,6})\s", line)
+        if heading and depth and len(heading.group(1)) <= depth:
+            depth = 0
+        if ARG_HEADING_RE.match(line):
+            depth = len(heading.group(1)) if heading else 0
+            sections.append("")
+            continue
+        if depth:
+            sections[-1] += line + "\n"
+    return "\n".join(sections) if sections else None
 
 
 def documented_flags(path: Path) -> set[str]:
-    """A skill's own flags: backtick-wrapped `--flag` tokens in prose (not in
-    shell snippets, where `--json`/`--cached` are CLI noise, not the interface)."""
-    return set(BACKTICK_FLAG_RE.findall(strip_fences(path.read_text(encoding="utf-8"))))
+    """A skill's own flags: backtick-wrapped `--flag` tokens taken from its
+    Input/Arguments/Flags section (not from fenced snippets, where `--json`/
+    `--cached` are CLI noise, not the interface).
+
+    Scoping to that section is what keeps flags the skill does not accept out
+    of the set — a sub-script's flag, the CLI flag of a process it spawns, or a
+    flag named only to say it is rejected. Skills with no such section fall
+    back to a deliberately conservative whole-prose scan: a lone `--flag`
+    span, never a flag embedded in a longer command."""
+    text = strip_fences(path.read_text(encoding="utf-8"))
+    section = arg_section(text)
+    if section is None:
+        return set(BACKTICK_FLAG_RE.findall(text))
+    return flags_in(section)
 
 
 # --- Rule: frontmatter present -------------------------------------------
@@ -257,8 +305,6 @@ def rule_settings_allowlist(findings: list[Finding]) -> None:
 
 
 # --- Rule (WARN): argument section present where flags are used ----------
-
-ARG_HEADING_RE = re.compile(r"^#{2,3}\s+.*\b(Input|Arguments?|Flags?|Usage|Options?)\b", re.IGNORECASE)
 
 
 def rule_input_present(findings: list[Finding]) -> None:

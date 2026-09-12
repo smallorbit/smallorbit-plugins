@@ -63,7 +63,7 @@ merge. Promote a WARN rule to ERROR once it runs clean across the tree.
 | `develop` | ERROR | a stale `develop` branch reference outside the migration/legacy allowlist (incl. `.github/workflows/**`) |
 | `allowlist` | ERROR | a `.claude/settings.json` permission entry pointing at a non-existent `plugins/**.sh` script |
 | `input-table` | WARN | a SKILL.md that documents `` `--flags` `` in prose but has no Input/Arguments/Flags heading |
-| `flag-matrix` | WARN | a SKILL.md flag absent from its plugin README (coarse drift heuristic) |
+| `flag-matrix` | WARN | a flag from a SKILL.md's Input/Arguments/Flags section absent from its plugin README |
 | `paraphrase` | WARN | a doc that inlines the PR-body section shape without citing `_shared/pr-body.md` |
 
 ### Notes on specific rules
@@ -81,11 +81,17 @@ target* and are not covered by:
   branch-protection alternation),
 - an inline `lint-allow-develop` marker on the line.
 
-**`flag-matrix`.** A coarse heuristic: it extracts only backtick-wrapped
-`` `--flag` `` tokens from SKILL.md prose (ignoring CLI flags inside shell
-snippets) and warns when one is absent from the plugin README. It surfaces real
-drift but also soft positives (a flag mentioned only to say it is *not* used), so
-it is WARN, not ERROR.
+**`flag-matrix`.** Extracts the flags a skill actually accepts and warns when
+one is absent from the plugin README. The flag set comes from the skill's
+Input/Arguments/Flags section only — outside it a `` `--flag` `` usually belongs
+to something else: a sub-script the skill calls, the CLI flag of a process it
+spawns, or a flag named only to say it is *rejected*. Within that section, an
+inline-code span opening with a bare word (`git worktree remove --force`,
+`ruff check --select F401`) is read as a command line and skipped; a span
+opening with the flag itself or with the skill's own `/command` is interface.
+Skills with no such section fall back to a conservative scan for lone
+`` `--flag` `` spans. Still WARN, not ERROR — a README may legitimately describe
+a flag in prose the substring check cannot see.
 
 ## Adding a rule
 

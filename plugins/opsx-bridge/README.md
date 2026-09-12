@@ -70,8 +70,6 @@ Builders are derived as `min(unique capabilities, 4)`, defaulting to 1 when the 
 
 Swarm knobs (`--model`, `--worker-model`, `--reviewer-model`) are not passed through; run `/swarmkit:swarm` directly for those.
 
-The internal `read-change` sub-skill has no top-level command and no flags of its own — both dispatch skills invoke it with the bare change name. The `--arg` / `--argjson` that appear in its body are options to the `jq -n` call it uses to assemble its JSON payload, not arguments a caller passes.
-
 ## Concepts
 
 ### Universal unit of work: OpenSpec capabilities
