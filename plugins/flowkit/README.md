@@ -36,8 +36,8 @@ claude --plugin-dir /path/to/flowkit
 | **commit** | `/commit` | Stage and commit changes — infers `type(scope): description` from the staged diff. |
 | **pr** | `/pr` | One-shot: commit if dirty, then push and open a PR against `main` (or `claude.flowkit.prBase` when set). |
 | **open-pr** | `/open-pr` | Push current branch and open a PR. Base resolution: `--base` → `claude.flowkit.prBase` → `main`. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. |
-| **ship** | `/ship` | Tag HEAD of `main`, push the tag, and create a GitHub Release. Derives the next semver from conventional commits since the last `v*` tag. |
+| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. Takes an optional PR number; auto-detects from the current branch when omitted. A numeric PR number is the *only* accepted argument — there is no merge-mode override, and `--merge` / `--rebase` exit 2 as invalid arguments rather than switching strategy. |
+| **ship** | `/ship` | Tag HEAD of `main`, push the tag, and create a GitHub Release. Derives the next release tag — today's date for calver repos, semver from conventional commits otherwise. |
 | **sync** | `/sync` | Checkout `main`, pull latest, prune stale branches. |
 | **pipeline-status** | `/pipeline-status` | Show open PRs targeting `main` and the most recent release tag. |
 | **migrate-v4** | `/migrate-v4` | Migrate a v3 repo (develop/RC/main) to single-trunk GitHub Flow. Interactive, with per-step confirmation. Idempotent. |
@@ -46,8 +46,8 @@ claude --plugin-dir /path/to/flowkit
 
 | Skill | Used by | Purpose |
 |-------|---------|---------|
-| **git-sync-main** | internal | Checkout `main` and pull latest from origin. |
-| **push-or-pr** | bump-versions | Publish commits on a shared branch safely — branches off, pushes, opens a PR. Never pushes directly to the checked-out branch. |
+| **git-sync-main** | none — standalone helper | Checkout `main` and pull latest from origin. |
+| **push-or-pr** | bump-versions | Publish commits on a shared branch safely — branches off, pushes, opens a PR. Never pushes directly to the checked-out branch. Callers pass `--prefix` (feature-branch prefix; the script appends `-YYYY-MM-DD`), `--title`, `--body`, and optional `--base` (default `main`) — the first three are required only when there are pending commits, otherwise the run is a no-op. |
 | **with-clean-workspace** | merge-pr | Auto-stash dirty workspace around implicit post-merge pulls. |
 
 ## Typical Workflows
@@ -68,7 +68,7 @@ claude --plugin-dir /path/to/flowkit
 /ship
 ```
 
-`/ship` derives the next semver from conventional commits since the last `v*` tag, confirms with the operator, then creates an annotated tag and a GitHub Release with auto-generated notes.
+`/ship` derives the next release tag from the newest `v*` tag — today's date for calver repos, a semver bump from conventional commits otherwise — confirms with the operator, then creates an annotated tag and a GitHub Release with auto-generated notes.
 
 ### Pre-flight check
 
@@ -108,9 +108,9 @@ squadkit's `spawn-team --epic` handles the branch-cut and pin automatically for 
 
 `/ship` is the single release command:
 
-1. **Preflight**: must be on `main`, in sync with origin, workspace clean, at least one commit since the last `v*` tag. Refuses on v3-configured repos (develops-default); direct those to `/migrate-v4`.
-2. **Semver derivation**: scans `git log` since the last `v*` tag. Any `BREAKING CHANGE` or `!:` → major. Any `feat` → minor. Else → patch. First release (no prior `v*` tag) defaults to `v0.1.0`.
-3. **Operator confirmation**: shows the proposed tag + version bump type and waits.
+1. **Preflight**: five hard conditions — must be on `main`, in sync with origin, workspace clean, at least one commit since the last `v*` tag, and no open `worktree-agent-*` PRs targeting `main` (the one condition with no override — see "After a swarm run" above). Refuses on v3-configured repos (develops-default); direct those to `/migrate-v4`.
+2. **Tag derivation**: reads the newest `v*` tag and picks the scheme. Calver-shaped (`vYYYY.M.D[.N]`) → the next tag is today's date, with a `.N` suffix when a tag for today already exists; the conventional-commit signal is ignored. Otherwise semver → scans `git log` since the last `v*` tag: any `BREAKING CHANGE` or `!:` → major, any `feat` → minor, else patch. First release (no `v*` tag at all) defaults to `v0.1.0`.
+3. **Operator confirmation**: shows the proposed tag + rationale and waits.
 4. **Tag + release**: creates an annotated tag, pushes it, runs `gh release create --generate-notes`.
 
 ## Configuration
@@ -136,11 +136,11 @@ git config --unset claude.flowkit.prBase
 
 Feature branches merge into `main` via squash. `main` always reflects the latest shipped state. No `develop`, no `rc/*` branches.
 
-### Semver tags: `vMAJOR.MINOR.PATCH`
+### Release tags: calver or semver
 
-Flowkit v4 uses conventional semver derived from the commit log. The first release defaults to `v0.1.0`.
+`/ship` reads the newest `v*` tag to pick the scheme. Calver-shaped repos (`vYYYY.M.D[.N]`, e.g. `v2026.5.29`) get today's date, with a `.N` same-day suffix when a tag for today already exists. Otherwise the next tag is semver derived from conventional commits, starting at `v0.1.0` when no `v*` tag exists at all.
 
-> **Migrating from calver tags?** `/ship`'s first-ever run in a repo with no existing `v*` tags starts at `v0.1.0`. If you have calver tags like `v2026.5.29`, `/ship` will read them and use the next calver increment — the derivation only applies to `vMAJOR.MINOR.PATCH` shaped tags. Calver repos are fine without migration.
+> **On calver tags?** No migration needed. `/ship` reads existing calver tags and keeps incrementing them — the conventional-commit derivation only applies to `vMAJOR.MINOR.PATCH` shaped tags.
 
 ### Commit format: Conventional Commits
 

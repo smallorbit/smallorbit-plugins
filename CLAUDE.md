@@ -9,7 +9,7 @@ The root [README](./README.md) owns two canonical anchors that other surfaces cr
 - `#available-plugins` — plugin catalog.
 - `#getting-started` — end-to-end walkthrough for new users (prereqs → install → `/spec` → `/swarm` → ship).
 
-The landing page (`docs/index.html`) and each plugin README link back to these anchors instead of carrying parallel copies. When updating onboarding narrative, edit the root README and let the teasers point to it — don't fork the walkthrough into individual plugin READMEs.
+The landing page (built from `site/`, deployed to `gh-pages` by `.github/workflows/deploy-site.yml`) and each plugin README link back to these anchors instead of carrying parallel copies. When updating onboarding narrative, edit the root README and let the teasers point to it — don't fork the walkthrough into individual plugin READMEs.
 
 ## Release Process
 

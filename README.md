@@ -1,6 +1,6 @@
 # smallorbit-plugins
 
-[![smallorbit-plugins landing page](docs/assets/landing-hero.png)](https://smallorbit.github.io/smallorbit-plugins/)
+[![smallorbit-plugins landing page](.github/assets/landing-hero.png)](https://smallorbit.github.io/smallorbit-plugins/)
 
 ## From idea to release. With you in the loop.
 
@@ -77,12 +77,13 @@ Say you're building a small notes app and want to add tags to notes. Kick off an
 …a few rounds later, after nailing down persistence, filter UX, and the migration story, `/spec` shows the plan for approval and — on your OK — files it:
 
 ```
-Filed epic: #101 Epic: Add tags to notes             label: epic:tags-notes
+Epic:  #101  epic: add tags to notes    labels: epic, epic:tags-notes, priority:high
+
 Filed children:
-  #102 Extend Note schema with tags field            priority:high   type:feature
-  #103 Add tag input to NoteEditor                   priority:high   type:feature
-  #104 Render tag chips on note cards                priority:medium type:feature
-  #105 Filter notes by tag from the sidebar          priority:medium type:feature
+  #102 Extend Note schema with tags field    enhancement  priority:high    epic:tags-notes
+  #103 Add tag input to NoteEditor           enhancement  priority:high    epic:tags-notes
+  #104 Render tag chips on note cards        enhancement  priority:medium  epic:tags-notes
+  #105 Filter notes by tag from the sidebar  enhancement  priority:medium  epic:tags-notes
 ```
 
 ### 3. Resolve the epic with `/swarm`
@@ -95,12 +96,15 @@ Pass the epic number — swarmkit expands it to its sub-issues automatically and
 
 (You can also pass an explicit list — `/swarm 102 103 104 105` — or a label name for loop mode.)
 
-swarmkit spawns one isolated-worktree agent per ready issue, each on its own `worktree-agent-<n>` branch. Independent issues run in the same cycle; dependents wait until their dependency's PR exists, then their PR's base is set to that PR's branch — so the stack falls out of the dependency graph automatically:
+Because #101 expands to four wired sub-issues — two or more is the trigger — swarmkit first cuts a `feature/<slug>-<lowest-child>` epic branch from `origin/main` and pins `claude.flowkit.prBase` to it, so every stack-root PR targets that branch rather than `main`. It then spawns one isolated-worktree agent per ready issue, each on its own `worktree-agent-<n>` branch. Independent issues run in the same cycle; dependents wait until their dependency's PR exists, then their PR's base is set to that PR's branch — so the stack falls out of the dependency graph automatically:
 
 ```
+Cut feature/extend-note-schema-with-tags-field-102 from origin/main; pinned claude.flowkit.prBase.
+All stack-root PRs target it.
+
 Cycle 1 — #102 spawned (no unmet deps).
 
-  #210 feat(notes): extend Note schema with tags field        → main
+  #210 feat(notes): extend Note schema with tags field        → feature/extend-note-schema-with-tags-field-102
 
 Cycle 2 — #103, #104, #105 spawned (deps on #102 satisfied).
 
@@ -111,22 +115,23 @@ Cycle 2 — #103, #104, #105 spawned (deps on #102 satisfied).
 Stack root: #210. Run /merge-stack to merge bottom-up.
 ```
 
-For the full mechanics — including how `/merge-stack` retargets PRs and rebases between merges to dodge GitHub's auto-close cascade — see the [Run a swarm](https://smallorbit.github.io/smallorbit-plugins/blog/run-a-swarm/) blog post.
+For the full mechanics — including how `/merge-stack` retargets every non-root PR to the base branch up front to dodge GitHub's auto-close cascade, then squash-merges bottom-up — see the [Run a swarm](https://smallorbit.github.io/smallorbit-plugins/blog/run-a-swarm/) blog post.
 
 ### 4. Ship it (optional — use your own process if you prefer)
 
-Once the PRs look right, merge and release them however you normally would. If you'd like a streamlined flow, install **flowkit**:
+Once the PRs look right, merge and release them however you normally would. If you'd like a streamlined flow, install **flowkit** — it adds `/ship`, which pairs with swarmkit's `/merge-stack`:
 
 ```
 /plugin install flowkit@smallorbit-plugins
 ```
 
-Merge the stack and ship in two commands:
+Because `/swarm 101` cut an epic branch, landing the stack takes three steps:
 
-```
-/merge-stack     # merge swarm PRs bottom-up into main
-/ship            # tag HEAD of main and create a GitHub Release
-```
+1. `/merge-stack` (swarmkit) — squash-merges the child PRs bottom-up into the epic branch, not into `main`.
+2. Verify on the epic branch (typecheck/test/lint), then open and squash-merge a single epic→`main` PR; afterwards `git config --unset claude.flowkit.prBase` and delete the epic branch.
+3. `/ship` (flowkit) — tags HEAD of `main` and creates a GitHub Release.
+
+When no epic branch was cut — `--no-epic`, `--base <branch>`, or a standalone single issue — the PRs target that base directly, so you merge them (`/merge-stack`, or flowkit's `/merge-pr` for a lone PR) and `/ship` follows straight after.
 
 See the [flowkit README](./plugins/flowkit/README.md) for the full lifecycle.
 
@@ -142,7 +147,7 @@ The development-lifecycle plugins form a complete loop from idea to release:
 /ship          → tag HEAD of main, create a GitHub Release (flowkit)
 ```
 
-**swarmkit** runs a built-in `simplify-loop` after each agent finishes — iterative `/simplify` passes that tighten the code before opening the PR. This is a lightweight pre-PR sanity check, not a code review.
+**swarmkit** runs an always-on review/fix pass over every PR it opens — a vendored `swarm-reviewer` agent checks each PR against its issue's acceptance criteria, and a non-clean verdict (blockers, concerns, or `[recommended]` coverage gaps) spawns a fresh worker that pushes follow-up commits to the same branch. There is no flag to disable it, and the PRs are left open for human merge.
 
 **polishkit** sits between `/swarm` and `/ship` as a quality gate: use `/appraise` to assess elegance and craft, `/sweep` to remove dead code and accumulated cruft (unused exports, stale files, build artifacts) in one pass, and `/polish` to polish cross-cutting code-quality issues (reuse, quality, efficiency) across a path or themed scope before shipping.
 

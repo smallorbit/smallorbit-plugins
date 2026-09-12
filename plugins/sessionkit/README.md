@@ -29,7 +29,7 @@ claude --plugin-dir /path/to/sessionkit
 
 | Skill | Invoke | What it does |
 |-------|--------|--------------|
-| **handoff** | `/handoff` | Captures session goal, progress, git state, remaining work, and active tasks into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. |
+| **handoff** | `/handoff [notes]` | Captures session goal, progress, remaining work, key context, and active tasks into `.sessionkit/HANDOFF.md`. Use when context is running low or when switching agents. Optional freeform notes (e.g. "focus on the auth refactor") are folded into Goal or Context. |
 | **pickup** | `/pickup` | Loads `.sessionkit/HANDOFF.md` at the start of a new session, orients the agent, and hydrates pending/in-progress tasks back into the task system. |
 | **roadmap** | `/roadmap` | Surveys the current work-in-flight and produces an approved task chain that takes it all the way to "shipped". On approval, optionally hands off to `/drive` for autonomous execution. |
 | **drive** | `/drive` | Executes an approved task chain autonomously — marks each task in_progress before starting and completed immediately after, surfaces only for blockers or executive decisions. Pairs with `/roadmap`; standalone-invokable when a task list is already prepared. |
@@ -74,9 +74,9 @@ claude --plugin-dir /path/to/sessionkit
 
 ## How Handoff / Pickup Works
 
-`/handoff` collects git state, todo files, conversation history, and the active task list, synthesizes them into a structured document, prints it inline, then writes it immediately to `.sessionkit/HANDOFF.md` — no approval step. The only prompt is a one-time confirmation before adding `.sessionkit/` to `.gitignore`, if the entry is not already present.
+`/handoff` summarizes the live conversation (goal, progress, remaining work, context), snapshots the active task list via `TaskList`/`TaskGet`, writes the result to `.sessionkit/HANDOFF.md`, and reports the absolute path — no approval step. Any freeform notes you pass are folded into Goal or Context. The only prompt is a one-time offer to create or update `.gitignore` so it covers `.sessionkit/`, when that coverage is missing.
 
-`/pickup` reads that document at the start of a fresh session, produces an orientation summary — goal, progress, git state, remaining work, and key context — and hydrates any serialized tasks back into the task system via `TaskCreate` and `TaskUpdate`.
+`/pickup` reads that document at the start of a fresh session, produces an orientation summary — goal, progress, remaining work, and key context — and hydrates any serialized tasks back into the task system via `TaskCreate` and `TaskUpdate`.
 
 The two skills are intentionally separate: handoff writes, pickup reads. The handoff file is never modified or deleted by pickup.
 
@@ -91,7 +91,7 @@ The two skills are intentionally separate: handoff writes, pickup reads. The han
 | `id` | Carried in the snapshot to allow `blockedBy` rewiring; the new session assigns a fresh ID |
 | `subject` | Task title |
 | `description` | Full task description |
-| `activeForm` | The task's active form/view state |
+| `activeForm` | Present-continuous label shown in the spinner while the task is in progress (e.g. "Merging PR #777") |
 | `status` | Original status (`pending` or `in_progress`) — all recreated tasks start as `pending` |
 | `blockedBy` | Dependency edges; remapped to new IDs after all tasks are created |
 | `blocks` | Listed in the snapshot for reference; not re-wired (the inverse of `blockedBy` is implicit) |
@@ -114,18 +114,17 @@ Handoff files written by sessionkit ≤ 1.5.0 may contain a legacy squad-coordin
 
 | Section | Contents |
 |---------|----------|
-| **Goal** | One or two sentences describing what this session is working toward |
-| **Progress** | Bullet list of completed steps and key decisions made |
-| **Git State** | Current branch, staged/unstaged files, recent commits |
-| **Remaining Work** | Prioritized list of what still needs to be done |
+| **Goal** | One bullet — a single sentence describing what this session is working toward |
+| **Progress** | Bullets: completed steps, decisions made, things abandoned |
+| **Remaining Work** | Bullets: what still needs to be done, in priority order |
+| **Context** | Bullets: gotchas, constraints, or non-obvious state the next agent must know |
 | **Task List** | Fenced JSON array of task objects (see Task Round-Trip above) |
-| **Context** | Gotchas, constraints, or non-obvious state the next agent must know |
 
 You can manually edit `.sessionkit/HANDOFF.md` between sessions — `/pickup` reads whatever is there.
 
 ## How Roadmap / Drive Works
 
-`/roadmap` surveys the current work-in-flight — uncommitted state, current branch's role (feature / epic / RC / develop), open PRs targeting common bases, peer PRs in a stack, in-flight worktrees, RC branches awaiting release, the latest release tag, and the existing task list. It classifies the state, picks the matching sub-chain from a step library (commit → push → PR → review → merge → bump → cut → release), and materializes it as a linear task chain with `blockedBy` edges wired between steps.
+`/roadmap` surveys the current work-in-flight — uncommitted state, current branch's role (feature / epic / RC / develop), open PRs targeting common bases, peer PRs in a stack, in-flight worktrees, RC branches awaiting release, the latest release tag, and the existing task list. It classifies the state, picks the matching sub-chain from a step library (commit → PR → review → merge or merge-stack → verify → sync → bump → ship), and materializes it as a linear task chain with `blockedBy` edges wired between steps.
 
 After the plan is built, `/roadmap` presents a compact summary and asks for approval via `AskUserQuestion`:
 
@@ -174,5 +173,5 @@ Sessionkit works alongside every other plugin in the suite:
 - `/handoff` is useful if a `/spec` session runs long and needs to continue in a new context
 
 **With [flowkit](../flowkit)**
-- Use `/handoff` before a long `/release` or `/cut` session if context is running low
+- Use `/handoff` before a long `/flowkit:ship` or `/swarmkit:merge-stack` session if context is running low
 - `/skillit` after a release helps capture any new conventions or one-off scripts worth keeping

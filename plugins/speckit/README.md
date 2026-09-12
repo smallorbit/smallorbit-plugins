@@ -66,7 +66,7 @@ claude --plugin-dir /path/to/speckit
 
 `/spec` runs a structured interview using `AskUserQuestion` (1–4 questions per round), grounding each question in the actual codebase before asking. It continues until all ambiguities are resolved, then synthesizes a plan with goal, background, requirements, out-of-scope boundaries, and a task breakdown. The plan and its approval prompt are always emitted in the same turn — the plan never appears without an immediate `AskUserQuestion` call to approve, adjust, re-scope, or cancel.
 
-Child issues are created via `/catalog`. An epic tracking issue is created last, after all child issue numbers are known. No issues are ever created without your explicit approval.
+Child issues are created via `/catalog`. An epic tracking issue is created last, after all child issue numbers are known. `/spec` then attaches every child to the epic as a native GitHub sub-issue and converts each task's `Depends On` value into a GitHub blocked-by relationship, so dependencies live in GitHub's issue graph rather than in issue-body text. Nothing is filed before you approve the plan.
 
 ### Simple-path shortcut
 
@@ -74,7 +74,7 @@ Before running the full interview, `/spec` classifies the request as **simple** 
 
 Classification is silent when the heuristic is confident. `/spec` narrates the routing inline (e.g. "This looks like a single-file, single-concept change — running simple path") and proceeds. An upfront `AskUserQuestion` prompt fires only when the heuristic is genuinely ambiguous — for example, a single file containing multiple plausibly-independent concepts, or an input that under-specifies scope.
 
-On both paths the plan-presentation turn always ends with an `AskUserQuestion` approval call — it's the single, mandatory approval gate. The prompt includes a re-scope option on both paths (`Run full interview instead` on a simple-path plan, `Condense to single issue` on a full-path plan), so the final approval is also the escape hatch.
+On both paths the plan-presentation turn always ends with an `AskUserQuestion` approval call — it's the mandatory plan-approval gate, and no issue is filed before it is answered. It isn't necessarily the only prompt you'll see: `/catalog` runs its own catalog-table confirmation before filing, and on the full path an already-existing `epic:<slug>` label prompts again before the epic tracking issue goes up. The prompt includes a re-scope option on both paths (`Run full interview instead` on a simple-path plan, `Condense to single issue` on a full-path plan), so the final approval is also the escape hatch.
 
 On the simple path, `/spec` runs a single lightweight interview round (1–3 questions), drafts a one-task plan, and hands it to `/catalog` with **no `--epic` flag**. One standalone issue is filed — no epic tracking issue, no sub-issue wiring, no auto-appended documentation task (docs fold into the single issue's acceptance criteria). This keeps trivial changes from being inflated into multi-task epics.
 
@@ -113,17 +113,17 @@ simple path always skips this step — single-issue plans are never team-suitabl
 
 ## How Catalog Works
 
-`/catalog` accepts findings from three sources (checked in order): explicit input in `$ARGUMENTS`, findings from earlier in the conversation, or a file path. It parses them into discrete issues, checks for existing duplicates and labels, shows a summary table for approval, then creates all issues in priority order (high first).
+`/catalog` accepts findings from three sources (checked in order): explicit input in `$ARGUMENTS`, findings from earlier in the conversation, or a file path. It parses them into discrete findings, provisions any labels the batch needs, shows a summary table for approval, then creates all issues in priority order (high first).
 
-You can pass `--epic <slug>` to scope all created issues to an existing epic label:
+You can pass `--epic <slug>` to scope all created issues to an epic label:
 
 ```
 /catalog --epic dark-mode
 ```
 
-This attaches the `epic:dark-mode` label to every issue created in that run, without re-running the full `/spec` interview.
+This attaches the `epic:dark-mode` label to every issue created in that run, without re-running the full `/spec` interview. If the label is missing it is created for you in the shared epic styling (purple `#5319e7`); if it already exists, `/catalog` warns once per invocation and waits for a `y/N` confirmation before reusing it across the batch. An epic title may follow the slug — it becomes the label description. Any `--epic` run ends with a fenced `spec-handoff` JSON block (the filed issue numbers and slug) intended for the `/spec` orchestrator; you'll see it on standalone runs too.
 
-Pass `--auto` to skip the approval gate and proceed directly to issue creation. Use this for programmatic or scripted invocations (e.g. `/polish`, CI pipelines) where interactive confirmation is not needed. Omit it for interactive use when you want to review and adjust the catalog before anything is filed.
+Pass `--auto` to skip the approval gate and proceed directly to issue creation. Use this for programmatic or scripted invocations (other skills, CI pipelines) where interactive confirmation is not needed. Omit it for interactive use when you want to review and adjust the catalog before anything is filed.
 
 When the source is a multi-row blueprint table (e.g. a "Child issue list" grouped by phase), `/catalog` consolidates by default: rows in the same phase that share scope and have no inter-dependency fold into a single issue per phase, and a one-line per-phase summary prints before the catalog table so the consolidation decision is visible. Pass `--split` to disable this and file one issue per row.
 
@@ -133,7 +133,7 @@ When the source is a multi-row blueprint table (e.g. a "Child issue list" groupe
 
 ## Epic Labeling
 
-When `/spec` produces a plan, it derives an `epic:<slug>` label and applies it to the epic tracking issue and every child issue. This makes the epic and all its work filterable in GitHub's issue list with a single label query.
+When `/spec` produces a multi-task (epic) plan, it derives an `epic:<slug>` label and applies it to the epic tracking issue and every child issue, making the epic and all its work filterable in GitHub's issue list with a single label query. Simple-path, single-issue plans skip slug derivation entirely and get no epic label.
 
 The slug is derived from the feature title or goal: lowercase the title, strip filler words (`the`, `a`, `an`, `enhance`, `add`, `update`, `to`, `for`, `of`, `in`), replace spaces and non-alphanumeric characters with hyphens (collapsing runs), then trim to 30 characters (not counting the `epic:` prefix).
 
@@ -149,16 +149,14 @@ Before any issues are filed, `/spec` shows the full plan and surfaces an editabl
 Epic label: epic:dark-mode-support
 ```
 
-You can change the slug at this point — edit the line and confirm. The label shown is exactly what will be created and applied to every issue in the run. All `epic:<slug>` labels share color `#5319e7` (purple) and a description of `Belongs to epic: <epic title>`, giving them a consistent visual identity in GitHub and keeping the original title recoverable from the label.
+To change the slug, pick `Adjust plan` at the approval prompt and ask for a different label — `/spec` revises the `Epic label:` line and re-asks. The label shown is exactly what will be created and applied to every issue in the run. All `epic:<slug>` labels share color `#5319e7` (purple) and a description of `Belongs to epic: <epic title>`, giving them a consistent visual identity in GitHub and keeping the original title recoverable from the label.
 
-If a label named `epic:<slug>` already exists in the repository, `/spec` surfaces a warning before proceeding:
+An `epic:<slug>` label that already exists is never reused silently. On a full `/spec` run two checks fire, in order:
 
-```
-⚠ Label epic:dark-mode-support already exists.
-  Use it, or edit the Epic label line above to choose a different slug.
-```
+1. While `/catalog` provisions labels for the child batch, an existing label triggers a one-time `y/N` confirmation before it is applied to any issue in that batch.
+2. Before the epic tracking issue is created, `/spec` re-checks and asks via `AskUserQuestion` — `Reuse existing label`, `Pick a different slug`, or `Cancel`. Picking a different slug loops back to plan editing and re-checks the new label.
 
-You can accept the existing label (issues will simply receive it) or rename the slug before confirming the plan.
+A standalone `/catalog --epic <slug>` run only sees the first check.
 
 ## End-to-End Example
 
@@ -183,38 +181,35 @@ You can accept the existing label (issues will simply receive it) or rename the 
    Epic label: epic:dark-mode-support
    ```
 
-3. You confirm (or edit the `Epic label:` line).
+3. You approve (or pick `Adjust plan` and ask for a different `Epic label:`).
 4. `/spec` delegates to `/catalog`, which files issues in priority order:
 
    | # | Title | Labels |
    |---|-------|--------|
-   | #42 | Add ThemeContext and useTheme hook | `priority:high`, `type:feature`, `epic:dark-mode-support` |
-   | #43 | Implement CSS variable switching in root layout | `priority:high`, `type:feature`, `epic:dark-mode-support` |
-   | #44 | Persist theme preference to localStorage | `priority:medium`, `type:feature`, `epic:dark-mode-support` |
-   | #45 | Add dark mode toggle to nav bar | `priority:medium`, `type:feature`, `epic:dark-mode-support` |
+   | #42 | Add ThemeContext and useTheme hook | `enhancement`, `priority:high`, `epic:dark-mode-support` |
+   | #43 | Implement CSS variable switching in root layout | `enhancement`, `priority:high`, `epic:dark-mode-support` |
+   | #44 | Persist theme preference to localStorage | `enhancement`, `priority:medium`, `epic:dark-mode-support` |
+   | #45 | Add dark mode toggle to nav bar | `enhancement`, `priority:medium`, `epic:dark-mode-support` |
 
 5. The epic tracking issue is filed last (so it can link to all children):
 
    | # | Title | Labels |
    |---|-------|--------|
-   | #46 | Epic: Add dark mode support | `type:epic`, `epic:dark-mode-support` |
+   | #46 | epic: add dark mode support | `epic`, `epic:dark-mode-support`, `priority:high` |
 
-   The epic body contains a checklist:
-   ```
-   - [ ] #42 Add ThemeContext and useTheme hook
-   - [ ] #43 Implement CSS variable switching in root layout
-   - [ ] #44 Persist theme preference to localStorage
-   - [ ] #45 Add dark mode toggle to nav bar
-   ```
+   The epic body carries Goal, Background and Acceptance Criteria only — no
+   issue checklist. Each child (#42–#45) is attached to #46 through GitHub's
+   native sub-issues API, and any `Depends On` edge from the plan becomes a
+   blocked-by relationship between the child issues.
 
 All five issues share the `epic:dark-mode-support` label. Filtering by that label in GitHub shows the full scope of the epic at a glance.
 
 ## Assumptions & Conventions
 
-- **Epic-last creation**: child issues are filed first so their numbers are known before the epic tracking issue is created. The epic body then contains a full checklist of child issue links.
-- **Approval gate**: no issues are ever created without your explicit approval. `/spec` and `/catalog` both show a preview table before filing anything.
-- **`/catalog` is the implementation**: `/spec` delegates issue creation to `/catalog`. This means catalog settings (duplicate detection, label inference, priority ordering) apply to spec-generated issues too.
-- **Duplicate detection**: before filing any issue, `/catalog` and `/issue` check for open issues with similar titles. Potential duplicates are surfaced for your review before creation proceeds.
+- **Epic-last creation**: child issues are filed first so their numbers are known before the epic tracking issue is created. Each child is then attached to the epic as a native GitHub sub-issue — the epic body itself carries no checklist.
+- **Approval gate**: `/spec` and `/catalog` both show a preview table and an approval prompt before filing anything. The exceptions are `/catalog --auto`, which files directly, and `/spec`'s full-path team-readiness step, which may file an extracted interface-contract issue and add `phase:*` labels without a further prompt.
+- **`/catalog` is the implementation**: `/spec` delegates issue creation to `/catalog`. This means catalog settings (label provisioning and inference, consolidation, priority ordering) apply to spec-generated issues too.
+- **Duplicate detection**: `/issue` checks for open issues with similar titles before filing, and surfaces potential duplicates for your review. `/catalog` does not — it files every approved row in the batch.
 - **Epic label consistency**: all `epic:<slug>` labels share the same color and description convention, regardless of which skill created them.
 
 ## Pairing with Other Plugins
