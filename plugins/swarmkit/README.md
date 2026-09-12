@@ -52,9 +52,9 @@ Swarmkit is designed to run best when agents don't have to pause for per-command
 |-------|--------|--------------|
 | **swarm** | `/swarm` | Spawn parallel isolated-worktree agents to resolve GitHub issues, then run an automatic review/fix pass on each PR. Multi-issue/loop/label runs — and a single epic argument that expands to ≥2 children — auto-cut a `feature/<slug>-<N>` branch from `main` and route all child PRs to it (operator squash-merges epic→main to close out). A standalone single-issue one-shot targets `main` directly. |
 | **next-issue** | `/next-issue` | Fetches open issues, ranks them by priority, specificity, and architectural impact, and recommends what to work on next. |
-| **merge-stack** | `/merge-stack [<pr>...] [--include <pr>...] [--base <branch>]` | Merges a PR stack bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Defaults to all open swarm PRs; positional PR numbers replace that set, `--include` extends it, and `--base` scopes to the stack rooted at a branch and pins it as `$BASE`. Mixed sets containing non-`worktree-agent-*` PRs require explicit confirmation. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when the selected set contains `worktree-agent-*` branches. |
+| **merge-stack** | `/merge-stack [<pr>... \| --base <branch>] [--include <pr>...]` | Merges a PR stack bottom-up (root PRs first, leaves last) after retargeting non-root PRs to `$BASE`. Defaults to all open swarm PRs; positional PR numbers replace that set and `--base` scopes to the stack rooted at a branch and pins it as `$BASE` (the two are mutually exclusive). `--include` extends whichever set is in effect. Mixed sets containing non-`worktree-agent-*` PRs require explicit confirmation. Pre-scans worktrees to flag merge-set branches still held locally and tails the report with a `/clean-worktrees` follow-up when the selected set contains `worktree-agent-*` branches. |
 | **clean-worktrees** | `/clean-worktrees` | Removes all agent worktrees and their orphaned `worktree-agent-*` branches. |
-| **clean-remote-worktrees** | `/clean-remote-worktrees` | Sweeps orphaned remote `worktree-agent-*` branches from the remote. |
+| **clean-remote-worktrees** | `/clean-remote-worktrees [--yes]` | Deletes remote `worktree-agent-*` branches whose most-recent PR is merged; skips branches with an OPEN PR, a CLOSED-but-unmerged PR, or no PR. Asks for confirmation before deleting unless `--yes` is passed. |
 
 ### Sub-Skills (internal)
 
@@ -63,7 +63,7 @@ These are called by the skills above — you don't invoke them directly.
 | Skill | Used by | Purpose |
 |-------|---------|---------|
 | **conventional-commit-message** | swarm | Enforces `type(scope): description` commit format. |
-| **gh-fetch-issues** | next-issue, swarm | Fetches open issues and filters out `on-hold` labeled ones. |
+| **gh-fetch-issues** | next-issue, swarm, squadkit:spawn-team | Fetches open issues, filtering out `on-hold` and `status:in-progress` labeled ones. |
 | **issue-rank** | next-issue, swarm | Ranks issues by priority labels, specificity, and architectural impact. |
 
 ### Agents
@@ -109,16 +109,18 @@ Swarmkit vendors a specialized reviewer agent used by `/swarm`'s automatic revie
 
 ## How Swarm Works
 
-1. Verifies `main` exists on origin and the working tree is ready
-2. Fetches issues, analyzes dependencies, and presents a swarm plan
-3. If the run will spawn ≥2 agents, cuts a `feature/<slug>-<N>` branch from `origin/main` inline (idempotent — resumes the branch if it already exists on origin) and pins `claude.flowkit.prBase` to it — all spawned PRs target the epic branch
+1. Resolves epic mode first, before any setup work. Unless the run is a standalone single-issue one-shot — or `--base` / `--no-epic` is passed — cuts a `feature/<slug>-<N>` branch from `origin/main` inline (idempotent — resumes the branch if it already exists on origin) and pins `claude.flowkit.prBase` to it, so all spawned PRs target the epic branch. A single epic argument counts when it expands to ≥2 wired children; loop mode defers the cut to the first cycle that selects at least one issue and names the branch `feature/swarm-<date>` (or `feature/<label>-<date>` under a label filter).
+2. Preflight: fetches origin, verifies the base branch exists (creating it from the repo's default branch if missing), and checks `gh` auth
+3. Fetches issues, analyzes dependencies, and presents a swarm plan
 4. Spawns one agent per issue (or grouped set) in isolated git worktrees
 5. Each agent: creates branch, makes changes, commits, pushes, opens PR — then stops
 6. Runs an automatic review/fix pass on each PR (see [The Review/Fix Pass](#the-reviewfix-pass) below)
-7. Use `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to squash-merge child PRs into the epic branch bottom-up; then open a single PR from the epic to `main`, squash-merge it, unpin, and delete the epic branch
-8. Cleans up worktrees and orphaned branches
+7. Cleans up worktrees and orphaned branches (freeing the local `worktree-agent-*` branches so the merge step can use `--delete-branch`), then runs teardown to clear the `claude.flowkit.prBase` pin — in epic mode the pin survives for the final epic→`main` ship step
+8. Reports the open PRs and stops
 
-**One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack` then a final epic→main squash to land.
+Merging is your follow-up after the run: `/merge-pr` (1 PR, from [flowkit](../flowkit)) or `/merge-stack` (2+ PRs) to squash-merge child PRs into the epic branch bottom-up; then open a single PR from the epic to `main`, squash-merge it, unpin, and delete the epic branch.
+
+**One-shot mode**: `/swarm 12 15 18` — auto-cuts epic branch, opens PRs against it; use `/merge-stack` then a final epic→main squash to land. Issue numbers also accept `#` prefixes (`/swarm #12 #15 #18`) and ranges (`/swarm 12-18`).
 **Single issue (one-shot)**: `/swarm 12` — standalone issue, flat to `main`, no epic cut; use `/merge-pr` to merge.
 **Single epic argument**: `/swarm 42` where #42 is an epic expanding to ≥2 wired children — auto-cuts the epic branch and opens PRs against it (use `/merge-stack` then epic→main); an epic with <2 wired or unwired children stays flat.
 **Loop mode**: `/swarm` — fetch, swarm, open PRs, repeat until the board is clear; epic branch is cut once and reused across cycles.
@@ -140,8 +142,8 @@ Every PR `/swarm` opens passes through an automatic review/fix pass before the r
 1. As each swarm agent finishes, immediately dispatches `swarm-reviewer` against that PR — no waiting for other swarm agents to finish first.
 2. The reviewer compares the PR diff against the originating issue's acceptance criteria and returns findings inline (never as a `gh pr comment`).
 3. If the reviewer's verdict is clean (Approve, no blockers, no concerns, no recommended coverage gaps), the PR is left as-is.
-4. If the reviewer surfaces blockers or concerns, a worker agent is spawned to address them. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
-5. After all workers finish, a final table summarizes verdict and worker action per PR.
+4. If the reviewer surfaces blockers, concerns, or `[recommended]` coverage gaps, a fresh `general-purpose` worker agent is spawned to address them — the original builder is never re-engaged. The worker branches from the existing PR head — never from `main` — so its commits stack directly onto the PR.
+5. Swarm prints a one-line decision per PR as each reviewer returns (clean → no fix round; findings → spawning a fresh worker). A reviewer that crashes or returns no output is noted in the final summary. The closing report table lists Issue(s) / PR / Branch / Status.
 
 **Single pass** — there is no reviewer-after-worker re-review. Use `/review <pr>` manually if a second pass is desired.
 
@@ -187,8 +189,7 @@ Swarmkit **never closes issues explicitly** — closing is left to GitHub. Each 
 
 ## Configuration Notes
 
-- **`swarm`** has `disable-model-invocation: true` — it only runs when you explicitly type `/swarm`, never auto-triggered by Claude. This prevents accidental mass agent spawning.
-- **`next-issue`** and **`clean-worktrees`** allow model invocation, so Claude can suggest or invoke them contextually.
+- All swarmkit skills allow model invocation — Claude can suggest or invoke `/swarm`, `/next-issue`, and `/clean-worktrees` contextually rather than describing them from memory. Nothing gates `/swarm` behind an explicitly typed slash command, so phrase requests deliberately if you don't want a swarm spawned.
 
 ## Pairing with Other Plugins
 

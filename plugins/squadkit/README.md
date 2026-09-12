@@ -33,7 +33,7 @@ Squadkit's coordination model is intentionally small:
 | **Squad** | A role-cohesive group of agents collaborating on one slice of work — for example, three implementers fanning out across files in the same feature. |
 | **Crew** | A team-lead orchestrating one or more squads end-to-end. The crew is the unit you spawn and ship with. |
 
-Downstream skills will let you assemble crews from the role library and dispatch them against issues, epics, or freeform prompts.
+`/squadkit:spawn-team` assembles crews from the role library and dispatches them against issues (`--issues`), an epic (`--epic`), or a freeform mission brief (`--brief`) — see the [`spawn-team` flag matrix](#spawn-team-flag-matrix).
 
 ## Roles
 
@@ -49,7 +49,7 @@ The role library ships seven contracts under `plugins/squadkit/agents/`. Each ro
 | **explorer** | sonnet | Read, Grep, Glob, Bash, WebFetch, WebSearch, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Read-only research role for scoped investigative questions. |
 | **designer** | sonnet | Read, Edit, Write, Grep, Glob, Bash, SendMessage, TaskCreate, TaskUpdate, TaskList, TaskGet | Owns UX flows, mockups, design tokens, and accessibility checks. |
 
-Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root — the `SessionStart` hook (see [Hooks](#hooks)) prefers the local override and falls back to the plugin-shipped contract.
+Override a shipped contract for a single repo by dropping `.claude/agents/<role>.md` into the repo root. The two consumers treat the overlay differently: at spawn time `spawn-team` **appends** the project-local file to the shipped contract (layered on top — project-local wins on conflict), while the `SessionStart` hook (see [Hooks](#hooks)) points the session at whichever single file it resolves — the override if present, else the shipped contract.
 
 ### Tools allowlist
 
@@ -68,8 +68,8 @@ If you author a project-local overlay at `.claude/agents/<role>.md`, preserve bo
 |-------|--------|--------------|
 | **init** | `/squadkit:init` | Interview-driven generator that writes `.squadkit/config.json` to the repo root. No per-stack presets — the wizard asks you for the commands directly. |
 | **spawn-team** | `/squadkit:spawn-team` | Spawn a crew from a profile. Resolves a phonetic team name, optionally cuts an epic feature branch, provisions per-builder worktrees, registers the team via `TeamCreate`, and waits for one idle notification per spawned member (the harness's readiness signal) before the orchestrator (which IS the lead) enters its dispatch loop. |
-| **agent-team-retro** | `/squadkit:agent-team-retro` | Run a retrospective on the currently-spawned squad. Polls each active member with three fixed questions, aggregates findings into severity-grouped action items, applies approved edits to role contracts, and optionally hands findings off to `speckit:catalog` as GitHub issues. |
-| **clean-stale-teams** | `/squadkit:clean-stale-teams` | Prune orphaned team registries under `~/.claude/teams/`. Classifies each session dir by member type, current-session, and live-worktree refs, shows the verdict, then removes the safe ones (`TeamDelete`, falling back to `rm` for dead-session dirs). Complements `swarmkit:clean-worktrees`, which handles git state. |
+| **agent-team-retro** | `/squadkit:agent-team-retro` | Run a retrospective on the currently-spawned squad. Polls each active member with three fixed questions, aggregates findings into severity-grouped action items, applies approved edits to role contracts, and optionally hands findings off to `speckit:catalog` as GitHub issues. **Then tears the team down** — force-removes every recorded `.claude/worktrees/<member>/` (discarding uncommitted builder state) before calling `TeamDelete`. Run it at the end of a squad's life, not mid-session. |
+| **clean-stale-teams** | `/squadkit:clean-stale-teams [<team-name>]` | Prune orphaned team registries under `~/.claude/teams/`. Pass a team name (e.g. `session-604893df`) to target one registry; omit it to scan every dir. Classifies each session dir by member type, current-session, and live-worktree refs, shows the verdict, then removes the safe ones (`TeamDelete`, falling back to `rm` for dead-session dirs). Complements `swarmkit:clean-worktrees`, which handles git state. |
 
 ## Crews
 
@@ -116,7 +116,7 @@ members:
   - role: designer
 ```
 
-`team-lead` is implicit — `spawn-team` re-adds it if a profile or override removes it. Builder count is capped at 5; values above are clamped with a warning.
+`team-lead` is never spawned as a member — the orchestrator session that runs `spawn-team` IS the lead. Any `team-lead` entry in a profile (`all-rounder` and `qa` still carry one for legacy reasons) or added via `--with` is silently stripped from the resolved roster. Builder count is capped at 5; values above are clamped with a warning.
 
 ### `spawn-team` flag matrix
 
@@ -127,10 +127,10 @@ members:
 | `--with <role>` | none | Append a role to the resolved roster. Repeatable. |
 | `--without <role>` | none | Remove every member with the given role. Repeatable. |
 | `--name <custom>` | auto | Override the team name; skips phonetic auto-naming. |
-| `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from the configured base branch and pin `claude.flowkit.prBase` for the session. If omitted, the skill prompts. |
+| `--epic <slug>` | none | Cut `feature/<slug>-<issue>` from `origin/main` and pin `claude.flowkit.prBase` (local git config — it outlives the session; see [Epic feature-branch convention](#epic-feature-branch-convention)). **Rejected when the resolved profile has `kind: discovery`** — spawn-team stops with an error. If omitted, the skill prompts, but only for `kind: execution` crews; discovery crews skip the epic step entirely. |
 | `--issues <range>` | none | Issue numbers / ranges to load as the team's initial backlog (swarmkit grammar: `1319,1329,1331` or `1319-1337`). Resolved via `swarmkit:gh-fetch-issues` and forwarded to the lead's first dispatch prompt as a structured backlog table. Trailing-narrative form (`to tackle issues 1319-1337`) is also accepted. |
-| `--brief <text\|@path>` | none | Mission brief embedded into the architect's spawn prompt. Inline text or `@path` to a file. **Required when the resolved profile has `kind: discovery`.** Optional and otherwise ignored when `kind: execution`. |
-| `--mode <inherit\|auto\|bypass>` | `inherit` | Permission mode for spawned members. `inherit`: no override; harness defaults apply. `auto`: pass `mode: "auto"` to every spawn AND force `model: "opus"` for non-builder roles (sonnet members prompt for permissions in auto mode). `bypass`: pass `mode: "bypassPermissions"`; model stays default. Pass when the orchestrator runs in `auto` or `bypassPermissions` so spawned members inherit the same authority. |
+| `--brief <text\|@path>` | none | Mission brief embedded into the architect's spawn prompt. Inline text or `@path` to a file. **Required when the resolved profile has `kind: discovery`.** Optional for `kind: execution` — when provided it is still embedded, and with `--epic` the epic issue body is prepended as `## Epic context`. |
+| `--mode <inherit\|auto\|bypass\|none>` | `inherit` | Permission mode for spawned members. `inherit` does **not** detect the orchestrator's mode — there is no such runtime signal — it opens an interactive prompt to pick one of the other three. `auto`: pass `mode: "auto"` to every spawn AND force `model: "opus"` on **every** member regardless of role frontmatter (sonnet members prompt for permissions in auto mode); requires an Anthropic-plan tier (Pro / Max / Team / Enterprise) and is unavailable on Bedrock, Vertex, or other third-party providers. `bypass`: pass `mode: "bypassPermissions"`; models stay role-default; available everywhere. `none`: no override, no prompt. Non-interactive callers (chained slash commands, scheduled routines, agents) MUST pass an explicit `--mode`. The resolved mode is persisted as `permissionMode` in the team's `squadkit.json` so later spawns inherit it. |
 
 ### Phonetic naming convention
 
@@ -147,9 +147,12 @@ It scans `~/.claude/teams/<repo>-*` and picks the first letter without a `config
 `spawn-team` owns the epic feature-branch flow inline — it does not delegate to an external skill. When you pass `--epic <slug>`, the skill:
 
 1. Resolves `<issue>` from the `--epic` argument shape (or prompts when omitted).
-2. Cuts (or reuses) `feature/<slug>-<issue>` from `origin/main` directly, pins `claude.flowkit.prBase`, and pushes to origin. Idempotent against existing branches.
+2. Refuses to proceed (exit 1) if `claude.flowkit.prBase` is already pinned to a *different* `feature/*` branch. Clear the pin with `git config --unset claude.flowkit.prBase`, re-run without `--epic` and choose the base branch, or re-run with `--epic` matching the pinned slug to reuse it. A pin that already matches the resolved branch proceeds silently.
+3. Cuts (or reuses) `feature/<slug>-<issue>` from `origin/main` directly, pins `claude.flowkit.prBase`, and pushes to origin. Idempotent against existing branches.
 
-If `--epic` is not provided, the skill prompts whether to cut one or run on the base branch directly.
+If `--epic` is not provided, the skill prompts whether to cut one or run on the base branch directly. Discovery crews (`kind: discovery`) skip this flow entirely and reject `--epic`.
+
+The `claude.flowkit.prBase` pin is **local git config**, not session state — it outlives the session and silently retargets the base branch of every later PR until cleared. Teardown clears it with `git config --unset claude.flowkit.prBase` (a safe no-op when unset); run the same command by hand if you abandon an epic crew.
 
 ### Idempotency and per-builder worktrees
 
@@ -162,11 +165,11 @@ If `--epic` is not provided, the skill prompts whether to cut one or run on the 
 
 Squadkit ships a `SessionStart` hook (`hooks/pickup-team-context.sh`) that re-asserts role context whenever a session starts — both fresh sessions spawned by `spawn-team` and resumed sessions picked up via `sessionkit:pickup`.
 
-**When it fires**: every Claude Code `SessionStart` event. The hook scans `~/.claude/teams/*/config.json`, matches the current session by `leadSessionId` (preferred) or by member `cwd`, and stops at the first match. If no team matches, it exits silently with no output.
+**When it fires**: every Claude Code `SessionStart` event. The hook scans `~/.claude/teams/*/config.json` and stops at the first match, trying (1) the sibling `squadkit.json` whose `repo_root` equals `$PWD` — that session IS the team-lead; (2) a legacy `leadSessionId` match; (3) a member whose `cwd` equals `$PWD`. With no match — or when `jq` is unavailable — it emits an empty `{}` payload and adds no reminder.
 
-**What it emits**: a single `systemMessage` reminder telling the lead (or matched member) to load its role contract from disk. The path resolution prefers a project-local override at `.claude/agents/<role>.md` and falls back to the plugin-shipped contract at `plugins/squadkit/agents/<role>.md`.
+**What it emits**: a single `systemMessage` reminder telling the lead (or matched member) to load its role contract from disk. The path resolution prefers a project-local override at `.claude/agents/<role>.md` and falls back to `plugins/squadkit/agents/<role>.md`. That fallback is repo-relative, not plugin-root-relative, so it resolves only when the session runs inside a `smallorbit-plugins` checkout — elsewhere, add a project-local override.
 
-**Why `SessionStart` only**: the same event fires for both startup paths the issue calls out — fresh `spawn-team` leads and `sessionkit:pickup`-resumed leads — so a single hook covers both without leaning on `PostToolUse` matchers. This keeps team-context restoration owned end-to-end by squadkit; sessionkit no longer needs to know about teams.
+**Why `SessionStart` only**: the same event fires for both startup paths — fresh `spawn-team` leads and `sessionkit:pickup`-resumed leads — so a single hook covers both without leaning on `PostToolUse` matchers. This keeps team-context restoration owned end-to-end by squadkit; sessionkit no longer needs to know about teams.
 
 **Override pattern**: drop a customized role file at `.claude/agents/<role>.md` in your repo (e.g. `.claude/agents/team-lead.md`) to override the shipped contract for that repo. The hook's reminder will point the agent at the override automatically.
 
@@ -210,7 +213,7 @@ The wizard then writes `.squadkit/config.json` (pretty-printed, two-space indent
 | `baseBranch` | Default base branch for PRs opened by squad members. Defaults to `main`. |
 | `worktreeSeed` | Optional. Explicit list of repo-relative paths to copy into every per-builder worktree at spawn time. When present, overrides `spawn-team`'s auto-detection of ignored env files. Use for projects that need non-env files seeded too (certificates, config snippets, etc.). When absent, `spawn-team` auto-detects ignored env files matching `^(\.env(\.local|\.[a-z-]+\.local)?\|\.env-[a-z-]+)$` via `git ls-files --others --ignored --exclude-standard`. |
 
-Future role contracts and crew profiles will reference these values rather than hardcoding stack-specific commands, making the same role definitions reusable across every repo.
+Role contracts reference these values (`${verify.typecheck}`, `${verify.test}`, `${verify.lint}`, `${install}`, `${baseBranch}`) rather than hardcoding stack-specific commands, making the same role definitions reusable across every repo. Crew profiles describe roster shape only and do not interpolate config.
 
 ## Pairing with Other Plugins
 
@@ -226,5 +229,3 @@ Squadkit complements the rest of the suite:
 
 - `role-spec` skill for authoring new role contracts.
 - Additional starter crew profiles (e.g. spike, migration, hotfix).
-
-See the parent epic for the full plan.
