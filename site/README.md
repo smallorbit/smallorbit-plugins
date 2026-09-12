@@ -25,8 +25,9 @@ workflow builds this project on every push to `develop` and `main`, then
 publishes the `dist/` output to the `gh-pages` branch via
 `peaceiris/actions-gh-pages`.
 
-GitHub Pages is configured to serve from the `gh-pages` branch root —
-do not enable per-folder Pages serving for `docs/` once the cutover lands.
+GitHub Pages is configured to serve from the `gh-pages` branch root. The
+old hand-written `docs/` landing page it replaced has been removed — do not
+re-add per-folder Pages serving.
 
 ## Layout
 

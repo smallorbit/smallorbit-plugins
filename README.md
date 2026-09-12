@@ -1,6 +1,6 @@
 # smallorbit-plugins
 
-[![smallorbit-plugins landing page](docs/assets/landing-hero.png)](https://smallorbit.github.io/smallorbit-plugins/)
+[![smallorbit-plugins landing page](.github/assets/landing-hero.png)](https://smallorbit.github.io/smallorbit-plugins/)
 
 ## From idea to release. With you in the loop.
 
