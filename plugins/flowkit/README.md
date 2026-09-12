@@ -36,7 +36,7 @@ claude --plugin-dir /path/to/flowkit
 | **commit** | `/commit` | Stage and commit changes — infers `type(scope): description` from the staged diff. |
 | **pr** | `/pr` | One-shot: commit if dirty, then push and open a PR against `main` (or `claude.flowkit.prBase` when set). |
 | **open-pr** | `/open-pr` | Push current branch and open a PR. Base resolution: `--base` → `claude.flowkit.prBase` → `main`. |
-| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. Takes an optional PR number; auto-detects from the current branch when omitted. |
+| **merge-pr** | `/merge-pr` | Squash-merge the open PR for the current branch and delete the remote branch. Takes an optional PR number; auto-detects from the current branch when omitted. A numeric PR number is the *only* accepted argument — there is no merge-mode override, and `--merge` / `--rebase` exit 2 as invalid arguments rather than switching strategy. |
 | **ship** | `/ship` | Tag HEAD of `main`, push the tag, and create a GitHub Release. Derives the next release tag — today's date for calver repos, semver from conventional commits otherwise. |
 | **sync** | `/sync` | Checkout `main`, pull latest, prune stale branches. |
 | **pipeline-status** | `/pipeline-status` | Show open PRs targeting `main` and the most recent release tag. |
@@ -47,7 +47,7 @@ claude --plugin-dir /path/to/flowkit
 | Skill | Used by | Purpose |
 |-------|---------|---------|
 | **git-sync-main** | none — standalone helper | Checkout `main` and pull latest from origin. |
-| **push-or-pr** | bump-versions | Publish commits on a shared branch safely — branches off, pushes, opens a PR. Never pushes directly to the checked-out branch. |
+| **push-or-pr** | bump-versions | Publish commits on a shared branch safely — branches off, pushes, opens a PR. Never pushes directly to the checked-out branch. Callers pass `--prefix` (feature-branch prefix; the script appends `-YYYY-MM-DD`), `--title`, `--body`, and optional `--base` (default `main`) — the first three are required only when there are pending commits, otherwise the run is a no-op. |
 | **with-clean-workspace** | merge-pr | Auto-stash dirty workspace around implicit post-merge pulls. |
 
 ## Typical Workflows

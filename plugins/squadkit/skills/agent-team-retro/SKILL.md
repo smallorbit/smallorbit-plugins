@@ -16,6 +16,12 @@ Evolve squad role contracts from real-session learnings. This skill polls each c
 
 The retro is **session-scoped** — it operates only on members currently spawned in the active team config, never on idle or historical rosters.
 
+## Input
+
+`$ARGUMENTS` — ignored. The retro takes no flags: it resolves the target team from the active session (Phase 1) and prompts via `AskUserQuestion` for every decision — which team when ambiguous, which action items to apply, where to apply them, and whether to hand the rest to `speckit:catalog`.
+
+The `--force` that appears in Phase 7 is not an input flag; it is the argument the teardown pass passes to `git worktree remove` so a member worktree is removed even when the builder left uncommitted scratch state behind. Teardown is unconditional — there is no flag to skip it.
+
 ## Process
 
 ### Phase 1 — Discovery

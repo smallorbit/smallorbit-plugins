@@ -135,6 +135,11 @@ Merging is your follow-up after the run: `/merge-pr` (1 PR, from [flowkit](../fl
 - `--reviewer-model <sonnet|opus>` — override the review-pass reviewer model (default: `sonnet`)
 - `--worker-model <sonnet|opus>` — override the fix-round worker model (default: `sonnet`)
 
+Two further flags belong to swarm's internal `preflight.sh` / `teardown.sh` scripts rather than to `/swarm` itself — the skill passes them for you based on the resolved mode:
+
+- `--scope-pr-base` (preflight) — additionally pins `claude.flowkit.prBase` to the resolved base, so every spawned PR targets it. Passed in epic mode and in loop mode. It refuses to clobber an existing `feature/*` pin that differs from the branch being pinned, exiting non-zero with guidance to pass `--no-epic` or `--epic <existing-slug>` instead.
+- `--keep-pr-base` (teardown) — skips the pin unset so `claude.flowkit.prBase` survives the run (reported back as `config_kept_for_epic: true`). Passed in epic mode, where the pin is still needed for the closing epic→`main` ship step. Base restore runs either way; without the flag the pin is unset unconditionally.
+
 ## The Review/Fix Pass
 
 Every PR `/swarm` opens passes through an automatic review/fix pass before the run completes — always-on, with no flag to disable it:
