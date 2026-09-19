@@ -55,12 +55,12 @@ claude --plugin-dir /path/to/flowkit
 ### After a swarm run
 
 ```
-/swarmkit:merge-stack            # land all open worktree-agent-* PRs into main
+/swarmkit:merge-stack            # land open PR stacks into main (defaults to worktree-agent-*; also exact sets / --base / --include)
 # verify on main — run your project's typecheck/test/lint
 /ship                            # tag HEAD of main, create GitHub Release
 ```
 
-`/ship` refuses to run while open `worktree-agent-*` PRs target `main` — that's the mechanism that makes the verify gate mandatory.
+`/ship` refuses to run while open `worktree-agent-*` PRs target `main` — that's the mechanism that makes the verify gate mandatory. Bare `/merge-stack` still picks the swarm default; use positional PR numbers, `--base`, or `--include` when the stack includes ad-hoc PRs.
 
 ### Standard release (no swarm)
 
@@ -159,7 +159,7 @@ Flowkit handles the shipping half of the development loop. Use it with speckit a
 ```
 /spec add CSV export              # Plan the feature, file issues  (speckit)
 /swarm                            # Resolve issues with parallel agents  (swarmkit)
-/swarmkit:merge-stack             # Land the swarm PRs into main
+/swarmkit:merge-stack             # Land the open PR stack into main (swarm default; layered selection available)
 # verify on main
 /ship                             # tag HEAD of main, create GitHub Release  (flowkit)
 ```

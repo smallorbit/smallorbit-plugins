@@ -26,12 +26,12 @@ Run it before staging and committing the release.
 ### Canonical bubble-free release sequence
 
 ```
-/swarmkit:merge-stack            # land all open worktree-agent-* PRs into main
+/swarmkit:merge-stack            # land open PR stacks into main (defaults to worktree-agent-*; also exact sets / --base / --include)
 # verify on main — run typecheck/test/lint as appropriate
 /flowkit:ship                    # tag HEAD of main, push tag, create GitHub Release
 ```
 
-`/flowkit:ship` refuses to run while open `worktree-agent-*` PRs target main — operators land those via `/swarmkit:merge-stack` first so the verify gate can run against the integrated snapshot before shipping. For releases with no swarm in flight, `/flowkit:ship` runs unconditionally.
+`/flowkit:ship` refuses to run while open `worktree-agent-*` PRs target main — operators land those (and any stacked companions) via `/swarmkit:merge-stack` first so the verify gate can run against the integrated snapshot before shipping. Bare `/merge-stack` still picks the swarm default; pass positional PR numbers, `--base`, or `--include` when the stack is broader than `worktree-agent-*`. For releases with no swarm in flight, `/flowkit:ship` runs unconditionally.
 
 When work originates as an OpenSpec change, `opsx-bridge` can dispatch its implementation into the squad or swarm flow that produces the epic and `worktree-agent-*` PRs this sequence later integrates and ships (see the Plugins section below).
 
