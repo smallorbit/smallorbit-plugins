@@ -128,6 +128,13 @@ For `cross-cutting` items, ask the user which role(s) the edit should land in (o
 
 Apply each edit via the `Edit` tool. Make the change minimal and surgical — only the clause being added, refined, or removed, never a full rewrite.
 
+**Land the edits.** Once all approved edits for this retro are applied, commit and land them as one reviewable PR — never directly on the base branch:
+
+1. Cut a dedicated branch for the retro's contract edits (e.g. `retro/<team-name>-contracts`) rather than committing on `main` or whatever the base branch is. Committing role-contract edits directly to the base branch is a policy violation in any GitHub-Flow repo that blocks direct commits to main.
+2. Stage and commit the edited contract file(s) with a conventional commit message.
+3. Open the PR via `flowkit:open-pr` (or `flowkit:push-or-pr` if the branch needs to be forced through a fresh feature branch first). Both push the branch and open the PR against the base branch in one step — do not hand-roll `gh pr create` against a branch that hasn't been pushed yet; that fails with an opaque `Head sha can't be blank` / `No commits between main and <branch>` error that never tells you the branch is unpushed.
+4. All contract edits approved in this retro ship together as **one** reviewable PR, not one PR per action item.
+
 ### Phase 6 — Catalog handoff (opt-in)
 
 After edits are applied, ask the user:
