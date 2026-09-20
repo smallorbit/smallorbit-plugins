@@ -15,7 +15,7 @@ If you just want to run a swarm and merge the result, this is the full shape of 
 ```
 /next-issue          # see what is ready to work on
 /swarm 12 15 18      # spawn parallel agents for specific issues
-/merge-stack         # merge all open swarm PRs bottom-up (use /merge-pr for a single PR)
+/merge-stack         # merge the open PR stack bottom-up (defaults to swarm PRs; use /merge-pr for a single PR)
 /clean-worktrees     # remove the worktree directories and orphaned branches
 ```
 
@@ -23,7 +23,7 @@ If you just want to run a swarm and merge the result, this is the full shape of 
 
 Each agent does the same thing: creates a branch named `worktree-agent-<issue>`, makes the changes described in the issue, commits in conventional-commit format, pushes, and opens a pull request whose body includes `Closes #<issue>`. The agent then stops. Nothing is merged automatically — swarm agents open PRs and leave them open for your review.
 
-When you are ready to merge the stack, run `/merge-stack`. It identifies every open pull request whose head branch starts with `worktree-agent-`, works out the stack graph from the head/base relationships, retargets every non-root PR in each chain to the base branch, and then merges each chain bottom-up — root PR first, then its former children, up to the leaf — with a uniform `gh pr merge <N> --squash --delete-branch`. Each PR closes its own `Closes #N` references natively as it merges.
+When you are ready to merge the stack, run `/merge-stack`. With no arguments it selects every open pull request whose head branch starts with `worktree-agent-` and proceeds immediately. Pass positional PR numbers for an exact set, `--base <branch>` to scope by stack topology (and pin the retarget target), or `--include <pr>...` to extend whichever set is in effect — any set containing a non-`worktree-agent-*` PR requires explicit confirmation. Once the set is resolved, `/merge-stack` builds the stack graph from the head/base relationships, retargets every non-root PR in each chain to the base branch, and merges each chain bottom-up — root PR first, then its former children, up to the leaf — with a uniform `gh pr merge <N> --squash --delete-branch`. Each PR closes its own `Closes #N` references natively as it merges.
 
 ## How It Works
 
@@ -132,7 +132,7 @@ After all child PRs are merged into the feature branch via `/merge-stack`, the f
 The canonical release sequence from this point is three steps, run by the operator with a verify gate between integration and promotion:
 
 ```
-/swarmkit:merge-stack            # land the open worktree-agent-* PRs into the feature branch
+/swarmkit:merge-stack            # land the open PR stack into the feature branch (swarm default, or exact / --base / --include)
 # verify on the feature branch — run typecheck/test/lint against the integrated state
 # open + squash-merge a single epic→main PR; then:
 #   git config --unset claude.flowkit.prBase

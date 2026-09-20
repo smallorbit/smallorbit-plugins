@@ -128,6 +128,8 @@ Merging is your follow-up after the run: `/merge-pr` (1 PR, from [flowkit](../fl
 
 ### Flags
 
+#### `/swarm`
+
 - `--model <sonnet|opus>` — override model selection for all builder agents
 - `--base <branch>` — override the default base branch (`main`); also suppresses the epic cut
 - `--no-epic` — suppress feature-branch mode for this run; PRs target `$BASE` directly
@@ -139,6 +141,17 @@ Two further flags belong to swarm's internal `preflight.sh` / `teardown.sh` scri
 
 - `--scope-pr-base` (preflight) — additionally pins `claude.flowkit.prBase` to the resolved base, so every spawned PR targets it. Passed in epic mode and in loop mode. It refuses to clobber an existing `feature/*` pin that differs from the branch being pinned, exiting non-zero with guidance to pass `--no-epic` or `--epic <existing-slug>` instead.
 - `--keep-pr-base` (teardown) — skips the pin unset so `claude.flowkit.prBase` survives the run (reported back as `config_kept_for_epic: true`). Passed in epic mode, where the pin is still needed for the closing epic→`main` ship step. Base restore runs either way; without the flag the pin is unset unconditionally.
+
+#### `/merge-stack`
+
+Layered selection — keep in sync with the skill's `## Input` table. There is no unscoped "all open PRs" mode.
+
+- *(no arguments)* — swarm default: every open PR whose head branch starts with `worktree-agent-`. Auto-proceeds; `$BASE` is derived from the root PRs' `baseRefName`.
+- `<pr>...` — exact set: merge precisely these PR numbers, replacing the swarm default. Each must exist and be open.
+- `--include <pr>...` — extends whichever base set is in effect (swarm default or `--base` scope) with these PR numbers. PR numbers only — no branch names. Deduped against the set.
+- `--base <branch>` — scopes selection to the stack rooted at `<branch>` (base-relationship topology, not head-branch naming). Replaces the swarm default and pins `<branch>` as the retarget target `$BASE`. Mutually exclusive with an exact positional set.
+
+Any set containing a non-`worktree-agent-*` PR requires explicit confirmation before merging. A pure-swarm set proceeds immediately.
 
 ## The Review/Fix Pass
 

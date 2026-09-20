@@ -81,7 +81,7 @@ Compose the entry sub-chains into a single ordered chain. Standard step library 
 | Stage + commit + open PR in one shot | `/flowkit:pr` |
 | Self-review the PR diff | `/review` (or manual read-through) |
 | Merge a single PR | `/flowkit:merge-pr` |
-| Merge a stacked PR set | `/swarmkit:merge-stack` |
+| Merge a stacked PR set | `/swarmkit:merge-stack` (swarm default, or layered selection — see swarmkit README) |
 | Verify the integrated state | manual: project's typecheck/test/lint on the feature branch |
 | Sync local main with origin | `/flowkit:sync` |
 | Bump per-plugin versions + tags | `/bump-versions` |
@@ -94,7 +94,7 @@ Compose the entry sub-chains into a single ordered chain. Standard step library 
 /swarmkit:merge-stack → verify (manual) → /flowkit:ship
 ```
 
-`/flowkit:ship` aborts if open `worktree-agent-*` PRs still target `main`, so the verify step between `merge-stack` and `ship` is a hard prerequisite. For releases with no swarm in flight, `/flowkit:ship` alone is the entire chain.
+Bare `/merge-stack` lands the swarm default; use merge-stack's layered selection (exact PR set, base-scoped stack, or include-extended set — documented in the swarmkit README) when the in-flight stack includes non-swarm PRs. Mixed sets require confirmation. `/flowkit:ship` aborts if open `worktree-agent-*` PRs still target `main`, so the verify step between `merge-stack` and `ship` is a hard prerequisite. For releases with no swarm in flight, `/flowkit:ship` alone is the entire chain.
 
 For each step in the chain, write a task with:
 
